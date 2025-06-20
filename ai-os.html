@@ -799,6 +799,10 @@
             if (savedSettings) {
                 applySettingsToSystem(savedSettings);
                 console.log('Loaded settings from cookie on startup');
+            } else {
+                // No settings found - start setup assistant
+                console.log('No settings found, starting setup assistant');
+                setTimeout(() => startSetupAssistant(), 500);
             }
             
             // Close start menu when clicking outside
@@ -1895,6 +1899,900 @@
             if (debugMode) {
                 console.error(...args);
             }
+        }
+
+        // Setup Assistant Functions
+        function startSetupAssistant() {
+            const setupContent = `
+                <div class="setup-assistant">
+                    <div class="setup-header">
+                        <h2>🚀 Welcome to Self-Evolving OS</h2>
+                        <p>Let's set up your AI-powered operating system in just a few steps.</p>
+                        <div class="setup-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="setup-progress-fill"></div>
+                            </div>
+                            <span class="progress-text" id="setup-progress-text">Step 1 of 4</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-content" id="setup-content">
+                        <!-- Step content will be dynamically loaded here -->
+                    </div>
+                    
+                    <div class="setup-footer">
+                        <button class="setup-btn secondary" id="setup-back" style="display: none;">← Back</button>
+                        <div class="setup-footer-right">
+                            <button class="setup-btn secondary" id="setup-skip">Skip Setup</button>
+                            <button class="setup-btn primary" id="setup-next">Next →</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Create Setup Assistant app
+            const setupId = generateAppId();
+            const setupApp = {
+                id: setupId,
+                type: 'system',
+                title: 'Setup Assistant',
+                isMinimized: false,
+                isMaximized: false,
+                customRequest: 'System Setup Assistant'
+            };
+
+            apps.push(setupApp);
+            createWindow(setupId, 'Setup Assistant', setupContent, 600, 500);
+            createTaskbarIcon(setupId, 'Setup Assistant');
+            updateAppCount();
+            
+            // Add setup-specific CSS
+            addSetupAssistantCSS(setupId);
+            
+            // Initialize setup assistant
+            setTimeout(() => {
+                initializeSetupAssistant(setupId);
+            }, 100);
+        }
+
+        function addSetupAssistantCSS(appId) {
+            const setupCSS = `
+                .setup-assistant {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                }
+                
+                .setup-header {
+                    padding: 30px 30px 20px 30px;
+                    text-align: center;
+                    background: white;
+                    border-bottom: 1px solid #dee2e6;
+                }
+                
+                .setup-header h2 {
+                    margin: 0 0 10px 0;
+                    color: #0078d4;
+                    font-size: 24px;
+                    font-weight: 600;
+                }
+                
+                .setup-header p {
+                    margin: 0 0 20px 0;
+                    color: #6c757d;
+                    font-size: 16px;
+                }
+                
+                .setup-progress {
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                }
+                
+                .progress-bar {
+                    flex: 1;
+                    height: 8px;
+                    background: #e9ecef;
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+                
+                .progress-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #0078d4, #106ebe);
+                    border-radius: 4px;
+                    transition: width 0.3s ease;
+                    width: 25%;
+                }
+                
+                .progress-text {
+                    font-size: 14px;
+                    color: #6c757d;
+                    font-weight: 500;
+                    min-width: 80px;
+                }
+                
+                .setup-content {
+                    flex: 1;
+                    padding: 30px;
+                    overflow-y: auto;
+                }
+                
+                .setup-step {
+                    max-width: 500px;
+                    margin: 0 auto;
+                }
+                
+                .setup-step h3 {
+                    margin: 0 0 20px 0;
+                    color: #333;
+                    font-size: 20px;
+                    font-weight: 600;
+                }
+                
+                .setup-step p {
+                    margin: 0 0 20px 0;
+                    color: #6c757d;
+                    line-height: 1.6;
+                }
+                
+                .setup-form-group {
+                    margin-bottom: 20px;
+                }
+                
+                .setup-form-group label {
+                    display: block;
+                    margin-bottom: 8px;
+                    color: #333;
+                    font-weight: 500;
+                }
+                
+                .setup-form-group input,
+                .setup-form-group select {
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid #e9ecef;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    transition: border-color 0.2s ease;
+                }
+                
+                .setup-form-group input:focus,
+                .setup-form-group select:focus {
+                    outline: none;
+                    border-color: #0078d4;
+                }
+                
+                .setup-form-group .help-text {
+                    margin-top: 5px;
+                    font-size: 12px;
+                    color: #6c757d;
+                }
+                
+                .setup-option-card {
+                    border: 2px solid #e9ecef;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin-bottom: 15px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                
+                .setup-option-card:hover {
+                    border-color: #0078d4;
+                    background: #f8f9ff;
+                }
+                
+                .setup-option-card.selected {
+                    border-color: #0078d4;
+                    background: #e3f2fd;
+                }
+                
+                .setup-option-card h4 {
+                    margin: 0 0 8px 0;
+                    color: #333;
+                    font-size: 16px;
+                    font-weight: 600;
+                }
+                
+                .setup-option-card p {
+                    margin: 0;
+                    color: #6c757d;
+                    font-size: 14px;
+                }
+                
+                .setup-test-result {
+                    margin-top: 15px;
+                    padding: 15px;
+                    border-radius: 6px;
+                    font-size: 14px;
+                }
+                
+                .setup-test-result.success {
+                    background: #d4edda;
+                    color: #155724;
+                    border: 1px solid #c3e6cb;
+                }
+                
+                .setup-test-result.error {
+                    background: #f8d7da;
+                    color: #721c24;
+                    border: 1px solid #f5c6cb;
+                }
+                
+                .setup-test-result.warning {
+                    background: #fff3cd;
+                    color: #856404;
+                    border: 1px solid #ffeaa7;
+                }
+                
+                .setup-footer {
+                    padding: 20px 30px;
+                    background: white;
+                    border-top: 1px solid #dee2e6;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                
+                .setup-footer-right {
+                    display: flex;
+                    gap: 10px;
+                }
+                
+                .setup-btn {
+                    padding: 10px 20px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                
+                .setup-btn.primary {
+                    background: #0078d4;
+                    color: white;
+                }
+                
+                .setup-btn.primary:hover {
+                    background: #106ebe;
+                }
+                
+                .setup-btn.secondary {
+                    background: #6c757d;
+                    color: white;
+                }
+                
+                .setup-btn.secondary:hover {
+                    background: #5a6268;
+                }
+                
+                .setup-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+            `;
+            
+            addAppCSS(setupCSS, appId);
+        }
+
+        function initializeSetupAssistant(setupId) {
+            let currentStep = 1;
+            const totalSteps = 4;
+            
+            const steps = {
+                1: createWelcomeStep,
+                2: createAIModelStep,
+                3: createVoiceAudioStep,
+                4: createCompletionStep
+            };
+            
+            function updateProgress() {
+                const progressFill = document.getElementById('setup-progress-fill');
+                const progressText = document.getElementById('setup-progress-text');
+                
+                if (progressFill) {
+                    progressFill.style.width = `${(currentStep / totalSteps) * 100}%`;
+                }
+                if (progressText) {
+                    progressText.textContent = `Step ${currentStep} of ${totalSteps}`;
+                }
+            }
+            
+            function showStep(stepNumber) {
+                const content = document.getElementById('setup-content');
+                const backBtn = document.getElementById('setup-back');
+                const nextBtn = document.getElementById('setup-next');
+                const skipBtn = document.getElementById('setup-skip');
+                
+                if (content && steps[stepNumber]) {
+                    content.innerHTML = steps[stepNumber]();
+                }
+                
+                // Update button visibility
+                if (backBtn) {
+                    backBtn.style.display = stepNumber > 1 ? 'block' : 'none';
+                }
+                
+                if (nextBtn) {
+                    nextBtn.textContent = stepNumber === totalSteps ? 'Finish' : 'Next →';
+                }
+                
+                if (skipBtn) {
+                    skipBtn.style.display = stepNumber === totalSteps ? 'none' : 'block';
+                }
+                
+                updateProgress();
+                
+                // Add step-specific event listeners
+                setTimeout(() => {
+                    addStepEventListeners(stepNumber);
+                }, 100);
+            }
+            
+            function addStepEventListeners(stepNumber) {
+                if (stepNumber === 2) {
+                    // AI Model step listeners
+                    const providerCards = document.querySelectorAll('.setup-option-card[data-provider]');
+                    providerCards.forEach(card => {
+                        card.addEventListener('click', () => {
+                            providerCards.forEach(c => c.classList.remove('selected'));
+                            card.classList.add('selected');
+                            
+                            const provider = card.dataset.provider;
+                            showProviderConfig(provider);
+                        });
+                    });
+                    
+                    const testBtn = document.getElementById('test-ai-connection');
+                    if (testBtn) {
+                        testBtn.addEventListener('click', testAIConnection);
+                    }
+                } else if (stepNumber === 3) {
+                    // Voice & Audio step listeners
+                    const voiceCards = document.querySelectorAll('.setup-option-card[data-voice]');
+                    voiceCards.forEach(card => {
+                        card.addEventListener('click', () => {
+                            voiceCards.forEach(c => c.classList.remove('selected'));
+                            card.classList.add('selected');
+                            
+                            const voiceType = card.dataset.voice;
+                            showVoiceConfig(voiceType);
+                        });
+                    });
+                    
+                    const testMicBtn = document.getElementById('test-microphone-setup');
+                    if (testMicBtn) {
+                        testMicBtn.addEventListener('click', testMicrophone);
+                    }
+                    
+                    const testVoiceBtn = document.getElementById('test-voice-recognition');
+                    if (testVoiceBtn) {
+                        testVoiceBtn.addEventListener('click', testVoiceRecognition);
+                    }
+                }
+            }
+            
+            // Navigation event listeners
+            const backBtn = document.getElementById('setup-back');
+            const nextBtn = document.getElementById('setup-next');
+            const skipBtn = document.getElementById('setup-skip');
+            
+            if (backBtn) {
+                backBtn.addEventListener('click', () => {
+                    if (currentStep > 1) {
+                        currentStep--;
+                        showStep(currentStep);
+                    }
+                });
+            }
+            
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (currentStep < totalSteps) {
+                        if (validateCurrentStep(currentStep)) {
+                            saveCurrentStepSettings(currentStep);
+                            currentStep++;
+                            showStep(currentStep);
+                        }
+                    } else {
+                        // Finish setup
+                        finishSetup(setupId);
+                    }
+                });
+            }
+            
+            if (skipBtn) {
+                skipBtn.addEventListener('click', () => {
+                    if (confirm('Skip setup? You can configure these settings later in the Settings app.')) {
+                        finishSetup(setupId);
+                    }
+                });
+            }
+            
+            // Start with first step
+            showStep(1);
+        }
+
+        function createWelcomeStep() {
+            return `
+                <div class="setup-step">
+                    <h3>🎉 Welcome to Self-Evolving OS</h3>
+                    <p>This AI-powered operating system can create and modify applications using natural language commands. Let's configure it for your needs.</p>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h4 style="margin: 0 0 15px 0; color: #0078d4;">✨ What you can do:</h4>
+                        <ul style="margin: 0; padding-left: 20px; color: #6c757d;">
+                            <li>Create apps by voice: "Create a calculator app"</li>
+                            <li>Modify existing apps: "Add a dark mode to this app"</li>
+                            <li>Use text commands in the Start menu</li>
+                            <li>Download and share your created apps</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border: 1px solid #ffeaa7;">
+                        <strong style="color: #856404;">📝 Note:</strong>
+                        <span style="color: #856404;">You'll need API keys for AI services. Don't worry - we'll help you set this up!</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createAIModelStep() {
+            return `
+                <div class="setup-step">
+                    <h3>🤖 AI Model Configuration</h3>
+                    <p>Choose your AI provider for app generation. Each has different features and pricing.</p>
+                    
+                    <div class="setup-option-card" data-provider="openrouter">
+                        <h4>🌐 OpenRouter (Recommended)</h4>
+                        <p>Access to multiple AI models including Claude, GPT-4, and Gemini. Best balance of quality and cost.</p>
+                    </div>
+                    
+                    <div class="setup-option-card" data-provider="openai">
+                        <h4>🧠 OpenAI API</h4>
+                        <p>Direct access to GPT models. Higher quality but more expensive.</p>
+                    </div>
+                    
+                    <div class="setup-option-card" data-provider="lmstudio">
+                        <h4>💻 LMStudio (Local)</h4>
+                        <p>Run AI models locally on your computer. Free but requires powerful hardware.</p>
+                    </div>
+                    
+                    <div id="provider-config" style="margin-top: 20px;">
+                        <!-- Provider-specific configuration will appear here -->
+                    </div>
+                    
+                    <button id="test-ai-connection" class="setup-btn secondary" style="margin-top: 15px;">🧪 Test Connection</button>
+                    <div id="ai-test-result"></div>
+                </div>
+            `;
+        }
+
+        function createVoiceAudioStep() {
+            return `
+                <div class="setup-step">
+                    <h3>🎤 Voice & Audio Setup</h3>
+                    <p>Configure voice recognition for hands-free app creation and modification.</p>
+                    
+                    <div class="setup-option-card selected" data-voice="whisper">
+                        <h4>🎯 OpenAI Whisper (Recommended)</h4>
+                        <p>High-accuracy speech recognition supporting 50+ languages. Requires internet connection.</p>
+                    </div>
+                    
+                    <div class="setup-option-card" data-voice="web">
+                        <h4>🌐 Web Speech API</h4>
+                        <p>Browser-based speech recognition. Free but limited language support and accuracy.</p>
+                    </div>
+                    
+                    <div id="voice-config" style="margin-top: 20px;">
+                        <!-- Voice-specific configuration will appear here -->
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="test-microphone-setup" class="setup-btn secondary">🎤 Test Microphone</button>
+                        <button id="test-voice-recognition" class="setup-btn secondary">🗣️ Test Voice Recognition</button>
+                    </div>
+                    <div id="voice-test-result"></div>
+                </div>
+            `;
+        }
+
+        function createCompletionStep() {
+            return `
+                <div class="setup-step">
+                    <h3>🎉 Setup Complete!</h3>
+                    <p>Your Self-Evolving OS is ready to use. Here's what you can do next:</p>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h4 style="margin: 0 0 15px 0; color: #0078d4;">🚀 Quick Start:</h4>
+                        <ol style="margin: 0; padding-left: 20px; color: #6c757d;">
+                            <li>Click the microphone button and say "Create a calculator app"</li>
+                            <li>Or use the Start menu to type your app request</li>
+                            <li>Try modifying apps with the voice button in each window</li>
+                            <li>Access Settings anytime from the Start menu</li>
+                        </ol>
+                    </div>
+                    
+                    <div style="background: #d4edda; padding: 15px; border-radius: 6px; border: 1px solid #c3e6cb;">
+                        <strong style="color: #155724;">✅ Configuration Summary:</strong>
+                        <div id="setup-summary" style="color: #155724; margin-top: 10px;">
+                            <!-- Summary will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showProviderConfig(provider) {
+            const configDiv = document.getElementById('provider-config');
+            if (!configDiv) return;
+            
+            let configHTML = '';
+            
+            if (provider === 'openrouter') {
+                configHTML = `
+                    <div class="setup-form-group">
+                        <label for="setup-openrouter-key">OpenRouter API Key</label>
+                        <input type="password" id="setup-openrouter-key" placeholder="sk-or-v1-...">
+                        <div class="help-text">Get your API key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></div>
+                    </div>
+                `;
+            } else if (provider === 'openai') {
+                configHTML = `
+                    <div class="setup-form-group">
+                        <label for="setup-openai-key">OpenAI API Key</label>
+                        <input type="password" id="setup-openai-key" placeholder="sk-...">
+                        <div class="help-text">Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></div>
+                    </div>
+                `;
+            } else if (provider === 'lmstudio') {
+                configHTML = `
+                    <div class="setup-form-group">
+                        <label for="setup-lmstudio-url">LMStudio Server URL</label>
+                        <input type="url" id="setup-lmstudio-url" value="http://localhost:1234/v1/chat/completions">
+                        <div class="help-text">Make sure LMStudio is running with a loaded model and server enabled</div>
+                    </div>
+                `;
+            }
+            
+            configDiv.innerHTML = configHTML;
+        }
+
+        function showVoiceConfig(voiceType) {
+            const configDiv = document.getElementById('voice-config');
+            if (!configDiv) return;
+            
+            let configHTML = '';
+            
+            if (voiceType === 'whisper') {
+                configHTML = `
+                    <div class="setup-form-group">
+                        <label for="setup-whisper-key">OpenAI API Key (for Whisper)</label>
+                        <input type="password" id="setup-whisper-key" placeholder="sk-proj-...">
+                        <div class="help-text">Same as OpenAI API key. Get it from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></div>
+                    </div>
+                `;
+            } else if (voiceType === 'web') {
+                configHTML = `
+                    <div class="setup-form-group">
+                        <label for="setup-web-speech-lang">Language</label>
+                        <select id="setup-web-speech-lang">
+                            <option value="en-US">English (United States)</option>
+                            <option value="en-GB">English (United Kingdom)</option>
+                            <option value="es-ES">Spanish (Spain)</option>
+                            <option value="fr-FR">French (France)</option>
+                            <option value="de-DE">German (Germany)</option>
+                            <option value="it-IT">Italian (Italy)</option>
+                            <option value="pt-BR">Portuguese (Brazil)</option>
+                            <option value="ru-RU">Russian (Russia)</option>
+                            <option value="ja-JP">Japanese (Japan)</option>
+                            <option value="zh-CN">Chinese (Mandarin)</option>
+                        </select>
+                        <div class="help-text">Choose your preferred language for voice recognition</div>
+                    </div>
+                `;
+            }
+            
+            configDiv.innerHTML = configHTML;
+        }
+
+        async function testAIConnection() {
+            const resultDiv = document.getElementById('ai-test-result');
+            if (!resultDiv) return;
+            
+            const selectedProvider = document.querySelector('.setup-option-card[data-provider].selected');
+            if (!selectedProvider) {
+                resultDiv.innerHTML = '<div class="setup-test-result error">Please select an AI provider first.</div>';
+                return;
+            }
+            
+            const provider = selectedProvider.dataset.provider;
+            resultDiv.innerHTML = '<div class="setup-test-result warning">Testing connection...</div>';
+            
+            try {
+                let apiKey = '';
+                let apiUrl = '';
+                
+                if (provider === 'openrouter') {
+                    apiKey = document.getElementById('setup-openrouter-key')?.value;
+                    apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+                } else if (provider === 'openai') {
+                    apiKey = document.getElementById('setup-openai-key')?.value;
+                    apiUrl = 'https://api.openai.com/v1/chat/completions';
+                } else if (provider === 'lmstudio') {
+                    apiUrl = document.getElementById('setup-lmstudio-url')?.value || 'http://localhost:1234/v1/chat/completions';
+                    apiKey = 'not-needed';
+                }
+                
+                if (!apiKey && provider !== 'lmstudio') {
+                    resultDiv.innerHTML = '<div class="setup-test-result error">Please enter your API key.</div>';
+                    return;
+                }
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        ...(provider === 'openrouter' && {
+                            'HTTP-Referer': window.location.origin,
+                            'X-Title': 'Self-Evolving OS Setup'
+                        })
+                    },
+                    body: JSON.stringify({
+                        model: provider === 'openrouter' ? 'google/gemini-2.5-flash-lite-preview-06-17' :
+                               provider === 'openai' ? 'gpt-4o-mini' : 'llama-3.2-3b-instruct',
+                        messages: [{ role: 'user', content: 'Hello! This is a test message.' }],
+                        max_tokens: 50
+                    })
+                });
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = '<div class="setup-test-result success">✅ Connection successful! AI provider is working correctly.</div>';
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `<div class="setup-test-result error">❌ Connection failed: ${response.status} - ${errorText}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="setup-test-result error">❌ Connection failed: ${error.message}</div>`;
+            }
+        }
+
+        async function testVoiceRecognition() {
+            const resultDiv = document.getElementById('voice-test-result');
+            if (!resultDiv) return;
+            
+            const selectedVoice = document.querySelector('.setup-option-card[data-voice].selected');
+            if (!selectedVoice) {
+                resultDiv.innerHTML = '<div class="setup-test-result error">Please select a voice recognition method first.</div>';
+                return;
+            }
+            
+            const voiceType = selectedVoice.dataset.voice;
+            resultDiv.innerHTML = '<div class="setup-test-result warning">🎤 Say something to test voice recognition...</div>';
+            
+            try {
+                if (voiceType === 'web') {
+                    // Test Web Speech API
+                    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+                        resultDiv.innerHTML = '<div class="setup-test-result error">❌ Web Speech API not supported in this browser.</div>';
+                        return;
+                    }
+                    
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    const recognition = new SpeechRecognition();
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+                    recognition.lang = document.getElementById('setup-web-speech-lang')?.value || 'en-US';
+                    
+                    recognition.onresult = function(event) {
+                        const transcript = event.results[0][0].transcript;
+                        resultDiv.innerHTML = `<div class="setup-test-result success">✅ Voice recognition working! You said: "${transcript}"</div>`;
+                    };
+                    
+                    recognition.onerror = function(event) {
+                        resultDiv.innerHTML = `<div class="setup-test-result error">❌ Voice recognition error: ${event.error}</div>`;
+                    };
+                    
+                    recognition.start();
+                    
+                } else if (voiceType === 'whisper') {
+                    // Test Whisper API
+                    const apiKey = document.getElementById('setup-whisper-key')?.value;
+                    if (!apiKey) {
+                        resultDiv.innerHTML = '<div class="setup-test-result error">Please enter your OpenAI API key first.</div>';
+                        return;
+                    }
+                    
+                    // Request microphone access for Whisper test
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        resultDiv.innerHTML = '<div class="setup-test-result success">✅ Microphone access granted! Whisper API key will be tested when you create your first app.</div>';
+                        stream.getTracks().forEach(track => track.stop());
+                    } catch (error) {
+                        resultDiv.innerHTML = '<div class="setup-test-result error">❌ Microphone access denied. Please allow microphone access for voice recognition.</div>';
+                    }
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="setup-test-result error">❌ Voice test failed: ${error.message}</div>`;
+            }
+        }
+
+        function validateCurrentStep(stepNumber) {
+            if (stepNumber === 2) {
+                // Validate AI Model step
+                const selectedProvider = document.querySelector('.setup-option-card[data-provider].selected');
+                if (!selectedProvider) {
+                    alert('Please select an AI provider.');
+                    return false;
+                }
+                
+                const provider = selectedProvider.dataset.provider;
+                if (provider === 'openrouter') {
+                    const apiKey = document.getElementById('setup-openrouter-key')?.value;
+                    if (!apiKey) {
+                        alert('Please enter your OpenRouter API key.');
+                        return false;
+                    }
+                } else if (provider === 'openai') {
+                    const apiKey = document.getElementById('setup-openai-key')?.value;
+                    if (!apiKey) {
+                        alert('Please enter your OpenAI API key.');
+                        return false;
+                    }
+                }
+            } else if (stepNumber === 3) {
+                // Validate Voice & Audio step
+                const selectedVoice = document.querySelector('.setup-option-card[data-voice].selected');
+                if (!selectedVoice) {
+                    alert('Please select a voice recognition method.');
+                    return false;
+                }
+                
+                const voiceType = selectedVoice.dataset.voice;
+                if (voiceType === 'whisper') {
+                    const apiKey = document.getElementById('setup-whisper-key')?.value;
+                    if (!apiKey) {
+                        alert('Please enter your OpenAI API key for Whisper.');
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function saveCurrentStepSettings(stepNumber) {
+            if (stepNumber === 2) {
+                // Save AI Model settings
+                const selectedProvider = document.querySelector('.setup-option-card[data-provider].selected');
+                if (selectedProvider) {
+                    const provider = selectedProvider.dataset.provider;
+                    
+                    if (provider === 'openrouter') {
+                        const apiKey = document.getElementById('setup-openrouter-key')?.value;
+                        if (apiKey) {
+                            CONFIG.OPENROUTER_API_KEY = apiKey;
+                            CONFIG.CURRENT_LLM_PROVIDER = 'openrouter';
+                        }
+                    } else if (provider === 'openai') {
+                        const apiKey = document.getElementById('setup-openai-key')?.value;
+                        if (apiKey) {
+                            CONFIG.OPENROUTER_API_KEY = apiKey; // Reuse same config key
+                            CONFIG.OPENROUTER_URL = 'https://api.openai.com/v1/chat/completions';
+                            CONFIG.CURRENT_LLM_PROVIDER = 'openai';
+                        }
+                    } else if (provider === 'lmstudio') {
+                        const url = document.getElementById('setup-lmstudio-url')?.value;
+                        if (url) {
+                            CONFIG.OPENROUTER_API_KEY = 'not-needed';
+                            CONFIG.OPENROUTER_URL = url;
+                            CONFIG.CURRENT_LLM_PROVIDER = 'lmstudio';
+                        }
+                    }
+                }
+            } else if (stepNumber === 3) {
+                // Save Voice & Audio settings
+                const selectedVoice = document.querySelector('.setup-option-card[data-voice].selected');
+                if (selectedVoice) {
+                    const voiceType = selectedVoice.dataset.voice;
+                    voiceRecognitionType = voiceType;
+                    
+                    if (voiceType === 'whisper') {
+                        const apiKey = document.getElementById('setup-whisper-key')?.value;
+                        if (apiKey) {
+                            CONFIG.OPENAI_API_KEY = apiKey;
+                        }
+                    }
+                }
+            }
+        }
+
+        function finishSetup(setupId) {
+            // Create final settings object and save to cookie
+            const settings = {
+                // Appearance Settings
+                theme: 'light',
+                
+                // Voice & Audio Settings
+                voiceRecognitionType: voiceRecognitionType,
+                webSpeechLanguage: document.getElementById('setup-web-speech-lang')?.value || 'en-US',
+                
+                // AI Model Settings - Voice Recognition
+                openaiWhisperKey: CONFIG.OPENAI_API_KEY || '',
+                openaiWhisperUrl: 'https://api.openai.com/v1/audio/transcriptions',
+                
+                // AI Model Settings - Code Generation
+                llmProvider: CONFIG.CURRENT_LLM_PROVIDER || 'openrouter',
+                
+                // Provider-specific settings
+                openrouterApiKey: CONFIG.CURRENT_LLM_PROVIDER === 'openrouter' ? CONFIG.OPENROUTER_API_KEY : '',
+                openrouterUrl: CONFIG.CURRENT_LLM_PROVIDER === 'openrouter' ? CONFIG.OPENROUTER_URL : 'https://openrouter.ai/api/v1/chat/completions',
+                openrouterSimpleModel: 'google/gemini-2.5-flash-lite-preview-06-17',
+                openrouterToughModel: 'anthropic/claude-sonnet-4',
+                
+                openaiApiKey: CONFIG.CURRENT_LLM_PROVIDER === 'openai' ? CONFIG.OPENROUTER_API_KEY : '',
+                openaiUrl: CONFIG.CURRENT_LLM_PROVIDER === 'openai' ? CONFIG.OPENROUTER_URL : 'https://api.openai.com/v1/chat/completions',
+                openaiSimpleModel: 'gpt-4o-mini',
+                openaiToughModel: 'gpt-4o',
+                
+                lmstudioUrl: CONFIG.CURRENT_LLM_PROVIDER === 'lmstudio' ? CONFIG.OPENROUTER_URL : 'http://localhost:1234/v1/chat/completions',
+                lmstudioSimpleModel: 'llama-3.2-3b-instruct',
+                lmstudioToughModel: 'llama-3.1-8b-instruct',
+                
+                // AI Model Settings - General
+                apiTimeout: 30,
+                maxRetries: 3,
+                costTracking: true,
+                
+                // System Settings
+                debugMode: false,
+                performanceMode: false,
+                autoCleanup: true,
+                
+                // Metadata
+                version: '2.0.0',
+                lastSaved: new Date().toISOString()
+            };
+            
+            // Save settings to cookie
+            const expires = new Date();
+            expires.setFullYear(expires.getFullYear() + 1);
+            document.cookie = `selfEvolvingOS_settings=${encodeURIComponent(JSON.stringify(settings))}; expires=${expires.toUTCString()}; path=/`;
+            
+            // Apply settings to system
+            applySettingsToSystem(settings);
+            
+            // Update summary in completion step
+            const summaryDiv = document.getElementById('setup-summary');
+            if (summaryDiv) {
+                summaryDiv.innerHTML = `
+                    <div>🤖 AI Provider: ${CONFIG.CURRENT_LLM_PROVIDER || 'OpenRouter'}</div>
+                    <div>🎤 Voice Recognition: ${voiceRecognitionType === 'web' ? 'Web Speech API' : 'OpenAI Whisper'}</div>
+                    <div>🎨 Theme: Light Mode</div>
+                `;
+            }
+            
+            // Initialize voice system with new settings
+            setTimeout(async () => {
+                try {
+                    await initializeVoice();
+                    console.log('Voice system initialized with setup settings');
+                } catch (error) {
+                    console.warn('Voice initialization failed during setup:', error);
+                }
+            }, 1000);
+            
+            console.log('Setup completed successfully!', settings);
+            
+            // Show completion message and close setup after delay
+            setTimeout(() => {
+                alert('🎉 Setup completed! Your Self-Evolving OS is ready to use. Try saying "Create a calculator app" or use the Start menu.');
+                closeWindow(setupId);
+            }, 2000);
         }
 
         // Settings persistence functions
@@ -3522,6 +4420,9 @@ Implement the modification: ${modificationRequest}`;
                                     <button id="import-settings" class="settings-btn">📥 Import Settings</button>
                                     <input type="file" id="settings-file-input" accept=".json" style="display: none;">
                                 </div>
+                                <div class="setting-item">
+                                    <button id="reset-settings" class="settings-btn">🔄 Reset All Settings</button>
+                                </div>
                             </div>
                             
                             <!-- About Settings -->
@@ -3861,6 +4762,44 @@ Implement the modification: ${modificationRequest}`;
                             }
                         };
                         reader.readAsText(file);
+                    }
+                });
+            }
+            
+            // Reset settings button
+            const resetBtn = document.getElementById('reset-settings');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    if (confirm('Reset all settings and restart the setup assistant? This will delete all your current configuration and close all apps.')) {
+                        // Delete the settings cookie
+                        document.cookie = 'selfEvolvingOS_settings=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                        
+                        // Clear any localStorage data
+                        localStorage.removeItem('costHistory');
+                        
+                        // Reset global variables to defaults
+                        voiceRecognitionType = 'whisper';
+                        CONFIG.OPENAI_API_KEY = 'sk-proj-...';
+                        CONFIG.OPENROUTER_API_KEY = 'sk-...';
+                        CONFIG.CURRENT_LLM_PROVIDER = 'openrouter';
+                        totalCost = 0;
+                        costHistory = [];
+                        window.costHistory = costHistory;
+                        
+                        // Update cost display
+                        const costElement = document.getElementById('api-cost');
+                        if (costElement) {
+                            costElement.textContent = '0.00';
+                        }
+                        
+                        // Close all apps
+                        [...apps].forEach(app => closeWindow(app.id));
+                        
+                        // Show confirmation and reload
+                        alert('Settings reset successfully! The page will reload and the setup assistant will start.');
+                        
+                        // Reload the page to restart with fresh state
+                        window.location.reload();
                     }
                 });
             }
