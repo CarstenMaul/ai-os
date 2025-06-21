@@ -1027,6 +1027,15 @@
             document.getElementById('app-count').textContent = apps.length;
         }
 
+        function updateProviderDisplay() {
+            const providerElement = document.getElementById('current-provider-display');
+            if (providerElement) {
+                // Capitalize the provider name for display
+                const displayName = CONFIG.CURRENT_LLM_PROVIDER.charAt(0).toUpperCase() + CONFIG.CURRENT_LLM_PROVIDER.slice(1);
+                providerElement.textContent = displayName;
+            }
+        }
+
         function toggleStartMenu() {
             const menu = document.getElementById('start-menu');
             menu.classList.toggle('show');
@@ -1421,9 +1430,16 @@
                 }
             });
 
-            // Initialize model mode to Simple (default)
-            CONFIG.MODEL = CONFIG.MODEL_SIMPLE;
-            console.log(`Model initialized to: ${currentModelMode} mode (${CONFIG.MODEL})`);
+            // Initialize model mode to Simple (default) only if no settings were loaded
+            // This prevents overwriting the model set from saved settings
+            // Check if settings were already loaded in init()
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openrouter' && CONFIG.MODEL === 'google/gemini-2.5-flash-lite-preview-06-17') {
+                // No settings were loaded, use default
+                CONFIG.MODEL = CONFIG.MODEL_SIMPLE;
+                console.log(`Model initialized to: ${currentModelMode} mode (${CONFIG.MODEL})`);
+            } else {
+                console.log(`Model loaded from settings: ${currentModelMode} mode (${CONFIG.MODEL})`);
+            }
         });
 
         // Voice Handler supporting both Whisper and Web Speech API
@@ -2878,16 +2894,24 @@
                     return;
                 }
                 
+                let headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Only add Authorization header for providers that need it
+                if (provider !== 'lmstudio') {
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                }
+                
+                // Add OpenRouter-specific headers
+                if (provider === 'openrouter') {
+                    headers['HTTP-Referer'] = window.location.origin;
+                    headers['X-Title'] = 'Self-Evolving OS Setup';
+                }
+                
                 const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json',
-                        ...(provider === 'openrouter' && {
-                            'HTTP-Referer': window.location.origin,
-                            'X-Title': 'Self-Evolving OS Setup'
-                        })
-                    },
+                    headers: headers,
                     body: JSON.stringify({
                         model: provider === 'openrouter' ? 'google/gemini-2.5-flash-lite-preview-06-17' :
                                provider === 'openai' ? 'gpt-4o-mini' : 'llama-3.2-3b-instruct',
@@ -3414,6 +3438,9 @@
                 
                 // Store current provider in CONFIG
                 CONFIG.CURRENT_LLM_PROVIDER = currentProvider;
+                
+                // Update the provider display in the header
+                updateProviderDisplay();
                 
                 // Apply cost tracking setting
                 if (settings.costTracking !== undefined) {
@@ -4521,8 +4548,13 @@ The clock must start working immediately when the app loads and update every sec
             } catch (error) {
                 console.error(`❌ LLM processing failed (attempt ${retryCount + 1}):`, error);
                 
+                // Don't retry if it's a configuration error
+                const isConfigError = error.message.includes('not configured') ||
+                                    error.message.includes('API key') ||
+                                    error.message.includes('URL not configured');
+                
                 // Check if we should retry
-                if (retryCount < maxRetries - 1) {
+                if (retryCount < maxRetries - 1 && !isConfigError) {
                     console.log(`🔄 Retrying in 2 seconds... (${retryCount + 2}/${maxRetries})`);
                     
                     // Show retry status
@@ -4607,7 +4639,7 @@ CONTENT RULES:
 - Give all interactive elements unique IDs and reference them in JavaScript
 - IMPORTANT: onclick attributes will NOT work because JavaScript runs in isolated scope
 - Always use document.getElementById() and addEventListener() pattern
-
+- Nake sure you do not break the Response Format - return a valid JSON object.
 EXAMPLES:
 
 For "text input":
@@ -4638,24 +4670,69 @@ Now create a functional app for: "${request}"`
         }
 
         async function callLLMAPI(prompt, userRequest = '', description = 'API Request') {
+            // Check if provider is properly configured
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openrouter' && (!CONFIG.OPENROUTER_API_KEY || CONFIG.OPENROUTER_API_KEY === 'sk-...')) {
+                throw new Error('OpenRouter API key not configured');
+            }
+            
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openai' && (!CONFIG.OPENROUTER_API_KEY || CONFIG.OPENROUTER_API_KEY === 'sk-proj-...')) {
+                throw new Error('OpenAI API key not configured');
+            }
+            
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'lmstudio' && (!CONFIG.OPENROUTER_URL || CONFIG.OPENROUTER_URL === 'https://openrouter.ai/api/v1/chat/completions')) {
+                throw new Error('LMStudio URL not configured');
+            }
+            
+            // Prepare headers based on current provider
+            let headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            // Add provider-specific headers
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openrouter') {
+                headers['Authorization'] = `Bearer ${CONFIG.OPENROUTER_API_KEY}`;
+                headers['HTTP-Referer'] = window.location.origin;
+                headers['X-Title'] = 'Self-Evolving OS';
+            } else if (CONFIG.CURRENT_LLM_PROVIDER === 'openai') {
+                headers['Authorization'] = `Bearer ${CONFIG.OPENROUTER_API_KEY}`; // Reused config key
+            } else if (CONFIG.CURRENT_LLM_PROVIDER === 'lmstudio') {
+                // LMStudio typically doesn't require authorization header
+                // headers['Authorization'] is not needed
+            }
+            
+            const requestBody = {
+                model: CONFIG.MODEL,
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 3000
+            };
+            
+            // Debug logging for LMStudio
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'lmstudio') {
+                console.log('LMStudio API Request:', {
+                    url: CONFIG.OPENROUTER_URL,
+                    headers: headers,
+                    body: requestBody,
+                    bodyString: JSON.stringify(requestBody)
+                });
+            }
+            
             const response = await fetch(CONFIG.OPENROUTER_URL, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'Self-Evolving OS'
-                },
-                body: JSON.stringify({
-                    model: CONFIG.MODEL,
-                    messages: [{ role: 'user', content: prompt }],
-                    temperature: 0.7,
-                    max_tokens: 3000
-                })
+                headers: headers,
+                body: JSON.stringify(requestBody)
             });
 
             if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
+                const errorText = await response.text();
+                console.error(`API request failed for ${CONFIG.CURRENT_LLM_PROVIDER}:`, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorText: errorText,
+                    url: CONFIG.OPENROUTER_URL,
+                    requestBody: requestBody
+                });
+                throw new Error(`API request failed: ${response.status} - ${response.statusText}: ${errorText}`);
             }
 
             const data = await response.json();
