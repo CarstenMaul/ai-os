@@ -47,6 +47,22 @@ A revolutionary web-based operating system interface powered by artificial intel
    - **OpenAI**: Use your existing OpenAI API key
    - **LMStudio**: Run locally, no API key needed
 
+### Recommended Configurations
+
+#### OpenRouter (Recommended)
+For the best results, use OpenRouter with these model selections:
+- **Simple Mode**: `google/gemini-2.5-flash-lite-preview-06-17` (fast, cost-effective)
+- **Tough Mode**: `anthropic/claude-sonnet-4` (high-quality, advanced reasoning)
+
+#### LMStudio Setup
+For local LMStudio usage, ensure these settings are enabled in LMStudio server:
+- ✅ **Enable CORS** (required for web browser access)
+- ✅ **Serve on Local Network** (allows connections from browser)
+
+Recommended models for LMStudio:
+- **Simple Mode**: `microsoft/phi-4` (lightweight, fast)
+- **Tough Mode**: `deepseek-r1-0528-qwen3-8b` (advanced reasoning)
+
 ### Installation
 1. Download the [`ai-os.html`](ai-os.html) file
 2. Open it in your web browser
@@ -93,10 +109,16 @@ A revolutionary web-based operating system interface powered by artificial intel
 - **Microphone Test**: Built-in audio level testing
 
 #### AI Models
-- **Provider Selection**: OpenRouter, OpenAI, or LMStudio
-- **Model Configuration**: Separate simple/tough model settings
+- **Provider Selection**: OpenRouter (recommended), OpenAI, or LMStudio
+- **Model Configuration**: Separate simple/tough model settings for optimal performance
 - **API Endpoints**: Customizable API URLs
 - **Cost Tracking**: Monitor and track API usage costs
+
+**Recommended Model Settings:**
+- **OpenRouter Simple**: `google/gemini-2.5-flash-lite-preview-06-17`
+- **OpenRouter Tough**: `anthropic/claude-sonnet-4`
+- **LMStudio Simple**: `microsoft/phi-4`
+- **LMStudio Tough**: `deepseek-r1-0528-qwen3-8b`
 
 #### System
 - **Debug Mode**: Enable detailed logging
@@ -212,6 +234,13 @@ ai-os.html
 3. Review API quota/limits
 4. Try switching to different model
 
+#### LMStudio Connection Issues
+1. Ensure LMStudio server is running
+2. Verify "Enable CORS" is checked in LMStudio server settings
+3. Verify "Serve on Local Network" is enabled in LMStudio server settings
+4. Check that the correct local URL is configured (usually `http://localhost:1234/v1/chat/completions`)
+5. Ensure a model is loaded in LMStudio
+
 #### Performance Issues
 1. Close unused applications
 2. Clear browser cache
@@ -247,7 +276,7 @@ This is an experimental project exploring AI-powered interfaces. Contributions, 
 
 ## 📄 License
 
-This project is released under the MIT License. See [`LICENSE`](LICENSE) file for details.
+This project is released under the Apache 2.0 License. See [`LICENSE`](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
