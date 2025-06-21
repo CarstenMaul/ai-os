@@ -98,8 +98,7 @@
         }
 
         .app-icon {
-            min-width: 60px;
-            max-width: 120px;
+            width: 40px;
             height: 35px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 4px;
@@ -108,13 +107,19 @@
             justify-content: center;
             cursor: pointer;
             color: white;
-            font-size: 11px;
+            font-size: 18px;
             text-align: center;
             transition: background 0.2s;
-            padding: 0 8px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            position: relative;
+        }
+
+        .taskbar-icon {
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .app-icon:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .app-icon:hover {
@@ -164,6 +169,25 @@
         .window-title {
             font-weight: bold;
             color: #333;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .window-icon {
+            font-size: 14px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .window-title-text {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .window-controls {
@@ -318,6 +342,87 @@
 
         .menu-item:hover {
             background: rgba(255, 255, 255, 0.1);
+        }
+
+        .menu-item.has-submenu {
+            position: relative;
+        }
+
+        .menu-item.has-submenu .apps-submenu {
+            position: absolute;
+            left: 100%;
+            top: 0;
+            width: 280px;
+            max-height: 400px;
+            background: rgba(0, 0, 0, 0.9);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 15px;
+            display: none;
+            z-index: 1002;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            margin-left: 10px;
+        }
+
+        .menu-item.has-submenu .apps-submenu.show {
+            display: block;
+        }
+
+        .menu-item.has-submenu::after {
+            content: '▶';
+            position: absolute;
+            right: 15px;
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+
+        .menu-item.has-submenu:hover::after {
+            transform: translateX(2px);
+        }
+
+        .apps-submenu.show {
+            display: block;
+        }
+
+        .apps-submenu-title {
+            color: white;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 8px;
+        }
+
+        .apps-submenu-item {
+            padding: 12px 15px;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            transition: background 0.2s;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .apps-submenu-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .submenu-app-icon {
+            font-size: 16px;
+            line-height: 1;
+            min-width: 20px;
+        }
+
+        .submenu-app-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .request-input {
@@ -600,6 +705,57 @@
             color: #f8f9fa !important;
         }
 
+        /* Dark theme fixes for voice command popup and request input */
+        body.dark-theme .voice-command-popup {
+            background: rgba(44, 62, 80, 0.95) !important;
+            color: #ffffff !important;
+            border: 2px solid rgba(52, 152, 219, 0.3) !important;
+        }
+
+        body.dark-theme .request-input {
+            background: #34495e !important;
+            color: #f8f9fa !important;
+            border: 1px solid #4a5f7a !important;
+        }
+
+        body.dark-theme .request-input::placeholder {
+            color: #bdc3c7 !important;
+        }
+
+        /* Dark theme styles for Apps sub-menu */
+        body.dark-theme .apps-submenu {
+            background: rgba(44, 62, 80, 0.95) !important;
+            border: 1px solid rgba(52, 152, 219, 0.3) !important;
+        }
+
+        body.dark-theme .apps-submenu-title {
+            color: #ffffff !important;
+            border-bottom-color: rgba(52, 152, 219, 0.3) !important;
+        }
+
+        body.dark-theme .apps-submenu-item {
+            color: #f8f9fa !important;
+        }
+
+        body.dark-theme .apps-submenu-item:hover {
+            background: rgba(52, 152, 219, 0.2) !important;
+        }
+
+        /* Dark theme styles for icon elements */
+        body.dark-theme .window-title {
+            color: #f8f9fa !important;
+        }
+
+        body.dark-theme .window-icon,
+        body.dark-theme .taskbar-icon,
+        body.dark-theme .submenu-app-icon {
+            opacity: 1;
+        }
+
+        body.dark-theme .app-icon:hover {
+            background: rgba(255, 255, 255, 0.4) !important;
+        }
+
         body.light-theme {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         }
@@ -726,6 +882,41 @@
             color: #212529 !important;
             border: 1px solid #ced4da !important;
         }
+
+        /* Light theme styles for Apps sub-menu */
+        body.light-theme .apps-submenu {
+            background: rgba(255, 255, 255, 0.98) !important;
+            border: 1px solid #dee2e6 !important;
+        }
+
+        body.light-theme .apps-submenu-title {
+            color: #495057 !important;
+            border-bottom-color: #dee2e6 !important;
+        }
+
+        body.light-theme .apps-submenu-item {
+            color: #212529 !important;
+        }
+
+        body.light-theme .apps-submenu-item:hover {
+            background: rgba(0, 123, 255, 0.1) !important;
+            color: #0056b3 !important;
+        }
+
+        /* Light theme styles for icon elements */
+        body.light-theme .window-title {
+            color: #333 !important;
+        }
+
+        body.light-theme .window-icon,
+        body.light-theme .taskbar-icon,
+        body.light-theme .submenu-app-icon {
+            opacity: 1;
+        }
+
+        body.light-theme .app-icon:hover {
+            background: rgba(0, 0, 0, 0.1) !important;
+        }
     </style>
 </head>
 <body>
@@ -769,6 +960,20 @@
             <div class="menu-title">Voice Commands</div>
             <p style="color: #ccc; font-size: 12px; margin: 0;">Click the microphone button in the top-right corner and say:</p>
             <p style="color: #ccc; font-size: 11px; margin: 5px 0 0 0;">"Create a calculator app" or "Make me a todo list"</p>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-title">Apps</div>
+            <div class="menu-item has-submenu" onclick="toggleAppsSubmenu()" onmouseenter="showAppsSubmenu()" onmouseleave="hideAppsSubmenuDelayed()">
+                📱 All Apps
+                <!-- Apps Sub-menu -->
+                <div class="apps-submenu" id="apps-submenu" onmouseenter="showAppsSubmenu()" onmouseleave="hideAppsSubmenuDelayed()">
+                    <div class="apps-submenu-title">All Apps</div>
+                    <div id="apps-submenu-content">
+                        <!-- Apps will be dynamically populated here -->
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="menu-section">
@@ -852,7 +1057,7 @@
             return `app_${nextAppId++}`;
         }
 
-        function createWindow(appId, title, content, width = 400, height = 300) {
+        function createWindow(appId, title, content, width = 400, height = 300, icon = '📱') {
             const desktop = document.getElementById('desktop');
             const window = document.createElement('div');
             window.className = 'window';
@@ -873,7 +1078,10 @@
 
             window.innerHTML = `
                 <div class="window-header" onmousedown="startDrag(event, '${appId}')">
-                    <div class="window-title" ontouchstart="startDrag(event, '${appId}')">${title}</div>
+                    <div class="window-title" ontouchstart="startDrag(event, '${appId}')">
+                        <span class="window-icon">${icon}</span>
+                        <span class="window-title-text">${title}</span>
+                    </div>
                     <div class="window-controls">
                         <button class="window-voice-button" id="voice-button-${appId}" title="Hold to talk - Modify this app with voice">🎤</button>
                         <button class="window-text-button" id="text-button-${appId}" title="Edit this app with text prompt">✏️</button>
@@ -959,36 +1167,173 @@
             return window;
         }
 
+        function generateAppIcon(customRequest, title) {
+            // Convert request and title to lowercase for matching
+            const request = customRequest.toLowerCase();
+            const appTitle = title.toLowerCase();
+            
+            // Define icon mappings based on keywords
+            const iconMappings = {
+                // Math & Calculation
+                'calculator': '🧮',
+                'calc': '🧮',
+                'math': '🧮',
+                'arithmetic': '🧮',
+                
+                // Time & Calendar
+                'clock': '🕐',
+                'time': '⏰',
+                'timer': '⏱️',
+                'stopwatch': '⏱️',
+                'calendar': '📅',
+                'schedule': '📅',
+                'date': '📅',
+                
+                // Text & Documents
+                'text': '📝',
+                'note': '📝',
+                'editor': '📝',
+                'document': '📄',
+                'word': '📄',
+                'write': '✍️',
+                
+                // Games
+                'game': '🎮',
+                'puzzle': '🧩',
+                'quiz': '❓',
+                'trivia': '🧠',
+                'memory': '🧠',
+                'card': '🃏',
+                'dice': '🎲',
+                
+                // Media
+                'music': '🎵',
+                'audio': '🔊',
+                'video': '🎬',
+                'player': '▶️',
+                'media': '🎭',
+                
+                // Tools & Utilities
+                'tool': '🔧',
+                'utility': '⚙️',
+                'converter': '🔄',
+                'generator': '⚡',
+                'random': '🎲',
+                
+                // Communication
+                'chat': '💬',
+                'message': '💬',
+                'mail': '📧',
+                'email': '📧',
+                
+                // Weather & Environment
+                'weather': '🌤️',
+                'temperature': '🌡️',
+                'forecast': '🌦️',
+                
+                // Finance & Shopping
+                'money': '💰',
+                'cost': '💰',
+                'price': '💲',
+                'budget': '💰',
+                'finance': '💰',
+                'shopping': '🛒',
+                'cart': '🛒',
+                
+                // Health & Fitness
+                'health': '🏥',
+                'fitness': '💪',
+                'exercise': '🏃',
+                'workout': '💪',
+                
+                // Food & Cooking
+                'food': '🍽️',
+                'recipe': '👨‍🍳',
+                'cooking': '👨‍🍳',
+                'restaurant': '🍽️',
+                
+                // Travel & Maps
+                'map': '🗺️',
+                'travel': '✈️',
+                'navigation': '🧭',
+                'location': '📍',
+                
+                // Education & Learning
+                'learn': '📚',
+                'education': '🎓',
+                'study': '📖',
+                'book': '📚',
+                'library': '📚',
+                
+                // Art & Design
+                'art': '🎨',
+                'design': '🎨',
+                'draw': '✏️',
+                'paint': '🎨',
+                'color': '🌈',
+                
+                // Science & Technology
+                'science': '🔬',
+                'lab': '🔬',
+                'experiment': '🧪',
+                'data': '📊',
+                'chart': '📈',
+                'graph': '📊',
+                
+                // Default categories
+                'app': '📱',
+                'application': '📱',
+                'program': '💻'
+            };
+            
+            // Check for matches in request first, then title
+            const searchText = `${request} ${appTitle}`;
+            
+            for (const [keyword, icon] of Object.entries(iconMappings)) {
+                if (searchText.includes(keyword)) {
+                    return icon;
+                }
+            }
+            
+            // Default icon if no match found
+            return '📱';
+        }
+
         function createApp(customRequest) {
             const appId = generateAppId();
             const title = 'New App';
+            const icon = generateAppIcon(customRequest, title);
             const content = createAIGeneratedAppContent(customRequest, appId);
 
             const app = {
                 id: appId,
                 type: 'ai-generated',
                 title: title,
+                icon: icon,
                 isMinimized: false,
                 isMaximized: false,
                 customRequest: customRequest
             };
 
             apps.push(app);
-            createWindow(appId, title, content);
-            createTaskbarIcon(appId, title);
+            createWindow(appId, title, content, 400, 300, icon);
+            createTaskbarIcon(appId, title, icon);
             updateAppCount();
+            
+            // Update apps submenu to include the new user-generated app
+            updateAppsSubmenuContent();
 
             return appId;
         }
 
-        function createTaskbarIcon(appId, title) {
+        function createTaskbarIcon(appId, title, appIcon = '📱') {
             const iconsContainer = document.getElementById('app-icons');
             const icon = document.createElement('div');
             icon.className = 'app-icon';
             icon.id = `icon_${appId}`;
             icon.onclick = () => toggleWindow(appId);
-            icon.textContent = title.substring(0, 3);
-            icon.title = title;
+            icon.innerHTML = `<span class="taskbar-icon">${appIcon}</span>`;
+            icon.title = title; // Show title on hover
             iconsContainer.appendChild(icon);
         }
 
@@ -3142,28 +3487,44 @@
 
         function updateCostTrackingAppVisibility() {
             const startMenu = document.getElementById('start-menu');
-            let costTrackingSection = document.getElementById('cost-tracking-section');
+            let costTrackingItem = document.getElementById('cost-tracking-item');
             
             if (costTrackingEnabled) {
-                // Add cost tracking app to start menu if not exists
-                if (!costTrackingSection) {
-                    costTrackingSection = document.createElement('div');
-                    costTrackingSection.id = 'cost-tracking-section';
-                    costTrackingSection.className = 'menu-section';
-                    costTrackingSection.innerHTML = `
-                        <div class="menu-title">Cost Tracking</div>
-                        <div class="menu-item" onclick="openCostTrackingApp()">💰 Cost Tracking</div>
-                    `;
+                // Add cost tracking app to System section if not exists
+                if (!costTrackingItem) {
+                    // Find the System section
+                    const systemSection = Array.from(startMenu.querySelectorAll('.menu-section')).find(section =>
+                        section.querySelector('.menu-title')?.textContent === 'System'
+                    );
                     
-                    // Insert before the last section (Quick Actions)
-                    const quickActionsSection = startMenu.querySelector('.menu-section:last-child');
-                    startMenu.insertBefore(costTrackingSection, quickActionsSection);
+                    if (systemSection) {
+                        // Create the cost tracking menu item
+                        const costTrackingMenuItem = document.createElement('div');
+                        costTrackingMenuItem.id = 'cost-tracking-item';
+                        costTrackingMenuItem.className = 'menu-item';
+                        costTrackingMenuItem.onclick = () => openCostTrackingApp();
+                        costTrackingMenuItem.textContent = '💰 Cost Tracking';
+                        
+                        // Insert after Settings but before other items
+                        const settingsItem = systemSection.querySelector('.menu-item[onclick="showSettings()"]');
+                        if (settingsItem && settingsItem.nextSibling) {
+                            systemSection.insertBefore(costTrackingMenuItem, settingsItem.nextSibling);
+                        } else {
+                            systemSection.appendChild(costTrackingMenuItem);
+                        }
+                    }
                 }
             } else {
-                // Remove cost tracking app from start menu
-                if (costTrackingSection) {
-                    costTrackingSection.remove();
+                // Remove cost tracking app from System section
+                if (costTrackingItem) {
+                    costTrackingItem.remove();
                 }
+            }
+            
+            // Remove old cost tracking section if it exists (for backward compatibility)
+            const oldCostTrackingSection = document.getElementById('cost-tracking-section');
+            if (oldCostTrackingSection) {
+                oldCostTrackingSection.remove();
             }
         }
 
@@ -3396,6 +3757,501 @@
         
         // Make test function globally accessible
         window.addTestCostEntry = addTestCostEntry;
+
+        // Apps Sub-menu Functions
+        let appsSubmenuTimeout = null;
+
+        function showAppsSubmenu() {
+            if (appsSubmenuTimeout) {
+                clearTimeout(appsSubmenuTimeout);
+                appsSubmenuTimeout = null;
+            }
+            
+            const submenu = document.getElementById('apps-submenu');
+            if (submenu) {
+                updateAppsSubmenuContent();
+                submenu.classList.add('show');
+            }
+        }
+
+        function toggleAppsSubmenu() {
+            const submenu = document.getElementById('apps-submenu');
+            if (submenu) {
+                if (submenu.classList.contains('show')) {
+                    hideAppsSubmenu();
+                } else {
+                    showAppsSubmenu();
+                }
+            }
+        }
+
+        function hideAppsSubmenuDelayed() {
+            appsSubmenuTimeout = setTimeout(() => {
+                const submenu = document.getElementById('apps-submenu');
+                if (submenu) {
+                    submenu.classList.remove('show');
+                }
+            }, 300); // 300ms delay
+        }
+
+        function normalizeAppIconsAndTitles(apps) {
+            return apps.map(app => {
+                // Check if title starts with an emoji
+                const emojiMatch = app.title.match(/^([\u{1F000}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}])\s*(.+)$/u);
+                
+                if (emojiMatch) {
+                    // Extract emoji and clean title
+                    const emoji = emojiMatch[1];
+                    const cleanTitle = emojiMatch[2].trim();
+                    
+                    return {
+                        ...app,
+                        title: cleanTitle,
+                        icon: app.icon || emoji
+                    };
+                } else {
+                    // Title is already clean, ensure icon exists
+                    return {
+                        ...app,
+                        icon: app.icon || '📱'
+                    };
+                }
+            });
+        }
+
+        function normalizeAllApps() {
+            // Normalize all apps in the main apps array
+            const normalizedApps = normalizeAppIconsAndTitles(apps);
+            
+            // Update the apps array in place
+            for (let i = 0; i < apps.length; i++) {
+                apps[i] = normalizedApps[i];
+            }
+            
+            console.log('Normalized all apps:', apps.map(app => ({ title: app.title, icon: app.icon })));
+        }
+
+        function updateAppsSubmenuContent() {
+            const content = document.getElementById('apps-submenu-content');
+            if (!content) return;
+
+            // Clear existing content
+            content.innerHTML = '';
+
+            // First normalize all apps in the main array
+            normalizeAllApps();
+
+            // Get all real apps (now normalized)
+            const allApps = [...apps];
+            
+            // Add Calculator system app placeholder ONLY if no real Calculator app exists
+            const hasRealCalculator = allApps.some(app => app.title === 'Calculator');
+            console.log('Has real Calculator app:', hasRealCalculator);
+            console.log('All apps titles:', allApps.map(app => app.title));
+            
+            if (!hasRealCalculator) {
+                allApps.push({
+                    id: 'calculator-system',
+                    title: 'Calculator',
+                    icon: '🧮',
+                    isSystemApp: true,
+                    type: 'system'
+                });
+                console.log('Added Calculator placeholder');
+            }
+
+            // Add Digital Clock system app placeholder ONLY if no real Digital Clock app exists
+            const hasRealClock = allApps.some(app => app.title === 'Digital Clock');
+            console.log('Has real Digital Clock app:', hasRealClock);
+            
+            if (!hasRealClock) {
+                allApps.push({
+                    id: 'clock-system',
+                    title: 'Digital Clock',
+                    icon: '🕐',
+                    isSystemApp: true,
+                    type: 'system'
+                });
+                console.log('Added Digital Clock placeholder');
+            }
+
+            // Sort apps alphabetically by title
+            allApps.sort((a, b) => {
+                const titleA = a.title.replace(/^[^\w]+/, ''); // Remove emoji/symbols for sorting
+                const titleB = b.title.replace(/^[^\w]+/, '');
+                return titleA.localeCompare(titleB);
+            });
+
+            // Create menu items for each app
+            allApps.forEach(app => {
+                const item = document.createElement('div');
+                item.className = 'apps-submenu-item';
+                
+                // Create icon and title elements (now simplified)
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'submenu-app-icon';
+                iconSpan.textContent = app.icon || '📱';
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'submenu-app-title';
+                titleSpan.textContent = app.title;
+                
+                item.appendChild(iconSpan);
+                item.appendChild(titleSpan);
+                
+                console.log('Creating submenu item for app:', app);
+                
+                if (app.title === 'Calculator') {
+                    // Always use openCalculatorApp for Calculator apps (both real and placeholder)
+                    item.onclick = () => {
+                        console.log('Calculator submenu item clicked');
+                        openCalculatorApp();
+                    };
+                } else if (app.title === 'Digital Clock') {
+                    // Always use openDigitalClockApp for Digital Clock apps (both real and placeholder)
+                    item.onclick = () => {
+                        console.log('Digital Clock submenu item clicked');
+                        openDigitalClockApp();
+                    };
+                } else {
+                    item.onclick = () => {
+                        console.log('Regular app submenu item clicked for:', app.id);
+                        // Focus existing app or show it if minimized/hidden
+                        if (app.isHidden) {
+                            // For hidden system apps, show them
+                            const windowElement = document.getElementById(`window_${app.id}`);
+                            const iconElement = document.getElementById(`icon_${app.id}`);
+                            if (windowElement) {
+                                windowElement.style.display = 'block';
+                                if (iconElement) iconElement.style.display = 'block';
+                                app.isHidden = false;
+                                windowElement.style.zIndex = getHighestZIndex() + 1;
+                            }
+                        } else if (app.isMinimized) {
+                            toggleMinimize(app.id);
+                        } else {
+                            bringToFront(app.id);
+                        }
+                        hideAppsSubmenu();
+                    };
+                }
+                
+                content.appendChild(item);
+            });
+
+            // If no apps, show a message
+            if (allApps.length === 0) {
+                const noAppsItem = document.createElement('div');
+                noAppsItem.className = 'apps-submenu-item';
+                noAppsItem.textContent = 'No apps available';
+                noAppsItem.style.color = '#888';
+                noAppsItem.style.fontStyle = 'italic';
+                content.appendChild(noAppsItem);
+            }
+        }
+
+        function hideAppsSubmenu() {
+            const submenu = document.getElementById('apps-submenu');
+            if (submenu) {
+                submenu.classList.remove('show');
+            }
+        }
+
+        // Calculator App Functions
+        function openCalculatorApp() {
+            console.log('=== openCalculatorApp called ===');
+            console.log('Current apps array:', apps);
+            
+            // Check if Calculator app already exists
+            const existingApp = apps.find(app => app.title === 'Calculator');
+            console.log('Found existing Calculator app:', existingApp);
+            
+            if (existingApp) {
+                console.log('Found existing Calculator app with ID:', existingApp.id);
+                console.log('App state - isHidden:', existingApp.isHidden, 'isMinimized:', existingApp.isMinimized);
+                
+                // If app exists, show/focus the existing window
+                const windowElement = document.getElementById(`window_${existingApp.id}`);
+                const iconElement = document.getElementById(`icon_${existingApp.id}`);
+                
+                console.log('Window element exists:', !!windowElement);
+                console.log('Icon element exists:', !!iconElement);
+                
+                if (windowElement) {
+                    // Show if hidden
+                    if (existingApp.isHidden) {
+                        console.log('Showing hidden Calculator app');
+                        windowElement.style.display = 'block';
+                        if (iconElement) iconElement.style.display = 'block';
+                        existingApp.isHidden = false;
+                    }
+                    
+                    // Unminimize if minimized
+                    if (existingApp.isMinimized) {
+                        console.log('Unminimizing Calculator app');
+                        toggleMinimize(existingApp.id);
+                    }
+                    
+                    // Bring to front
+                    windowElement.style.zIndex = getHighestZIndex() + 1;
+                    
+                    // Dispatch app shown event to notify the app it's visible
+                    dispatchAppShownEvent(existingApp.id);
+                    
+                    console.log('Successfully opened existing Calculator app');
+                    debugLog('Opened existing Calculator app');
+                } else {
+                    console.log('Window element missing, recreating Calculator app window');
+                    // Window element doesn't exist, recreate it with proper dimensions
+                    const content = createAIGeneratedAppContent(createCalculatorPrompt(), existingApp.id);
+                    const icon = existingApp.icon || '🧮';
+                    createWindow(existingApp.id, existingApp.title, content, 350, 450, icon);
+                    createTaskbarIcon(existingApp.id, existingApp.title, icon);
+                    
+                    // Ensure it's still marked as system app
+                    existingApp.isSystemApp = true;
+                    existingApp.isHidden = false;
+                    
+                    console.log('Successfully recreated Calculator app window');
+                    debugLog('Recreated Calculator app window');
+                }
+            } else {
+                console.log('No existing Calculator app found, creating new one');
+                // Create new AI-generated calculator app
+                createCalculatorApp();
+            }
+            
+            // Close start menu and submenu
+            hideAppsSubmenu();
+            document.getElementById('start-menu').classList.remove('show');
+        }
+
+        function createCalculatorApp() {
+            const appId = generateAppId();
+            const title = 'Calculator';
+            const icon = '🧮';
+            const calculatorRequest = createCalculatorPrompt();
+            const content = createAIGeneratedAppContent(calculatorRequest, appId);
+
+            const app = {
+                id: appId,
+                type: 'ai-generated',
+                title: title,
+                icon: icon,
+                isMinimized: false,
+                isMaximized: false,
+                customRequest: calculatorRequest,
+                isSystemApp: true  // Mark as system app from creation
+            };
+
+            apps.push(app);
+            createWindow(appId, title, content, 350, 450, icon);  // Specific calculator dimensions
+            createTaskbarIcon(appId, title, icon);
+            updateAppCount();
+            
+            debugLog('Created new Calculator system app');
+            return appId;
+        }
+
+        function createCalculatorPrompt() {
+            return `Create a Calculator app with a clean, professional interface. The calculator must have the following EXACT specifications:
+
+LAYOUT REQUIREMENTS:
+1. Title: "🧮 Calculator"
+2. Display screen at the top showing current number/result (large, clear font)
+3. Button grid layout: 4 columns × 5 rows
+4. Buttons arranged as follows:
+   Row 1: [C] [±] [%] [÷]
+   Row 2: [7] [8] [9] [×]
+   Row 3: [4] [5] [6] [-]
+   Row 4: [1] [2] [3] [+]
+   Row 5: [0] [.] [=]
+
+STYLING REQUIREMENTS:
+- Display: Large, right-aligned text with dark background
+- Number buttons (0-9): Light gray background (#f0f0f0)
+- Operator buttons (+, -, ×, ÷, =): Orange/blue background (#ff9500 or #007aff)
+- Function buttons (C, ±, %): Dark gray background (#a6a6a6)
+- All buttons: Rounded corners, clear borders, hover effects
+- Responsive button sizing with adequate padding
+- Modern, clean appearance similar to iOS/Android calculators
+
+FUNCTIONALITY REQUIREMENTS:
+- Basic arithmetic operations: +, -, ×, ÷
+- Clear function (C) - resets calculator
+- Decimal point support
+- Plus/minus toggle (±)
+- Percentage calculation (%)
+- Proper order of operations
+- Error handling for division by zero
+- Keyboard support for number keys and operators
+
+TECHNICAL REQUIREMENTS:
+- Use vanilla JavaScript (no external libraries)
+- Implement proper calculator logic with state management
+- Handle edge cases (multiple operators, leading zeros, etc.)
+- Smooth button animations and visual feedback
+- Ensure the calculator works exactly like a standard calculator
+
+The calculator should be fully functional and visually appealing with a professional appearance.`;
+        }
+
+        // Digital Clock App Functions
+        function openDigitalClockApp() {
+            console.log('=== openDigitalClockApp called ===');
+            console.log('Current apps array:', apps);
+            
+            // Check if Digital Clock app already exists
+            const existingApp = apps.find(app => app.title === 'Digital Clock');
+            console.log('Found existing Digital Clock app:', existingApp);
+            
+            if (existingApp) {
+                console.log('Found existing Digital Clock app with ID:', existingApp.id);
+                console.log('App state - isHidden:', existingApp.isHidden, 'isMinimized:', existingApp.isMinimized);
+                
+                // If app exists, show/focus the existing window
+                const windowElement = document.getElementById(`window_${existingApp.id}`);
+                const iconElement = document.getElementById(`icon_${existingApp.id}`);
+                
+                console.log('Window element exists:', !!windowElement);
+                console.log('Icon element exists:', !!iconElement);
+                
+                if (windowElement) {
+                    // Show if hidden
+                    if (existingApp.isHidden) {
+                        console.log('Showing hidden Digital Clock app');
+                        windowElement.style.display = 'block';
+                        if (iconElement) iconElement.style.display = 'block';
+                        existingApp.isHidden = false;
+                    }
+                    
+                    // Unminimize if minimized
+                    if (existingApp.isMinimized) {
+                        console.log('Unminimizing Digital Clock app');
+                        toggleMinimize(existingApp.id);
+                    }
+                    
+                    // Bring to front
+                    windowElement.style.zIndex = getHighestZIndex() + 1;
+                    
+                    // Dispatch app shown event to notify the app it's visible
+                    dispatchAppShownEvent(existingApp.id);
+                    
+                    console.log('Successfully opened existing Digital Clock app');
+                    debugLog('Opened existing Digital Clock app');
+                } else {
+                    console.log('Window element missing, recreating Digital Clock app window');
+                    // Window element doesn't exist, recreate it with proper dimensions
+                    const content = createAIGeneratedAppContent(createDigitalClockPrompt(), existingApp.id);
+                    const icon = existingApp.icon || '🕐';
+                    createWindow(existingApp.id, existingApp.title, content, 400, 300, icon);
+                    createTaskbarIcon(existingApp.id, existingApp.title, icon);
+                    
+                    // Ensure it's still marked as system app
+                    existingApp.isSystemApp = true;
+                    existingApp.isHidden = false;
+                    
+                    console.log('Successfully recreated Digital Clock app window');
+                    debugLog('Recreated Digital Clock app window');
+                }
+            } else {
+                console.log('No existing Digital Clock app found, creating new one');
+                // Create new AI-generated digital clock app
+                createDigitalClockApp();
+            }
+            
+            // Close start menu and submenu
+            hideAppsSubmenu();
+            document.getElementById('start-menu').classList.remove('show');
+        }
+
+        function createDigitalClockApp() {
+            const appId = generateAppId();
+            const title = 'Digital Clock';
+            const icon = '🕐';
+            const clockRequest = createDigitalClockPrompt();
+            const content = createAIGeneratedAppContent(clockRequest, appId);
+
+            const app = {
+                id: appId,
+                type: 'ai-generated',
+                title: title,
+                icon: icon,
+                isMinimized: false,
+                isMaximized: false,
+                customRequest: clockRequest,
+                isSystemApp: true  // Mark as system app from creation
+            };
+
+            apps.push(app);
+            createWindow(appId, title, content, 400, 300, icon);  // Specific clock dimensions
+            createTaskbarIcon(appId, title, icon);
+            updateAppCount();
+            
+            debugLog('Created new Digital Clock system app');
+            return appId;
+        }
+
+        function createDigitalClockPrompt() {
+            return `Create a fully functional Digital Clock widget with real-time updates. IMPORTANT: Do NOT include any title or header text - start directly with the clock display.
+
+REQUIRED IMPLEMENTATION:
+Create a working digital clock that displays the current time and updates every second. The app should contain ONLY the clock functionality, no titles or headers.
+
+HTML STRUCTURE:
+<div id="digital-clock-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: #00ff88; font-family: 'Courier New', monospace; text-align: center; padding: 20px;">
+    <div id="time-display" style="font-size: 48px; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 20px #00ff88;">00:00:00</div>
+    <div id="date-display" style="font-size: 18px; opacity: 0.8;">Loading...</div>
+    <div id="ampm-display" style="font-size: 24px; margin-top: 5px;">AM</div>
+</div>
+
+JAVASCRIPT FUNCTIONALITY:
+<script>
+function updateClock() {
+    const now = new Date();
+    
+    // Format time
+    let hours = now.getHours();
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 should be 12
+    hours = hours.toString().padStart(2, '0');
+    
+    // Format date
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateString = now.toLocaleDateString('en-US', options);
+    
+    // Update display
+    document.getElementById('time-display').textContent = hours + ':' + minutes + ':' + seconds;
+    document.getElementById('date-display').textContent = dateString;
+    document.getElementById('ampm-display').textContent = ampm;
+}
+
+// Update immediately and then every second
+updateClock();
+const clockInterval = setInterval(updateClock, 1000);
+
+// Clean up interval when window is closed
+window.addEventListener('beforeunload', function() {
+    clearInterval(clockInterval);
+});
+<\/script>
+
+STYLING REQUIREMENTS:
+- Large, bold time display (48px)
+- Glowing green text effect
+- Dark gradient background
+- Monospace font for consistent character width
+- Responsive layout that centers content
+- Date display below time
+- AM/PM indicator
+
+The clock must start working immediately when the app loads and update every second with the current time.`;
+        }
 
         // Microphone test function
         async function testMicrophone() {
@@ -3652,6 +4508,11 @@
                         if (response.title) {
                             updateAppTitle(appId, response.title);
                         }
+                        
+                        // Update app icon if provided
+                        if (response.icon) {
+                            updateAppIcon(appId, response.icon);
+                        }
                     }
                 } else {
                     throw new Error('Invalid response from LLM - missing HTML content');
@@ -3724,10 +4585,16 @@ THEME REQUIREMENTS:
 RESPONSE FORMAT - Return ONLY a JSON object with this structure:
 {
   "title": "App Name",
+  "icon": "📱",
   "html": "complete HTML content",
   "css": "complete CSS styles",
   "javascript": "complete JavaScript functionality"
 }
+
+ICON REQUIREMENTS:
+- Choose a single UTF-8 emoji that best represents the app's function
+- Examples: 📅 for calendar, 🧮 for calculator, 📝 for text editor, 🎮 for games, 📊 for charts, etc.
+- The icon should be intuitive and clearly represent the app's purpose
 
 CONTENT RULES:
 - HTML: Use single quotes for attributes to avoid JSON conflicts. NEVER use onclick attributes - use IDs instead
@@ -3887,18 +4754,44 @@ Now create a functional app for: "${request}"`
             if (app) {
                 app.title = newTitle;
                 
-                // Update window title
-                const windowTitleElement = document.querySelector(`#window_${appId} .window-title`);
-                if (windowTitleElement) {
-                    windowTitleElement.textContent = newTitle;
+                // Update window title text
+                const windowTitleTextElement = document.querySelector(`#window_${appId} .window-title-text`);
+                if (windowTitleTextElement) {
+                    windowTitleTextElement.textContent = newTitle;
+                }
+                
+                // Update taskbar icon tooltip
+                const iconElement = document.getElementById(`icon_${appId}`);
+                if (iconElement) {
+                    iconElement.title = newTitle;
+                }
+            }
+        }
+
+        function updateAppIcon(appId, newIcon) {
+            const app = apps.find(a => a.id === appId);
+            if (app) {
+                app.icon = newIcon;
+                
+                // Update window header icon
+                const windowIconElement = document.querySelector(`#window_${appId} .window-icon`);
+                if (windowIconElement) {
+                    windowIconElement.textContent = newIcon;
                 }
                 
                 // Update taskbar icon
-                const iconElement = document.getElementById(`icon_${appId}`);
-                if (iconElement) {
-                    iconElement.textContent = newTitle.substring(0, 3);
-                    iconElement.title = newTitle;
+                const taskbarIconElement = document.querySelector(`#icon_${appId} .taskbar-icon`);
+                if (taskbarIconElement) {
+                    taskbarIconElement.textContent = newIcon;
                 }
+                
+                // Update apps submenu if it's currently visible
+                const submenu = document.getElementById('apps-submenu');
+                if (submenu && submenu.classList.contains('show')) {
+                    updateAppsSubmenuContent();
+                }
+                
+                console.log(`Updated app ${appId} icon to: ${newIcon}`);
             }
         }
 
