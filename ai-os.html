@@ -2361,7 +2361,7 @@ FUNCTIONALITY:
 The clock should be immediately functional and start displaying the current time as soon as the app loads.`
             },
             'Cost Tracking': {
-                generationMode: 'TOUGH',
+                generationMode: 'SIMPLE',
                 icon: '💰',
                 prompt: `Create a Cost Tracking app that displays API usage costs. The app must access the global 'costHistory' array which contains cost entries with the following structure:
             
@@ -5064,65 +5064,11 @@ Now create a functional app for: "${request}"`
             }
         }
 
-        // Create a prompt add-on that defines ID prefixing and naming convention rules
-        function createIDPrefixingPromptAddOn(appId) {
-            return `
 
-CRITICAL ID PREFIXING AND NAMING RULES:
-To prevent conflicts between multiple apps, ALL HTML IDs, CSS classes, and JavaScript functions MUST be prefixed with a unique application identifier.
-
-APPLICATION ID: ${appId}
-
-MANDATORY PREFIXING RULES:
-1. HTML IDs: All IDs must be prefixed with "app${appId}_"
-   - Example: <button id='app${appId}_submitBtn'>Submit</button>
-   - Example: <div id='app${appId}_container'>Content</div>
-
-2. CSS Classes: All custom CSS classes must be prefixed with "app${appId}-"
-   - Example: .app${appId}-button { color: blue; }
-   - Example: .app${appId}-container { padding: 10px; }
-
-3. JavaScript Functions: All custom functions must be prefixed with "app${appId}_"
-   - Example: function app${appId}_handleClick() { ... }
-   - Example: function app${appId}_calculateTotal() { ... }
-
-4. JavaScript Variables: All global variables must be prefixed with "app${appId}_"
-   - Example: let app${appId}_currentValue = 0;
-   - Example: const app${appId}_config = { ... };
-
-IMPLEMENTATION EXAMPLES:
-HTML:
-<div id='app${appId}_mainContainer' class='app${appId}-wrapper'>
-    <button id='app${appId}_actionBtn' class='app${appId}-button'>Click Me</button>
-    <input id='app${appId}_textInput' class='app${appId}-input' type='text'>
-</div>
-
-CSS:
-.app${appId}-wrapper { background: #f0f0f0; }
-.app${appId}-button { padding: 10px; border: none; }
-.app${appId}-input { width: 100%; margin: 5px 0; }
-
-JavaScript:
-function app${appId}_initialize() {
-    const button = document.getElementById('app${appId}_actionBtn');
-    const input = document.getElementById('app${appId}_textInput');
-    button.addEventListener('click', app${appId}_handleClick);
-}
-
-function app${appId}_handleClick() {
-    const input = document.getElementById('app${appId}_textInput');
-    app${appId}_processInput(input.value);
-}
-
-let app${appId}_data = [];
-
-CRITICAL: This prefixing is MANDATORY for ALL custom elements, classes, functions, and variables. Do NOT use generic names like 'button', 'container', 'handleClick', etc. Always use the app${appId}_ prefix.`;
-        }
 
         async function callLLMAPI(prompt, userRequest = '', description = 'API Request', appId = null) {
             // If appId is provided, append the ID prefixing prompt add-on
             if (appId) {
-                prompt += createIDPrefixingPromptAddOn(appId);
                 
                 // Record the prompt in the app's history
                 const promptType = description.includes('Edit') ? 'edit' : 'creation';
