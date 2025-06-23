@@ -282,6 +282,26 @@
             background: #5a32a3;
         }
 
+        .window-history-button {
+            width: 40px;
+            height: 40px;
+            background: #fd7e14;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            transition: background 0.2s;
+        }
+
+        .window-history-button:hover {
+            background: #e8590c;
+        }
+
         .window-content {
             padding: 20px;
             height: calc(100% - 81px);
@@ -1063,7 +1083,11 @@
         }
 
         function generateAppId() {
-            return `app_${nextAppId++}`;
+            // Generate a unique ID using timestamp + random characters
+            // This ensures uniqueness even after page reloads
+            const timestamp = Date.now().toString(36); // Base36 timestamp (shorter)
+            const randomPart = Math.random().toString(36).substr(2, 4); // 4 random chars
+            return `app_${timestamp}${randomPart}`;
         }
 
         function createWindow(appId, title, content, width = 400, height = 300, icon = '📱') {
@@ -1094,6 +1118,7 @@
                     <div class="window-controls">
                         <button class="window-voice-button" id="voice-button-${appId}" title="Hold to talk - Modify this app with voice">🎤</button>
                         <button class="window-text-button" id="text-button-${appId}" title="Edit this app with text prompt">✏️</button>
+                        <button class="window-history-button" id="history-button-${appId}" title="View prompt history" onclick="showPromptHistory('${appId}')">📜</button>
                         <button class="window-download-button" id="download-button-${appId}" title="Download this app">💾</button>
                         <button class="window-control minimize" onclick="minimizeWindow('${appId}')">−</button>
                         <button class="window-control maximize" onclick="toggleMaximize('${appId}')">□</button>
@@ -1321,7 +1346,8 @@
                 icon: icon,
                 isMinimized: false,
                 isMaximized: false,
-                customRequest: customRequest
+                customRequest: customRequest,
+                promptHistory: []
             };
 
             apps.push(app);
@@ -2099,8 +2125,11 @@
                 javascript: currentJavaScript,
                 isMinimized: app.isMinimized,
                 isMaximized: app.isMaximized,
+                modificationHistory: app.modificationHistory || [],
+                lastModification: app.lastModification || null,
+                promptHistory: app.promptHistory || [],
                 exportDate: new Date().toISOString(),
-                version: '1.0'
+                version: '1.1'
             };
 
             // Create and download the file
@@ -2139,7 +2168,8 @@
                         title: appData.title,
                         isMinimized: false,
                         isMaximized: false,
-                        customRequest: appData.customRequest || 'Imported app'
+                        customRequest: appData.customRequest || 'Imported app',
+                        promptHistory: appData.promptHistory || []
                     };
                     
                     // Add to apps array
@@ -2205,6 +2235,250 @@
             document.getElementById('start-menu').classList.remove('show');
         }
 
+        // System Apps Definition Dictionary
+        const SYSTEM_APPS_DEFINITIONS = {
+            'Calculator': {
+                generationMode: 'TOUGH',
+                icon: '🧮',
+                prompt: `Create a fully functional Calculator app with a professional interface and specific design requirements.
+
+EXACT LAYOUT REQUIREMENTS:
+- Display screen at the top: large, dark background, white text, right-aligned numbers
+- Button grid: exactly 4 columns by 5 rows
+- Row 1: Clear (C), Plus/Minus (±), Percentage (%), Division (÷)
+- Row 2: Seven (7), Eight (8), Nine (9), Multiplication (×)
+- Row 3: Four (4), Five (5), Six (6), Subtraction (-)
+- Row 4: One (1), Two (2), Three (3), Addition (+)
+- Row 5: Zero (0) spans 2 columns, Decimal (.), Equals (=)
+- Center all content in the window
+
+BUTTON SIZING AND SPACING:
+- All buttons should be uniform size except zero which spans two columns
+- Minimum button size: 60px width and 60px height for good touch targets
+- Equal spacing between all buttons: 8px gaps
+- Rounded corners on all buttons: 8px border radius
+- Clear visual separation between button types
+
+EXACT COLOR SCHEME WITH THEME SUPPORT:
+LIGHT MODE (.app-light-theme):
+- Number buttons (0-9): #ffffff background with #212529 text
+- Decimal point button (.): #ffffff background with #212529 text
+- Operator buttons (+, -, ×, ÷): #ff6b35 (orange) background with #ffffff text
+- Equals button (=): #28a745 (green) background with #ffffff text
+- Clear button (C): #dc3545 (red) background with #ffffff text
+- Additional function buttons (±, %): #f8f9fa background with #212529 text
+- Display area: #2c3e50 (dark) background with #ffffff text
+
+DARK MODE (.app-dark-theme):
+- Number buttons (0-9): #495057 background with #f8f9fa text
+- Decimal point button (.): #495057 background with #f8f9fa text
+- Operator buttons (+, -, ×, ÷): #ff8c42 (orange) background with #ffffff text
+- Equals button (=): #198754 (green) background with #ffffff text
+- Clear button (C): #dc3545 (red) background with #ffffff text
+- Additional function buttons (±, %): #6c757d background with #f8f9fa text
+- Display area: #1a1a1a (very dark) background with #f8f9fa text
+
+CRITICAL CONTRAST REQUIREMENTS:
+- NEVER use light text on light backgrounds or dark text on dark backgrounds
+- All button text must have minimum 4.5:1 contrast ratio with button background
+- Display text must be clearly visible against display background
+- Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
+
+VISUAL DESIGN DETAILS:
+- Clean, modern calculator appearance
+- Subtle shadow effects on buttons for depth
+- Hover effects: slight brightness change when hovering over buttons
+- Active/pressed state: slightly darker version of button color
+- Professional typography with clear, readable fonts
+- Responsive design that scales well within the window
+
+FUNCTIONALITY REQUIREMENTS:
+- All basic arithmetic operations working correctly
+- Clear function resets calculator to zero
+- Decimal point support for floating point calculations
+- Plus/minus toggle changes sign of current displayed number
+- Percentage calculations work properly
+- Proper order of operations and chaining calculations
+- Error handling for division by zero shows "Error"
+- Display updates immediately when any button is pressed
+- Keyboard support for number keys and basic operators
+
+TECHNICAL IMPLEMENTATION:
+- Use semantic HTML with proper button elements and unique IDs
+- Implement CSS grid or flexbox for precise button layout
+- Write clean JavaScript with addEventListener for all interactions
+- Maintain proper calculator state between operations
+- Handle edge cases like multiple operators, leading zeros, decimal points
+- Ensure calculator behaves exactly like a standard calculator
+
+The calculator must be immediately functional with the exact color scheme and layout specified.`
+            },
+            'Digital Clock': {
+                generationMode: 'SIMPLE',
+                icon: '🕐',
+                prompt: `Create a simple but functional Digital Clock that displays the current time and updates every second.
+
+ESSENTIAL REQUIREMENTS:
+- Create a working digital clock that shows the current time
+- Update the display every second automatically
+- Show hours, minutes, and seconds in HH:MM:SS format
+- Use 12-hour format with AM/PM indicator
+- Center the clock display in the window
+- Use a large, readable font for the time display
+- Include the current date below the time
+- Make it visually appealing with proper theme support
+
+DESIGN REQUIREMENTS WITH THEME SUPPORT:
+LIGHT MODE (.app-light-theme):
+- Background: #f8f9fa (light gray) or #ffffff (white)
+- Time display: #212529 (dark) text, 32px+ font size, bold
+- Date display: #495057 (medium dark) text, 16px font size
+- AM/PM indicator: #6c757d (gray) text, 18px font size
+- Container background: #ffffff with subtle shadow
+
+DARK MODE (.app-dark-theme):
+- Background: #2c3e50 (dark blue) or #34495e (medium dark)
+- Time display: #f8f9fa (light) text, 32px+ font size, bold
+- Date display: #e9ecef (medium light) text, 16px font size
+- AM/PM indicator: #ced4da (light gray) text, 18px font size
+- Container background: #495057 with subtle glow
+
+CRITICAL STYLING REQUIREMENTS:
+- Use CSS theme classes: .app-light-theme and .app-dark-theme
+- Ensure high contrast between text and background in both themes
+- Use monospace font for time display to prevent layout shifts
+- Center all content horizontally and vertically
+- Responsive design that adapts to window size
+- Clean, modern appearance with proper spacing
+
+FUNCTIONALITY:
+- Automatically start when the app opens
+- Update every second without user interaction
+- Show accurate current time
+- Display current date in a readable format
+- Handle time changes correctly (including midnight transitions)
+
+The clock should be immediately functional and start displaying the current time as soon as the app loads.`
+            },
+            'Cost Tracking': {
+                generationMode: 'TOUGH',
+                icon: '💰',
+                prompt: `Create a Cost Tracking app that displays API usage costs. The app must access the global 'costHistory' array which contains cost entries with the following structure:
+            
+            costHistory = [
+                {
+                    timestamp: "2024-01-01T12:00:00.000Z",
+                    cost: 0.0025,
+                    description: "App Creation Request",
+                    prompt: "Create a calculator app..."
+                }
+            ]
+
+            SPECIFIC REQUIREMENTS:
+            1. Title: "💰 Cost Tracking"
+            2. Display total cost at the top in a highlighted summary box
+            3. Show number of API calls made
+            4. Display cost history in a table with columns: Date/Time, Cost, Description, Prompt
+            5. Sort entries by newest first (reverse chronological order)
+            6. Include a "Clear History" button that calls clearCostHistory() function
+            7. Include a "Load Costs" button that refreshes the data from the global costHistory
+            8. Handle empty history with a "No cost entries recorded yet" message
+            9. Use proper currency formatting ($X.XXXX)
+            10. Make the table scrollable if there are many entries
+            11. Truncate long prompts to fit in the table (max 100 characters)
+
+            STYLING REQUIREMENTS WITH THEME SUPPORT:
+            LIGHT MODE (.app-light-theme):
+            - Background: #ffffff (white) or #f8f9fa (light gray)
+            - Summary box: #e3f2fd (light blue) background with #0d47a1 (dark blue) text
+            - Table headers: #f8f9fa background with #212529 text
+            - Table rows: Alternating #ffffff and #f8f9fa backgrounds with #212529 text
+            - Cost values: #dc3545 (red) text for emphasis
+            - Buttons: #007bff (blue) background with #ffffff text
+            - Borders: #dee2e6 (light gray) for table and containers
+
+            DARK MODE (.app-dark-theme):
+            - Background: #2c3e50 (dark blue) or #34495e (medium dark)
+            - Summary box: #1e3a5f (dark blue) background with #66b3ff (light blue) text
+            - Table headers: #495057 background with #f8f9fa text
+            - Table rows: Alternating #3a4a5c and #495057 backgrounds with #f8f9fa text
+            - Cost values: #ff6b6b (light red) text for emphasis
+            - Buttons: #0d6efd (blue) background with #ffffff text
+            - Borders: #6c757d (gray) for table and containers
+
+            CRITICAL CONTRAST REQUIREMENTS:
+            - Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
+            - Ensure minimum 4.5:1 contrast ratio between text and background
+            - Cost values must be clearly visible in both themes
+            - Button text must be white (#ffffff) on colored button backgrounds
+            - Table text must have high contrast against row backgrounds
+            - Use proper spacing and padding for readability
+            - Responsive design that works in 400-600px windows
+
+            TECHNICAL REQUIREMENTS:
+            - CRITICAL: Access costHistory using window.costHistory (this is the global array with all cost data)
+            - ALWAYS use: const costs = window.costHistory || []; to safely access the data
+            - Calculate total cost: const total = costs.reduce((sum, entry) => sum + entry.cost, 0);
+            - Format dates using new Date(entry.timestamp).toLocaleDateString() and toLocaleTimeString()
+            - Clear History button MUST call: window.clearCostHistory()
+            - Load Costs button MUST call your local loadCostData() function
+            - MANDATORY: Create loadCostData() function that refreshes display from window.costHistory
+            - MANDATORY: Call loadCostData() immediately when app loads AND when 'appShown' event fires
+            - MANDATORY: Listen for 'appShown' event: document.addEventListener('appShown', loadCostData);
+            - Handle empty data gracefully with "No cost entries recorded yet" message
+            - DEBUGGING: Add console.log('Loading cost data:', window.costHistory); in loadCostData()
+
+            APP VISIBILITY EVENT:
+            - The system will dispatch a custom 'appShown' event when the app becomes visible
+            - Listen for this event: document.addEventListener('appShown', function(event) { if(event.detail.appId === 'your-app-id') loadCostData(); });
+            - This allows the app to refresh its data when reopened from hidden state
+            - Always refresh cost data when this event is received
+
+            EXAMPLE STRUCTURE:
+            - Summary section with total cost and call count
+            - Button row with "Load Costs" and "Clear History" buttons
+            - Scrollable table with cost entries
+            - Proper error handling for missing or invalid data
+
+            EXAMPLE CODE SNIPPET:
+            function loadCostData() {
+                console.log('Loading cost data:', window.costHistory);
+                const costs = window.costHistory || [];
+                const total = costs.reduce((sum, entry) => sum + entry.cost, 0);
+                
+                console.log('Found', costs.length, 'cost entries, total:', total);
+                
+                // Update summary
+                const totalElement = document.getElementById('total-cost');
+                const countElement = document.getElementById('call-count');
+                if (totalElement) totalElement.textContent = '$' + total.toFixed(4);
+                if (countElement) countElement.textContent = costs.length;
+                
+                // Update table
+                const tbody = document.getElementById('cost-table-body');
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    if (costs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No cost entries recorded yet.</td></tr>';
+                    } else {
+                        costs.slice().reverse().forEach(entry => {
+                            const row = tbody.insertRow();
+                            const date = new Date(entry.timestamp);
+                            row.innerHTML = '<td>' + date.toLocaleDateString() + ' ' + date.toLocaleTimeString() + '</td><td style="color: #dc3545; font-weight: bold;">$' + entry.cost.toFixed(4) + '</td><td>' + entry.description + '</td><td>' + (entry.prompt || 'N/A').substring(0, 100) + '</td>';
+                        });
+                    }
+                }
+            }
+            
+            // MANDATORY: Call loadCostData when app loads and on appShown event
+            loadCostData();
+            document.addEventListener('appShown', function(event) {
+                console.log('App shown event received for:', event.detail.appId);
+                loadCostData();
+            });`
+            }
+        };
+
         // Configuration for LLM integration
         const CONFIG = {
             OPENAI_API_KEY: 'sk-proj-...', // Replace with your actual OpenAI API key
@@ -2218,6 +2492,7 @@
 
         // Model selection state
         let currentModelMode = 'Simple'; // Default to Simple mode
+        let previousModelMode = 'Simple'; // Store previous mode for restoration
 
         // Global voice recognition settings
         let voiceRecognitionType = 'whisper'; // 'whisper' or 'web'
@@ -2916,7 +3191,9 @@
                         model: provider === 'openrouter' ? 'google/gemini-2.5-flash-lite-preview-06-17' :
                                provider === 'openai' ? 'gpt-4o-mini' : 'llama-3.2-3b-instruct',
                         messages: [{ role: 'user', content: 'Hello! This is a test message.' }],
-                        max_tokens: 50
+                        ...(provider === 'openai' ?
+                            { max_completion_tokens: 50, temperature: 1 } :
+                            { max_tokens: 50, temperature: 0.7 })
                     })
                 });
                 
@@ -3439,6 +3716,13 @@
                 // Store current provider in CONFIG
                 CONFIG.CURRENT_LLM_PROVIDER = currentProvider;
                 
+                // Update CONFIG.MODEL to match the current mode with the new provider-specific models
+                if (currentModelMode === 'Simple') {
+                    CONFIG.MODEL = CONFIG.MODEL_SIMPLE;
+                } else {
+                    CONFIG.MODEL = CONFIG.MODEL_TOUGH;
+                }
+                
                 // Update the provider display in the header
                 updateProviderDisplay();
                 
@@ -3524,22 +3808,7 @@
                         section.querySelector('.menu-title')?.textContent === 'System'
                     );
                     
-                    if (systemSection) {
-                        // Create the cost tracking menu item
-                        const costTrackingMenuItem = document.createElement('div');
-                        costTrackingMenuItem.id = 'cost-tracking-item';
-                        costTrackingMenuItem.className = 'menu-item';
-                        costTrackingMenuItem.onclick = () => openCostTrackingApp();
-                        costTrackingMenuItem.textContent = '💰 Cost Tracking';
-                        
-                        // Insert after Settings but before other items
-                        const settingsItem = systemSection.querySelector('.menu-item[onclick="showSettings()"]');
-                        if (settingsItem && settingsItem.nextSibling) {
-                            systemSection.insertBefore(costTrackingMenuItem, settingsItem.nextSibling);
-                        } else {
-                            systemSection.appendChild(costTrackingMenuItem);
-                        }
-                    }
+                    // Cost Tracking is now handled in the "All Apps" submenu
                 }
             } else {
                 // Remove cost tracking app from System section
@@ -3600,18 +3869,7 @@
         }
 
         function createCostTrackingApp() {
-            const costTrackingRequest = createCostTrackingPrompt();
-            const appId = createApp(costTrackingRequest);
-            
-            // Mark as system app
-            const app = apps.find(a => a.id === appId);
-            if (app) {
-                app.isSystemApp = true;
-                app.title = '💰 Cost Tracking'; // Ensure consistent title
-            }
-            
-            debugLog('Created new Cost Tracking system app');
-            return appId;
+            return generateSystemApp('Cost Tracking');
         }
 
         function getHighestZIndex() {
@@ -3627,6 +3885,11 @@
         }
 
         function createCostTrackingPrompt() {
+            // This function is kept for backward compatibility but now uses the definition dictionary
+            return SYSTEM_APPS_DEFINITIONS['Cost Tracking'].prompt;
+        }
+
+        function createCostTrackingPromptOld() {
             return `Create a Cost Tracking app that displays API usage costs. The app must access the global 'costHistory' array which contains cost entries with the following structure:
             
             costHistory = [
@@ -3871,36 +4134,29 @@
             // Get all real apps (now normalized)
             const allApps = [...apps];
             
-            // Add Calculator system app placeholder ONLY if no real Calculator app exists
-            const hasRealCalculator = allApps.some(app => app.title === 'Calculator');
-            console.log('Has real Calculator app:', hasRealCalculator);
+            // Add system app placeholders from SYSTEM_APPS_DEFINITIONS for apps that don't exist yet
             console.log('All apps titles:', allApps.map(app => app.title));
             
-            if (!hasRealCalculator) {
-                allApps.push({
-                    id: 'calculator-system',
-                    title: 'Calculator',
-                    icon: '🧮',
-                    isSystemApp: true,
-                    type: 'system'
-                });
-                console.log('Added Calculator placeholder');
-            }
-
-            // Add Digital Clock system app placeholder ONLY if no real Digital Clock app exists
-            const hasRealClock = allApps.some(app => app.title === 'Digital Clock');
-            console.log('Has real Digital Clock app:', hasRealClock);
-            
-            if (!hasRealClock) {
-                allApps.push({
-                    id: 'clock-system',
-                    title: 'Digital Clock',
-                    icon: '🕐',
-                    isSystemApp: true,
-                    type: 'system'
-                });
-                console.log('Added Digital Clock placeholder');
-            }
+            Object.keys(SYSTEM_APPS_DEFINITIONS).forEach(appName => {
+                const appDefinition = SYSTEM_APPS_DEFINITIONS[appName];
+                const hasRealApp = allApps.some(app =>
+                    app.title === appName ||
+                    app.title === `${appDefinition.icon} ${appName}`
+                );
+                
+                console.log(`Has real ${appName} app:`, hasRealApp);
+                
+                if (!hasRealApp) {
+                    allApps.push({
+                        id: `${appName.toLowerCase().replace(/\s+/g, '-')}-system`,
+                        title: appName,
+                        icon: appDefinition.icon,
+                        isSystemApp: true,
+                        type: 'system'
+                    });
+                    console.log(`Added ${appName} placeholder`);
+                }
+            });
 
             // Sort apps alphabetically by title
             allApps.sort((a, b) => {
@@ -3928,20 +4184,22 @@
                 
                 console.log('Creating submenu item for app:', app);
                 
-                if (app.title === 'Calculator') {
-                    // Always use openCalculatorApp for Calculator apps (both real and placeholder)
-                    item.onclick = () => {
-                        console.log('Calculator submenu item clicked');
-                        openCalculatorApp();
+                // Check if this is a system app from definitions
+                const systemAppOpenFunction = getSystemAppOpenFunction(app.title);
+                
+                if (systemAppOpenFunction) {
+                    // Use the specific open function for system apps (both real and placeholder)
+                    const systemAppHandler = () => {
+                        console.log(`${app.title} submenu item clicked`);
+                        systemAppOpenFunction();
                     };
-                } else if (app.title === 'Digital Clock') {
-                    // Always use openDigitalClockApp for Digital Clock apps (both real and placeholder)
-                    item.onclick = () => {
-                        console.log('Digital Clock submenu item clicked');
-                        openDigitalClockApp();
-                    };
+                    item.onclick = systemAppHandler;
+                    item.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        systemAppHandler();
+                    });
                 } else {
-                    item.onclick = () => {
+                    const appHandler = () => {
                         console.log('Regular app submenu item clicked for:', app.id);
                         // Focus existing app or show it if minimized/hidden
                         if (app.isHidden) {
@@ -3961,6 +4219,11 @@
                         }
                         hideAppsSubmenu();
                     };
+                    item.onclick = appHandler;
+                    item.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        appHandler();
+                    });
                 }
                 
                 content.appendChild(item);
@@ -4029,11 +4292,8 @@
                     debugLog('Opened existing Calculator app');
                 } else {
                     console.log('Window element missing, recreating Calculator app window');
-                    // Window element doesn't exist, recreate it with proper dimensions
-                    const content = createAIGeneratedAppContent(createCalculatorPrompt(), existingApp.id);
-                    const icon = existingApp.icon || '🧮';
-                    createWindow(existingApp.id, existingApp.title, content, 350, 450, icon);
-                    createTaskbarIcon(existingApp.id, existingApp.title, icon);
+                    // Window element doesn't exist, recreate it using the system app generation
+                    generateSystemApp('Calculator', existingApp.id);
                     
                     // Ensure it's still marked as system app
                     existingApp.isSystemApp = true;
@@ -4053,74 +4313,125 @@
             document.getElementById('start-menu').classList.remove('show');
         }
 
-        function createCalculatorApp() {
-            const appId = generateAppId();
-            const title = 'Calculator';
-            const icon = '🧮';
-            const calculatorRequest = createCalculatorPrompt();
-            const content = createAIGeneratedAppContent(calculatorRequest, appId);
+        // System App Generation with Mode Management
+        function generateSystemApp(appName, appId = null) {
+            console.log(`🔧 Generating system app: ${appName}`);
+            
+            // Get app definition from dictionary
+            const appDefinition = SYSTEM_APPS_DEFINITIONS[appName];
+            if (!appDefinition) {
+                console.error(`❌ No definition found for system app: ${appName}`);
+                return null;
+            }
+            
+            // Store current mode for restoration
+            previousModelMode = currentModelMode;
+            
+            // Set generation mode based on app definition
+            const requiredMode = appDefinition.generationMode === 'TOUGH' ? 'Tough' : 'Simple';
+            if (currentModelMode !== requiredMode) {
+                console.log(`🔄 Switching from ${currentModelMode} to ${requiredMode} mode for ${appName} generation`);
+                setModelMode(requiredMode);
+            }
+            
+            // Generate or use provided app ID
+            const finalAppId = appId || generateAppId();
+            
+            // Get app-specific settings
+            const icon = getSystemAppIcon(appName);
+            const dimensions = getSystemAppDimensions(appName);
+            
+            // Create app content using the definition's prompt
+            const content = createAIGeneratedAppContent(appDefinition.prompt, finalAppId);
 
             const app = {
-                id: appId,
+                id: finalAppId,
                 type: 'ai-generated',
-                title: title,
+                title: appName,
                 icon: icon,
                 isMinimized: false,
                 isMaximized: false,
-                customRequest: calculatorRequest,
-                isSystemApp: true  // Mark as system app from creation
+                customRequest: appDefinition.prompt,
+                isSystemApp: true,
+                generationMode: appDefinition.generationMode
             };
 
             apps.push(app);
-            createWindow(appId, title, content, 350, 450, icon);  // Specific calculator dimensions
-            createTaskbarIcon(appId, title, icon);
+            createWindow(finalAppId, appName, content, dimensions.width, dimensions.height, icon);
+            createTaskbarIcon(finalAppId, appName, icon);
             updateAppCount();
             
-            debugLog('Created new Calculator system app');
-            return appId;
+            // Schedule mode restoration after generation completes
+            scheduleModelModeRestoration();
+            
+            debugLog(`Created new ${appName} system app with ${appDefinition.generationMode} mode`);
+            return finalAppId;
+        }
+
+        // Helper function to set model mode
+        function setModelMode(mode) {
+            const toggleButton = document.getElementById('model-toggle');
+            const modeText = document.getElementById('model-mode-text');
+            
+            if (mode === 'Tough' && currentModelMode !== 'Tough') {
+                currentModelMode = 'Tough';
+                CONFIG.MODEL = CONFIG.MODEL_TOUGH;
+                if (modeText) modeText.textContent = 'Tough';
+                if (toggleButton) toggleButton.classList.add('tough-mode');
+            } else if (mode === 'Simple' && currentModelMode !== 'Simple') {
+                currentModelMode = 'Simple';
+                CONFIG.MODEL = CONFIG.MODEL_SIMPLE;
+                if (modeText) modeText.textContent = 'Simple';
+                if (toggleButton) toggleButton.classList.remove('tough-mode');
+            }
+            
+            console.log(`Model mode set to: ${currentModelMode} (${CONFIG.MODEL})`);
+        }
+
+        // Helper function to get system app icon
+        function getSystemAppIcon(appName) {
+            const appDefinition = SYSTEM_APPS_DEFINITIONS[appName];
+            return appDefinition ? appDefinition.icon : '📱';
+        }
+
+        // Helper function to get system app open function
+        function getSystemAppOpenFunction(appName) {
+            const openFunctionMap = {
+                'Calculator': openCalculatorApp,
+                'Digital Clock': openDigitalClockApp,
+                'Cost Tracking': openCostTrackingApp
+            };
+            return openFunctionMap[appName];
+        }
+
+        // Helper function to get system app dimensions
+        function getSystemAppDimensions(appName) {
+            const dimensionMap = {
+                'Calculator': { width: 350, height: 450 },
+                'Digital Clock': { width: 400, height: 300 },
+                'Cost Tracking': { width: 600, height: 500 }
+            };
+            return dimensionMap[appName] || { width: 400, height: 300 };
+        }
+
+        // Schedule model mode restoration after generation
+        function scheduleModelModeRestoration() {
+            // Wait for generation to complete (estimated time) then restore mode
+            setTimeout(() => {
+                if (previousModelMode !== currentModelMode) {
+                    console.log(`🔄 Restoring model mode from ${currentModelMode} back to ${previousModelMode}`);
+                    setModelMode(previousModelMode);
+                }
+            }, 10000); // Wait 10 seconds for generation to complete
+        }
+
+        function createCalculatorApp() {
+            return generateSystemApp('Calculator');
         }
 
         function createCalculatorPrompt() {
-            return `Create a Calculator app with a clean, professional interface. The calculator must have the following EXACT specifications:
-
-LAYOUT REQUIREMENTS:
-1. Title: "🧮 Calculator"
-2. Display screen at the top showing current number/result (large, clear font)
-3. Button grid layout: 4 columns × 5 rows
-4. Buttons arranged as follows:
-   Row 1: [C] [±] [%] [÷]
-   Row 2: [7] [8] [9] [×]
-   Row 3: [4] [5] [6] [-]
-   Row 4: [1] [2] [3] [+]
-   Row 5: [0] [.] [=]
-
-STYLING REQUIREMENTS:
-- Display: Large, right-aligned text with dark background
-- Number buttons (0-9): Light gray background (#f0f0f0)
-- Operator buttons (+, -, ×, ÷, =): Orange/blue background (#ff9500 or #007aff)
-- Function buttons (C, ±, %): Dark gray background (#a6a6a6)
-- All buttons: Rounded corners, clear borders, hover effects
-- Responsive button sizing with adequate padding
-- Modern, clean appearance similar to iOS/Android calculators
-
-FUNCTIONALITY REQUIREMENTS:
-- Basic arithmetic operations: +, -, ×, ÷
-- Clear function (C) - resets calculator
-- Decimal point support
-- Plus/minus toggle (±)
-- Percentage calculation (%)
-- Proper order of operations
-- Error handling for division by zero
-- Keyboard support for number keys and operators
-
-TECHNICAL REQUIREMENTS:
-- Use vanilla JavaScript (no external libraries)
-- Implement proper calculator logic with state management
-- Handle edge cases (multiple operators, leading zeros, etc.)
-- Smooth button animations and visual feedback
-- Ensure the calculator works exactly like a standard calculator
-
-The calculator should be fully functional and visually appealing with a professional appearance.`;
+            // This function is kept for backward compatibility but now uses the definition dictionary
+            return SYSTEM_APPS_DEFINITIONS['Calculator'].prompt;
         }
 
         // Digital Clock App Functions
@@ -4168,11 +4479,8 @@ The calculator should be fully functional and visually appealing with a professi
                     debugLog('Opened existing Digital Clock app');
                 } else {
                     console.log('Window element missing, recreating Digital Clock app window');
-                    // Window element doesn't exist, recreate it with proper dimensions
-                    const content = createAIGeneratedAppContent(createDigitalClockPrompt(), existingApp.id);
-                    const icon = existingApp.icon || '🕐';
-                    createWindow(existingApp.id, existingApp.title, content, 400, 300, icon);
-                    createTaskbarIcon(existingApp.id, existingApp.title, icon);
+                    // Window element doesn't exist, recreate it using the system app generation
+                    generateSystemApp('Digital Clock', existingApp.id);
                     
                     // Ensure it's still marked as system app
                     existingApp.isSystemApp = true;
@@ -4193,91 +4501,12 @@ The calculator should be fully functional and visually appealing with a professi
         }
 
         function createDigitalClockApp() {
-            const appId = generateAppId();
-            const title = 'Digital Clock';
-            const icon = '🕐';
-            const clockRequest = createDigitalClockPrompt();
-            const content = createAIGeneratedAppContent(clockRequest, appId);
-
-            const app = {
-                id: appId,
-                type: 'ai-generated',
-                title: title,
-                icon: icon,
-                isMinimized: false,
-                isMaximized: false,
-                customRequest: clockRequest,
-                isSystemApp: true  // Mark as system app from creation
-            };
-
-            apps.push(app);
-            createWindow(appId, title, content, 400, 300, icon);  // Specific clock dimensions
-            createTaskbarIcon(appId, title, icon);
-            updateAppCount();
-            
-            debugLog('Created new Digital Clock system app');
-            return appId;
+            return generateSystemApp('Digital Clock');
         }
 
         function createDigitalClockPrompt() {
-            return `Create a fully functional Digital Clock widget with real-time updates. IMPORTANT: Do NOT include any title or header text - start directly with the clock display.
-
-REQUIRED IMPLEMENTATION:
-Create a working digital clock that displays the current time and updates every second. The app should contain ONLY the clock functionality, no titles or headers.
-
-HTML STRUCTURE:
-<div id="digital-clock-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: #00ff88; font-family: 'Courier New', monospace; text-align: center; padding: 20px;">
-    <div id="time-display" style="font-size: 48px; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 20px #00ff88;">00:00:00</div>
-    <div id="date-display" style="font-size: 18px; opacity: 0.8;">Loading...</div>
-    <div id="ampm-display" style="font-size: 24px; margin-top: 5px;">AM</div>
-</div>
-
-JAVASCRIPT FUNCTIONALITY:
-<script>
-function updateClock() {
-    const now = new Date();
-    
-    // Format time
-    let hours = now.getHours();
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    
-    // Convert to 12-hour format
-    hours = hours % 12;
-    hours = hours ? hours : 12; // 0 should be 12
-    hours = hours.toString().padStart(2, '0');
-    
-    // Format date
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const dateString = now.toLocaleDateString('en-US', options);
-    
-    // Update display
-    document.getElementById('time-display').textContent = hours + ':' + minutes + ':' + seconds;
-    document.getElementById('date-display').textContent = dateString;
-    document.getElementById('ampm-display').textContent = ampm;
-}
-
-// Update immediately and then every second
-updateClock();
-const clockInterval = setInterval(updateClock, 1000);
-
-// Clean up interval when window is closed
-window.addEventListener('beforeunload', function() {
-    clearInterval(clockInterval);
-});
-<\/script>
-
-STYLING REQUIREMENTS:
-- Large, bold time display (48px)
-- Glowing green text effect
-- Dark gradient background
-- Monospace font for consistent character width
-- Responsive layout that centers content
-- Date display below time
-- AM/PM indicator
-
-The clock must start working immediately when the app loads and update every second with the current time.`;
+            // This function is kept for backward compatibility but now uses the definition dictionary
+            return SYSTEM_APPS_DEFINITIONS['Digital Clock'].prompt;
         }
 
         // Microphone test function
@@ -4506,7 +4735,7 @@ The clock must start working immediately when the app loads and update every sec
                 const prompt = createWindowedAppPrompt(request, appId);
                 
                 // Call LLM API
-                const response = await callLLMAPI(prompt, request, 'App Creation Request');
+                const response = await callLLMAPI(prompt, request, 'App Creation Request', appId);
                 
                 if (response && response.html) {
                     console.log(`✅ LLM processing successful on attempt ${retryCount + 1}`);
@@ -4609,10 +4838,51 @@ CRITICAL REQUIREMENTS:
 THEME REQUIREMENTS:
 - Create CSS that works well in BOTH Dark Mode and Light Mode
 - Use CSS classes with theme-specific styling: .app-light-theme and .app-dark-theme
-- For Light Mode: Use light backgrounds (#ffffff, #f8f9fa), dark text (#212529, #495057)
-- For Dark Mode: Use dark backgrounds (#2c3e50, #34495e), light text (#f8f9fa, #e9ecef)
-- Ensure good contrast in both themes for accessibility
 - The app will automatically apply the correct theme class based on system settings
+
+CRITICAL UI CONTRAST GUIDELINES:
+LIGHT MODE (.app-light-theme):
+- Primary backgrounds: #ffffff (white), #f8f9fa (light gray)
+- Secondary backgrounds: #e9ecef (medium light gray), #dee2e6 (border gray)
+- Text on light backgrounds: #212529 (dark), #495057 (medium dark)
+- Button backgrounds: #007bff (blue), #28a745 (green), #dc3545 (red), #ffc107 (yellow), #6c757d (gray)
+- Button text: #ffffff (white) on colored buttons, #212529 (dark) on light buttons
+- Input fields: #ffffff background with #495057 text and #ced4da borders
+- Links: #007bff (blue) with #0056b3 hover
+- NEVER use light text on light backgrounds or white text on white/light colored buttons
+
+DARK MODE (.app-dark-theme):
+- Primary backgrounds: #2c3e50 (dark blue), #34495e (medium dark)
+- Secondary backgrounds: #3a4a5c (lighter dark), #495057 (medium)
+- Text on dark backgrounds: #f8f9fa (light), #e9ecef (medium light)
+- Button backgrounds: #0d6efd (blue), #198754 (green), #dc3545 (red), #ffc107 (yellow), #6c757d (gray)
+- Button text: #ffffff (white) on all colored buttons
+- Input fields: #495057 background with #f8f9fa text and #6c757d borders
+- Links: #66b3ff (light blue) with #99ccff hover
+- NEVER use dark text on dark backgrounds
+
+MANDATORY CONTRAST RULES:
+1. ALWAYS ensure minimum 4.5:1 contrast ratio between text and background
+2. Button text MUST be clearly visible against button background
+3. Use these safe color combinations:
+   - Light mode: Dark text (#212529) on light backgrounds (#ffffff, #f8f9fa)
+   - Dark mode: Light text (#f8f9fa) on dark backgrounds (#2c3e50, #34495e)
+4. For colored buttons, ALWAYS use white text (#ffffff) unless the button is very light
+5. Test readability: If you can't clearly read the text, change the color
+6. Use border/outline for buttons with poor contrast
+7. Avoid these problematic combinations:
+   - White text on yellow, light gray, or light colored backgrounds
+   - Dark text on dark colored backgrounds
+   - Gray text on gray backgrounds without sufficient contrast
+
+BUTTON STYLING REQUIREMENTS:
+- Primary buttons: Use strong colors (#007bff, #28a745) with white text
+- Secondary buttons: Use #6c757d with white text or #f8f9fa with dark text
+- Danger buttons: Use #dc3545 with white text
+- Warning buttons: Use #ffc107 with dark text (#212529)
+- Light buttons: Use #f8f9fa background with dark text (#212529)
+- Always add hover states with slightly darker/lighter versions
+- Include focus states for accessibility
 
 RESPONSE FORMAT - Return ONLY a JSON object with this structure:
 {
@@ -4630,8 +4900,8 @@ ICON REQUIREMENTS:
 
 CONTENT RULES:
 - HTML: Use single quotes for attributes to avoid JSON conflicts. NEVER use onclick attributes - use IDs instead
-- CSS: Keep simple, no line breaks
-- JavaScript: ALWAYS provide interactive logic when UI elements need functionality
+- CSS: Keep simple, no line breaks, avoid complex selectors
+- JavaScript: Keep simple and avoid complex string operations that could break JSON
 - NO base64 encoding - use plain text
 - Always create BOTH the User Interface AND the Logic (JavaScript)
 - For interactive elements (buttons, inputs, forms), ALWAYS include JavaScript
@@ -4639,37 +4909,226 @@ CONTENT RULES:
 - Give all interactive elements unique IDs and reference them in JavaScript
 - IMPORTANT: onclick attributes will NOT work because JavaScript runs in isolated scope
 - Always use document.getElementById() and addEventListener() pattern
-- Nake sure you do not break the Response Format - return a valid JSON object.
-EXAMPLES:
-
-For "text input":
-{
-  "title": "Text Input",
-  "html": "<input type='text' id='user-input' placeholder='Enter text' class='text-input'>",
-  "css": ".text-input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin: 10px; } .app-light-theme .text-input { background: #ffffff; color: #212529; border-color: #ced4da; } .app-dark-theme .text-input { background: #34495e; color: #f8f9fa; border-color: #4a5f7a; }",
-  "javascript": "const input = document.getElementById('user-input'); input.addEventListener('input', function() { console.log('User typed:', this.value); });"
-}
-
-For "button with alert":
-{
-  "title": "Alert Button",
-  "html": "<button id='alert-btn' class='my-button'>Click me</button>",
-  "css": ".my-button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; } .app-light-theme .my-button { background: #007bff; color: white; } .app-dark-theme .my-button { background: #3498db; color: white; } .my-button:hover { opacity: 0.9; }",
-  "javascript": "document.getElementById('alert-btn').addEventListener('click', function() { alert('Button was clicked!'); });"
-}
-
-For "calculator":
-{
-  "title": "Calculator",
-  "html": "<div class='calculator'><input type='text' id='calc-display' disabled><div class='calc-buttons'><button id='btn-1'>1</button><button id='btn-2'>2</button><button id='btn-3'>3</button><button id='btn-plus'>+</button><button id='btn-4'>4</button><button id='btn-5'>5</button><button id='btn-6'>6</button><button id='btn-minus'>-</button><button id='btn-7'>7</button><button id='btn-8'>8</button><button id='btn-9'>9</button><button id='btn-multiply'>*</button><button id='btn-0'>0</button><button id='btn-clear'>C</button><button id='btn-equals'>=</button><button id='btn-divide'>/</button></div></div>",
-  "css": ".calculator { width: 300px; margin: 20px auto; border: 1px solid #ccc; padding: 15px; border-radius: 5px; } #calc-display { width: 100%; height: 40px; margin-bottom: 10px; text-align: right; padding: 5px; font-size: 20px; } .calc-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; } .calc-buttons button { padding: 15px; font-size: 16px; border: none; border-radius: 3px; cursor: pointer; background-color: #eee; }",
-  "javascript": "let currentInput = ''; const display = document.getElementById('calc-display'); function updateDisplay() { display.value = currentInput; } ['1','2','3','4','5','6','7','8','9','0','+','-','*','/'].forEach(val => { document.getElementById('btn-' + (val === '+' ? 'plus' : val === '-' ? 'minus' : val === '*' ? 'multiply' : val === '/' ? 'divide' : val)).addEventListener('click', () => { currentInput += val; updateDisplay(); }); }); document.getElementById('btn-clear').addEventListener('click', () => { currentInput = ''; updateDisplay(); }); document.getElementById('btn-equals').addEventListener('click', () => { try { currentInput = eval(currentInput).toString(); updateDisplay(); } catch { currentInput = 'Error'; updateDisplay(); } });"
-}
+- CRITICAL JSON FORMATTING: Ensure all strings are properly escaped for JSON
+- Avoid complex JavaScript with many quotes, brackets, or special characters
+- Keep JavaScript simple and readable to prevent JSON parsing errors
+- Make sure you do not break the Response Format - return a valid JSON object
+IMPLEMENTATION GUIDELINES:
+- Structure your HTML with semantic elements and proper IDs for all interactive components
+- Style your CSS to be clean and responsive, using the theme classes for light/dark mode support
+- Write your JavaScript to handle all user interactions using addEventListener pattern
+- Ensure all form elements, buttons, and interactive areas have proper event handling
+- Test your logic mentally to ensure the app will work as expected
+- Keep code simple and avoid overly complex string manipulations that could cause parsing issues
 
 Now create a functional app for: "${request}"`
         }
 
-        async function callLLMAPI(prompt, userRequest = '', description = 'API Request') {
+        // Function to show prompt history for an app
+        function showPromptHistory(appId) {
+            const app = apps.find(a => a.id === appId);
+            if (!app || !app.promptHistory || app.promptHistory.length === 0) {
+                alert('No prompt history available for this app.');
+                return;
+            }
+
+            // Create a modal window to display the prompt history
+            const modal = document.createElement('div');
+            modal.className = 'prompt-history-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                border-radius: 8px;
+                padding: 20px;
+                max-width: 80%;
+                max-height: 80%;
+                overflow-y: auto;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            `;
+
+            // Apply theme to modal
+            if (document.body.classList.contains('dark-theme')) {
+                modalContent.style.background = '#2c3e50';
+                modalContent.style.color = '#f8f9fa';
+            }
+
+            let historyHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">📜 Prompt History - ${app.title}</h2>
+                    <button onclick="this.closest('.prompt-history-modal').remove()" style="
+                        background: #dc3545;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        padding: 8px 12px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    ">×</button>
+                </div>
+                <div style="margin-bottom: 15px; color: #666;">
+                    Total prompts: ${app.promptHistory.length}
+                </div>
+            `;
+
+            app.promptHistory.forEach((entry, index) => {
+                const typeIcon = entry.type === 'creation' ? '🆕' : '✏️';
+                const typeLabel = entry.type === 'creation' ? 'Creation' : 'Edit';
+                
+                historyHTML += `
+                    <div style="
+                        border: 1px solid #ddd;
+                        border-radius: 6px;
+                        margin-bottom: 15px;
+                        padding: 15px;
+                        background: ${document.body.classList.contains('dark-theme') ? '#34495e' : '#f8f9fa'};
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>${typeIcon} ${typeLabel} #${index + 1}</strong>
+                            <span style="color: #666; font-size: 14px;">${entry.date}</span>
+                        </div>
+                        ${entry.userRequest ? `
+                            <div style="margin-bottom: 10px;">
+                                <strong>User Request:</strong>
+                                <div style="
+                                    background: ${document.body.classList.contains('dark-theme') ? '#495057' : '#e9ecef'};
+                                    padding: 8px;
+                                    border-radius: 4px;
+                                    margin-top: 5px;
+                                    font-family: monospace;
+                                    font-size: 14px;
+                                ">${entry.userRequest}</div>
+                            </div>
+                        ` : ''}
+                        <div>
+                            <strong>Full Prompt:</strong>
+                            <div style="
+                                background: ${document.body.classList.contains('dark-theme') ? '#495057' : '#e9ecef'};
+                                padding: 10px;
+                                border-radius: 4px;
+                                margin-top: 5px;
+                                font-family: monospace;
+                                font-size: 12px;
+                                max-height: 200px;
+                                overflow-y: auto;
+                                white-space: pre-wrap;
+                                word-wrap: break-word;
+                            ">${entry.prompt}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            modalContent.innerHTML = historyHTML;
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+
+            // Close modal when clicking outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        // Function to record a prompt in an app's history
+        function recordPromptInHistory(appId, prompt, type = 'creation', userRequest = '') {
+            const app = apps.find(a => a.id === appId);
+            if (app) {
+                if (!app.promptHistory) {
+                    app.promptHistory = [];
+                }
+                
+                const historyEntry = {
+                    timestamp: new Date().toISOString(),
+                    type: type, // 'creation' or 'edit'
+                    userRequest: userRequest,
+                    prompt: prompt,
+                    date: new Date().toLocaleString()
+                };
+                
+                app.promptHistory.push(historyEntry);
+                console.log(`Recorded ${type} prompt for app ${appId}:`, historyEntry);
+            }
+        }
+
+        // Create a prompt add-on that defines ID prefixing and naming convention rules
+        function createIDPrefixingPromptAddOn(appId) {
+            return `
+
+CRITICAL ID PREFIXING AND NAMING RULES:
+To prevent conflicts between multiple apps, ALL HTML IDs, CSS classes, and JavaScript functions MUST be prefixed with a unique application identifier.
+
+APPLICATION ID: ${appId}
+
+MANDATORY PREFIXING RULES:
+1. HTML IDs: All IDs must be prefixed with "app${appId}_"
+   - Example: <button id='app${appId}_submitBtn'>Submit</button>
+   - Example: <div id='app${appId}_container'>Content</div>
+
+2. CSS Classes: All custom CSS classes must be prefixed with "app${appId}-"
+   - Example: .app${appId}-button { color: blue; }
+   - Example: .app${appId}-container { padding: 10px; }
+
+3. JavaScript Functions: All custom functions must be prefixed with "app${appId}_"
+   - Example: function app${appId}_handleClick() { ... }
+   - Example: function app${appId}_calculateTotal() { ... }
+
+4. JavaScript Variables: All global variables must be prefixed with "app${appId}_"
+   - Example: let app${appId}_currentValue = 0;
+   - Example: const app${appId}_config = { ... };
+
+IMPLEMENTATION EXAMPLES:
+HTML:
+<div id='app${appId}_mainContainer' class='app${appId}-wrapper'>
+    <button id='app${appId}_actionBtn' class='app${appId}-button'>Click Me</button>
+    <input id='app${appId}_textInput' class='app${appId}-input' type='text'>
+</div>
+
+CSS:
+.app${appId}-wrapper { background: #f0f0f0; }
+.app${appId}-button { padding: 10px; border: none; }
+.app${appId}-input { width: 100%; margin: 5px 0; }
+
+JavaScript:
+function app${appId}_initialize() {
+    const button = document.getElementById('app${appId}_actionBtn');
+    const input = document.getElementById('app${appId}_textInput');
+    button.addEventListener('click', app${appId}_handleClick);
+}
+
+function app${appId}_handleClick() {
+    const input = document.getElementById('app${appId}_textInput');
+    app${appId}_processInput(input.value);
+}
+
+let app${appId}_data = [];
+
+CRITICAL: This prefixing is MANDATORY for ALL custom elements, classes, functions, and variables. Do NOT use generic names like 'button', 'container', 'handleClick', etc. Always use the app${appId}_ prefix.`;
+        }
+
+        async function callLLMAPI(prompt, userRequest = '', description = 'API Request', appId = null) {
+            // If appId is provided, append the ID prefixing prompt add-on
+            if (appId) {
+                prompt += createIDPrefixingPromptAddOn(appId);
+                
+                // Record the prompt in the app's history
+                const promptType = description.includes('Edit') ? 'edit' : 'creation';
+                recordPromptInHistory(appId, prompt, promptType, userRequest);
+            }
+            
             // Check if provider is properly configured
             if (CONFIG.CURRENT_LLM_PROVIDER === 'openrouter' && (!CONFIG.OPENROUTER_API_KEY || CONFIG.OPENROUTER_API_KEY === 'sk-...')) {
                 throw new Error('OpenRouter API key not configured');
@@ -4702,10 +5161,18 @@ Now create a functional app for: "${request}"`
             
             const requestBody = {
                 model: CONFIG.MODEL,
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.7,
-                max_tokens: 3000
+                messages: [{ role: 'user', content: prompt }]
             };
+            
+            // Use the correct parameters based on provider
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openai') {
+                requestBody.max_completion_tokens = 3000;
+                // OpenAI models may not support custom temperature, use default (1)
+                requestBody.temperature = 1;
+            } else {
+                requestBody.max_tokens = 3000;
+                requestBody.temperature = 0.7;
+            }
             
             // Debug logging for LMStudio
             if (CONFIG.CURRENT_LLM_PROVIDER === 'lmstudio') {
@@ -4742,13 +5209,47 @@ Now create a functional app for: "${request}"`
             
             const content = data.choices[0].message.content;
             
-            // Extract JSON from response
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            // Extract JSON from response with improved parsing
+            let jsonMatch = content.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+                try {
+                    return JSON.parse(jsonMatch[0]);
+                } catch (parseError) {
+                    console.warn('First JSON parse attempt failed:', parseError.message);
+                    
+                    // Try to find a more specific JSON block
+                    const jsonBlocks = content.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+                    if (jsonBlocks) {
+                        for (const block of jsonBlocks) {
+                            try {
+                                const parsed = JSON.parse(block);
+                                if (parsed.title && parsed.html) {
+                                    return parsed;
+                                }
+                            } catch (e) {
+                                continue;
+                            }
+                        }
+                    }
+                    
+                    // Try to clean up common JSON issues
+                    let cleanedJson = jsonMatch[0]
+                        .replace(/\n/g, '\\n')
+                        .replace(/\r/g, '\\r')
+                        .replace(/\t/g, '\\t')
+                        .replace(/\\/g, '\\\\')
+                        .replace(/"/g, '\\"');
+                    
+                    try {
+                        return JSON.parse(cleanedJson);
+                    } catch (cleanupError) {
+                        console.error('All JSON parsing attempts failed:', cleanupError.message);
+                        throw new Error(`JSON parsing failed: ${parseError.message}`);
+                    }
+                }
             }
             
-            throw new Error('Invalid response format');
+            throw new Error('Invalid response format - no JSON found');
         }
 
         // Global cost tracking
@@ -5035,7 +5536,7 @@ Implement the modification: ${modificationRequest}`;
                 debugLog(`🔄 Processing app modification (attempt ${retryCount + 1}/${maxRetries}) for app ${appId}`);
                 
                 // Call LLM API with the modification prompt
-                const response = await callLLMAPI(prompt, modificationRequest, 'App Edit Request');
+                const response = await callLLMAPI(prompt, modificationRequest, 'App Edit Request', appId);
                 console.log('Modification response:', response);
                 
                 if (response && response.html) {
@@ -5067,7 +5568,16 @@ Implement the modification: ${modificationRequest}`;
                             const app = apps.find(a => a.id === appId);
                             if (app) {
                                 app.title = response.title;
-                                app.customRequest = modificationRequest;
+                                // Keep the original request but add modification history
+                                if (!app.modificationHistory) {
+                                    app.modificationHistory = [];
+                                }
+                                app.modificationHistory.push({
+                                    request: modificationRequest,
+                                    timestamp: new Date().toISOString()
+                                });
+                                // Update the current state to reflect the latest modification
+                                app.lastModification = modificationRequest;
                             }
                             
                             // Update taskbar icon
@@ -5865,8 +6375,9 @@ Implement the modification: ${modificationRequest}`;
             const settingsInputs = document.querySelectorAll('.settings-panel input, .settings-panel select');
             settingsInputs.forEach(input => {
                 input.addEventListener('change', () => {
-                    saveSettingsToCookie();
-                    console.log('Settings auto-saved');
+                    const settings = saveSettingsToCookie();
+                    applySettingsToSystem(settings);
+                    console.log('Settings auto-saved and applied');
                 });
             });
             
@@ -5886,8 +6397,15 @@ Implement the modification: ${modificationRequest}`;
                 'openai-whisper-url',
                 'openrouter-api-key',
                 'openrouter-url',
-                'simple-model',
-                'tough-model'
+                'openrouter-simple-model',
+                'openrouter-tough-model',
+                'openai-api-key',
+                'openai-url',
+                'openai-simple-model',
+                'openai-tough-model',
+                'lmstudio-url',
+                'lmstudio-simple-model',
+                'lmstudio-tough-model'
             ];
             
             apiSettingsInputs.forEach(inputId => {
@@ -5936,7 +6454,11 @@ Implement the modification: ${modificationRequest}`;
                     showProviderConfig(selectedProvider);
                     
                     // Save settings when provider changes
-                    saveSettingsToCookie();
+                    const settings = saveSettingsToCookie();
+                    
+                    // Apply settings immediately to CONFIG object
+                    applySettingsToSystem(settings);
+                    
                     debugLog(`LLM Provider changed to: ${selectedProvider}`);
                 });
                 

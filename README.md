@@ -44,7 +44,7 @@ A revolutionary web-based operating system interface powered by artificial intel
 
 2. **LLM Provider API Key** (choose one):
    - **OpenRouter** (recommended): Sign up at [OpenRouter](https://openrouter.ai/)
-   - **OpenAI**: Use your existing OpenAI API key
+   - **OpenAI**: Use your existing OpenAI API key (fully compatible as of v2.0.1)
    - **LMStudio**: Run locally, no API key needed
 
 ### Recommended Configurations
@@ -117,6 +117,8 @@ Recommended models for LMStudio:
 **Recommended Model Settings:**
 - **OpenRouter Simple**: `google/gemini-2.5-flash-lite-preview-06-17`
 - **OpenRouter Tough**: `anthropic/claude-sonnet-4`
+- **OpenAI Simple**: `gpt-4o-mini` (cost-effective, fast)
+- **OpenAI Tough**: `gpt-4o` (high-quality, advanced reasoning)
 - **LMStudio Simple**: `microsoft/phi-4`
 - **LMStudio Tough**: `deepseek-r1-0528-qwen3-8b`
 
@@ -250,6 +252,28 @@ ai-os.html
 ### Debug Mode
 Enable debug mode in Settings → System for detailed logging and troubleshooting information.
 
+## 🔄 Recent Updates (v2.0.1)
+
+### OpenAI API Compatibility Improvements
+Recent updates have significantly improved OpenAI API integration:
+
+#### Fixed Issues
+- **Model Selection Display**: Resolved issue where OpenAI model names weren't displayed correctly when OpenAI was selected as the LLM provider
+- **API Parameter Compatibility**: Updated API requests to use OpenAI-compatible parameters:
+  - Changed `max_tokens` to `max_completion_tokens` for OpenAI requests
+  - Set temperature to `1` (default) for OpenAI models that don't support custom temperature values
+  - Maintained backward compatibility with OpenRouter and LMStudio using original parameters
+
+#### Technical Changes
+- Enhanced provider-specific parameter handling in API requests
+- Improved settings application logic to correctly update model configurations
+- Added conditional parameter setting based on the selected LLM provider
+
+#### Benefits
+- **Seamless OpenAI Integration**: OpenAI API now works without parameter errors
+- **Better Model Display**: Correct model names (e.g., `gpt-4o-mini`, `gpt-4o`) shown in the interface
+- **Improved Reliability**: More stable API communication across all supported providers
+
 ## 📈 Roadmap
 
 ### Planned Features
@@ -260,7 +284,11 @@ Enable debug mode in Settings → System for detailed logging and troubleshootin
 - **Advanced AI**: More sophisticated app generation capabilities
 
 ### Version History
-- **v2.0.0**: Current version with voice commands and multi-provider support
+- **v2.0.1**: Latest version with improved OpenAI API compatibility
+  - Fixed model selection display for OpenAI provider
+  - Updated API parameters for OpenAI compatibility (`max_completion_tokens`, temperature handling)
+  - Enhanced provider-specific parameter handling
+- **v2.0.0**: Voice commands and multi-provider support
 - **v1.0.0**: Initial release with basic app generation
 
 ## 🤝 Contributing
