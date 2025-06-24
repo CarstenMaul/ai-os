@@ -2238,7 +2238,7 @@
         // System Apps Definition Dictionary
         const SYSTEM_APPS_DEFINITIONS = {
             'Calculator': {
-                generationMode: 'TOUGH',
+                generationMode: 'SIMPLE',
                 icon: '🧮',
                 prompt: `Create a fully functional Calculator app with a professional interface and specific design requirements.
 
@@ -5112,11 +5112,11 @@ Now create a functional app for: "${request}"`
             
             // Use the correct parameters based on provider
             if (CONFIG.CURRENT_LLM_PROVIDER === 'openai') {
-                requestBody.max_completion_tokens = 3000;
+                requestBody.max_completion_tokens = 16000;
                 // OpenAI models may not support custom temperature, use default (1)
                 requestBody.temperature = 1;
             } else {
-                requestBody.max_tokens = 3000;
+                requestBody.max_tokens = 16000;
                 requestBody.temperature = 0.7;
             }
             
@@ -5153,9 +5153,16 @@ Now create a functional app for: "${request}"`
             // Extract cost information from response
             updateCostDisplay(data, description, userRequest);
             
-            const content = data.choices[0].message.content;
+            content = data.choices[0].message.content;
             
+            // CARSTEN MODIFICATION
+            //const content = data.choices[0].message.content;
+            content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+
+            //content = content.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t');
+
             // Extract JSON from response with improved parsing
+            /*
             let jsonMatch = content.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
                 try {
@@ -5196,6 +5203,34 @@ Now create a functional app for: "${request}"`
             }
             
             throw new Error('Invalid response format - no JSON found');
+            */
+
+            // Try full parse
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error("Invalid response format - no JSON found");
+
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch (initialError) {
+                console.log(content);
+                console.warn('First JSON parse attempt failed:', initialError.message);
+                
+                // Try multiple nested-looking JSON objects
+                const jsonBlocks = content.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+                if (jsonBlocks) {
+                    for (const block of jsonBlocks) {
+                        try {
+                            const parsed = JSON.parse(block);
+                            if (parsed.title && parsed.html) {
+                                return parsed;
+                            }
+                        } catch {}
+                    }
+                }
+
+                // No auto-cleaning step here: better to surface the real error
+                throw new Error(`JSON parsing failed: ${initialError.message}`);
+            }
         }
 
         // Global cost tracking
@@ -5269,6 +5304,7 @@ Now create a functional app for: "${request}"`
                 // Execute JavaScript in global scope so it can access document and DOM
                 eval(javascript);
             } catch (error) {
+                console.log(javascript);
                 console.error(`JavaScript execution failed for app ${appId}:`, error);
             }
         }
@@ -5409,66 +5445,76 @@ Now create a functional app for: "${request}"`
             console.log(`⚙️ Current JavaScript length: ${currentJavaScript.length}`);
             
             // Create a modification prompt that includes the current app code
-            const modificationPrompt = `You are modifying an existing app for a windowed operating system interface.
-
-CURRENT APP CONTEXT:
-- Current Title: "${app.title}"
-- Original Request: "${app.customRequest || 'Unknown'}"
-- App ID: ${appId}
-
-CURRENT APP CODE:
-=== CURRENT HTML ===
-${currentHTML}
-
-=== CURRENT CSS ===
-${currentCSS}
-
-=== CURRENT JAVASCRIPT ===
-${currentJavaScript}
-
-MODIFICATION REQUEST: "${modificationRequest}"
-
-IMPORTANT: You are MODIFYING the existing app above, NOT creating a new one. Please:
-1. Keep the existing functionality that works
-2. Only change what's needed for the modification request
-3. Preserve the current UI structure where possible
-4. Build upon the existing code rather than replacing it entirely
-
-CRITICAL REQUIREMENTS:
-1. MODIFY the existing app according to the user's request
-2. Keep the same basic app structure but implement the requested changes
-3. The app will be placed inside a window with ID "content_${appId}"
-4. Use ONLY vanilla HTML, CSS, and JavaScript - no external libraries
-5. Make the app responsive and fit well in a window (300-600px wide)
-6. Include ALL necessary functionality for the modified app
-7. Use modern, clean UI design
-
-RESPONSE FORMAT - Return ONLY a JSON object with this structure:
-{
-  "title": "Updated App Name",
-  "html": "complete HTML content",
-  "css": "complete CSS styles",
-  "javascript": "complete JavaScript functionality"
-}
-
-CONTENT RULES:
-- HTML: Use single quotes for attributes to avoid JSON conflicts. NEVER use onclick attributes - use IDs instead
-- CSS: Keep simple, no line breaks
-- JavaScript: ALWAYS provide interactive logic when UI elements need functionality
-- NO base64 encoding - use plain text
-- Always create BOTH the User Interface AND the Logic (JavaScript)
-- For interactive elements (buttons, inputs, forms), ALWAYS include JavaScript
-- CRITICAL: Use addEventListener in JavaScript, NOT onclick attributes in HTML
-- Give all interactive elements unique IDs and reference them in JavaScript
-- IMPORTANT: onclick attributes will NOT work because JavaScript runs in isolated scope
-- Always use document.getElementById() and addEventListener() pattern
-
-Implement the modification: ${modificationRequest}`;
+            // Use string concatenation to avoid template literal issues
+            const modificationPrompt = 'You are modifying an existing app for a windowed operating system interface.\n\n' +
+                'CURRENT APP CONTEXT:\n' +
+                '- Current Title: "' + app.title + '"\n' +
+                '- Original Request: "' + (app.customRequest || 'Unknown') + '"\n' +
+                '- App ID: ' + appId + '\n\n' +
+                'CURRENT APP CODE:\n' +
+                '=== CURRENT HTML ===\n' +
+                currentHTML + '\n\n' +
+                '=== CURRENT CSS ===\n' +
+                currentCSS + '\n\n' +
+                '=== CURRENT JAVASCRIPT ===\n' +
+                currentJavaScript + '\n\n' +
+                'MODIFICATION REQUEST: "' + modificationRequest + '"\n\n' +
+                'IMPORTANT: You are MODIFYING the existing app above, NOT creating a new one. Please:\n' +
+                '1. Keep the existing functionality that works\n' +
+                '2. Only change what is needed for the modification request\n' +
+                '3. Preserve the current UI structure where possible\n' +
+                '4. Build upon the existing code rather than replacing it entirely\n' +
+                '5. You will not write json code block delimiters.\n\n' +
+                'CRITICAL REQUIREMENTS:\n' +
+                '1. MODIFY the existing app according to the user request\n' +
+                '2. Keep the same basic app structure but implement the requested changes\n' +
+                '3. The app will be placed inside a window with ID content_' + appId + '\n' +
+                '4. Use ONLY vanilla HTML, CSS, and JavaScript - no external libraries\n' +
+                '5. Make the app responsive and fit well in a window (300-600px wide)\n' +
+                '6. Include ALL necessary functionality for the modified app\n' +
+                '7. Use modern, clean UI design\n\n' +
+                'RESPONSE FORMAT - Return ONLY a JSON object with this structure:\n' +
+                '{\n' +
+                '  "html": "complete HTML content",\n' +
+                '  "css": "complete CSS styles",\n' +
+                '  "javascript": "complete JavaScript functionality"\n' +
+                '}\n\n' +
+                'IMPORTANT: Do NOT include a "title" field - the app name and icon must remain unchanged during editing.\n\n' +
+                'CONTENT RULES:\n' +
+                '- HTML: Use single quotes for attributes to avoid JSON conflicts. NEVER use onclick attributes - use IDs instead\n' +
+                '- CSS: Keep simple, no line breaks\n' +
+                '- JavaScript: ALWAYS provide interactive logic when UI elements need functionality\n' +
+                '- NO base64 encoding - use plain text\n' +
+                '- Always create BOTH the User Interface AND the Logic (JavaScript)\n' +
+                '- For interactive elements (buttons, inputs, forms), ALWAYS include JavaScript\n' +
+                '- CRITICAL: Use addEventListener in JavaScript, NOT onclick attributes in HTML\n' +
+                '- Give all interactive elements unique IDs and reference them in JavaScript\n' +
+                '- IMPORTANT: onclick attributes will NOT work because JavaScript runs in isolated scope\n' +
+                '- Always use document.getElementById() and addEventListener() pattern\n\n' +
+                'Implement the modification: ' + modificationRequest;
 
             // Show loading state
             const contentElement = document.getElementById(`content_${appId}`);
             if (contentElement) {
-                contentElement.innerHTML = '<div style="text-align: center; padding: 20px;">🔄 Modifying app...</div>';
+                contentElement.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                        <h2 style="margin: 0 0 30px 0; color: #333; font-weight: 300;">Modifying your app</h2>
+                        <div class="spinner" style="
+                            width: 40px;
+                            height: 40px;
+                            border: 4px solid #f3f3f3;
+                            border-top: 4px solid #0078d4;
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                        "></div>
+                    </div>
+                    <style>
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    </style>
+                `;
             }
             
             // Process the modification with LLM
@@ -5503,35 +5549,21 @@ Implement the modification: ${modificationRequest}`;
                             executeAppJavaScript(response.javascript, appId);
                         }
                         
-                        // Update the app title if changed
-                        if (response.title) {
-                            const titleElement = document.querySelector(`#window_${appId} .window-title`);
-                            if (titleElement) {
-                                titleElement.textContent = response.title;
+                        // Keep the original request but add modification history
+                        const app = apps.find(a => a.id === appId);
+                        if (app) {
+                            if (!app.modificationHistory) {
+                                app.modificationHistory = [];
                             }
-                            
-                            // Update the app object
-                            const app = apps.find(a => a.id === appId);
-                            if (app) {
-                                app.title = response.title;
-                                // Keep the original request but add modification history
-                                if (!app.modificationHistory) {
-                                    app.modificationHistory = [];
-                                }
-                                app.modificationHistory.push({
-                                    request: modificationRequest,
-                                    timestamp: new Date().toISOString()
-                                });
-                                // Update the current state to reflect the latest modification
-                                app.lastModification = modificationRequest;
-                            }
-                            
-                            // Update taskbar icon
-                            const iconElement = document.getElementById(`icon_${appId}`);
-                            if (iconElement) {
-                                iconElement.textContent = response.title;
-                            }
+                            app.modificationHistory.push({
+                                request: modificationRequest,
+                                timestamp: new Date().toISOString()
+                            });
+                            // Update the current state to reflect the latest modification
+                            app.lastModification = modificationRequest;
                         }
+                        
+                        // Note: App title and icon are preserved during editing
                         
                         console.log(`App ${appId} successfully modified`);
                     }
@@ -5542,8 +5574,13 @@ Implement the modification: ${modificationRequest}`;
             } catch (error) {
                 console.error(`❌ App modification failed (attempt ${retryCount + 1}):`, error);
                 
+                // Don't retry if it's a configuration error
+                const isConfigError = error.message.includes('not configured') ||
+                                    error.message.includes('API key') ||
+                                    error.message.includes('URL not configured');
+                
                 // Check if we should retry
-                if (retryCount < maxRetries - 1) {
+                if (retryCount < maxRetries - 1 && !isConfigError) {
                     console.log(`🔄 Retrying modification in 2 seconds... (${retryCount + 2}/${maxRetries})`);
                     
                     // Show retry status
