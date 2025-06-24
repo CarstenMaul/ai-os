@@ -1836,15 +1836,171 @@
                 return;
             }
 
-            const prompt = window.prompt(
-                `Enter modification instructions for "${app.title}":`,
-                'Add a new feature or modify the existing functionality...'
-            );
-
-            if (prompt && prompt.trim()) {
-                console.log(`Text modification request for app ${appId}: ${prompt.trim()}`);
-                modifyApp(appId, prompt.trim());
+            // Get the app window element to position the dialog relative to it
+            const appWindow = document.getElementById(`window_${appId}`);
+            if (!appWindow) {
+                alert('App window not found!');
+                return;
             }
+
+            // Create the modal overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'text-prompt-overlay';
+            overlay.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                backdrop-filter: blur(2px);
+            `;
+
+            // Create the dialog box
+            const dialog = document.createElement('div');
+            dialog.className = 'text-prompt-dialog';
+            dialog.style.cssText = `
+                background: white;
+                border-radius: 8px;
+                padding: 24px;
+                max-width: 90%;
+                width: 400px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            `;
+
+            // Apply theme to dialog
+            if (document.body.classList.contains('dark-theme')) {
+                dialog.style.background = '#2c3e50';
+                dialog.style.color = '#f8f9fa';
+            }
+
+            dialog.innerHTML = `
+                <div style="margin-bottom: 16px;">
+                    <h3 style="margin: 0 0 8px 0; color: ${document.body.classList.contains('dark-theme') ? '#f8f9fa' : '#333'}; font-size: 18px;">✏️ Edit App</h3>
+                    <p style="margin: 0; color: ${document.body.classList.contains('dark-theme') ? '#e9ecef' : '#666'}; font-size: 14px;">Enter modification instructions for "${app.title}":</p>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <textarea
+                        id="text-prompt-input-${appId}"
+                        placeholder="Add a new feature or modify the existing functionality..."
+                        style="
+                            width: 100%;
+                            height: 120px;
+                            padding: 12px;
+                            border: 2px solid ${document.body.classList.contains('dark-theme') ? '#6c757d' : '#ddd'};
+                            border-radius: 6px;
+                            font-size: 14px;
+                            font-family: inherit;
+                            resize: vertical;
+                            background: ${document.body.classList.contains('dark-theme') ? '#495057' : '#ffffff'};
+                            color: ${document.body.classList.contains('dark-theme') ? '#f8f9fa' : '#333'};
+                        "
+                    ></textarea>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button
+                        id="text-prompt-cancel-${appId}"
+                        style="
+                            background: #6c757d;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            font-weight: 500;
+                            transition: background 0.2s ease;
+                        "
+                    >Cancel</button>
+                    <button
+                        id="text-prompt-submit-${appId}"
+                        style="
+                            background: #0078d4;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            font-weight: 500;
+                            transition: background 0.2s ease;
+                        "
+                    >Apply Changes</button>
+                </div>
+            `;
+
+            overlay.appendChild(dialog);
+            appWindow.appendChild(overlay);
+
+            // Focus the textarea
+            const textarea = document.getElementById(`text-prompt-input-${appId}`);
+            setTimeout(() => {
+                textarea.focus();
+                textarea.select();
+            }, 100);
+
+            // Handle button clicks
+            const cancelBtn = document.getElementById(`text-prompt-cancel-${appId}`);
+            const submitBtn = document.getElementById(`text-prompt-submit-${appId}`);
+
+            function closeDialog() {
+                overlay.remove();
+            }
+
+            cancelBtn.addEventListener('click', closeDialog);
+
+            submitBtn.addEventListener('click', () => {
+                const promptText = textarea.value.trim();
+                if (promptText) {
+                    console.log(`Text modification request for app ${appId}: ${promptText}`);
+                    modifyApp(appId, promptText);
+                    closeDialog();
+                } else {
+                    textarea.focus();
+                    textarea.style.borderColor = '#dc3545';
+                    setTimeout(() => {
+                        textarea.style.borderColor = document.body.classList.contains('dark-theme') ? '#6c757d' : '#ddd';
+                    }, 2000);
+                }
+            });
+
+            // Handle Enter key (Ctrl+Enter to submit)
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    submitBtn.click();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeDialog();
+                }
+            });
+
+            // Close on overlay click (but not dialog click)
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    closeDialog();
+                }
+            });
+
+            // Add hover effects to buttons
+            cancelBtn.addEventListener('mouseenter', () => {
+                cancelBtn.style.background = '#5a6268';
+            });
+            cancelBtn.addEventListener('mouseleave', () => {
+                cancelBtn.style.background = '#6c757d';
+            });
+
+            submitBtn.addEventListener('mouseenter', () => {
+                submitBtn.style.background = '#106ebe';
+            });
+            submitBtn.addEventListener('mouseleave', () => {
+                submitBtn.style.background = '#0078d4';
+            });
         }
 
         function closeWindow(appId) {
@@ -3839,11 +3995,14 @@ The clock should be immediately functional and start displaying the current time
                         windowElement.style.display = 'block';
                         if (iconElement) iconElement.style.display = 'block';
                         existingApp.isHidden = false;
+                        
+                        // Update apps submenu to reflect the change
+                        updateAppsSubmenuContent();
                     }
                     
                     // Unminimize if minimized
                     if (existingApp.isMinimized) {
-                        toggleMinimize(existingApp.id);
+                        toggleWindow(existingApp.id);
                     }
                     
                     // Bring to front
@@ -3854,17 +4013,29 @@ The clock should be immediately functional and start displaying the current time
                     
                     debugLog('Opened existing Cost Tracking app');
                 } else {
-                    // Window doesn't exist but app is in array, remove from array and create new
-                    const index = apps.indexOf(existingApp);
-                    apps.splice(index, 1);
-                    createCostTrackingApp();
+                    // Window doesn't exist but app is in array, recreate it
+                    generateSystemApp('Cost Tracking', existingApp.id);
+                    
+                    // Ensure it's still marked as system app
+                    existingApp.isSystemApp = true;
+                    existingApp.isHidden = false;
+                    
+                    debugLog('Recreated Cost Tracking app window');
                 }
             } else {
                 // Create new AI-generated cost tracking app
-                createCostTrackingApp();
+                const newAppId = createCostTrackingApp();
+                
+                // Mark the new app as a system app
+                const newApp = apps.find(app => app.id === newAppId);
+                if (newApp) {
+                    newApp.isSystemApp = true;
+                    console.log('Marked new Cost Tracking app as system app');
+                }
             }
             
             // Close start menu
+            hideAppsSubmenu();
             document.getElementById('start-menu').classList.remove('show');
         }
 
@@ -4274,12 +4445,15 @@ The clock should be immediately functional and start displaying the current time
                         windowElement.style.display = 'block';
                         if (iconElement) iconElement.style.display = 'block';
                         existingApp.isHidden = false;
+                        
+                        // Update apps submenu to reflect the change
+                        updateAppsSubmenuContent();
                     }
                     
                     // Unminimize if minimized
                     if (existingApp.isMinimized) {
                         console.log('Unminimizing Calculator app');
-                        toggleMinimize(existingApp.id);
+                        toggleWindow(existingApp.id);
                     }
                     
                     // Bring to front
@@ -4305,7 +4479,14 @@ The clock should be immediately functional and start displaying the current time
             } else {
                 console.log('No existing Calculator app found, creating new one');
                 // Create new AI-generated calculator app
-                createCalculatorApp();
+                const newAppId = createCalculatorApp();
+                
+                // Mark the new app as a system app
+                const newApp = apps.find(app => app.id === newAppId);
+                if (newApp) {
+                    newApp.isSystemApp = true;
+                    console.log('Marked new Calculator app as system app');
+                }
             }
             
             // Close start menu and submenu
@@ -4353,13 +4534,17 @@ The clock should be immediately functional and start displaying the current time
                 isMaximized: false,
                 customRequest: appDefinition.prompt,
                 isSystemApp: true,
-                generationMode: appDefinition.generationMode
+                generationMode: appDefinition.generationMode,
+                isHidden: false
             };
 
             apps.push(app);
             createWindow(finalAppId, appName, content, dimensions.width, dimensions.height, icon);
             createTaskbarIcon(finalAppId, appName, icon);
             updateAppCount();
+            
+            // Update apps submenu to include the new system app
+            updateAppsSubmenuContent();
             
             // Schedule mode restoration after generation completes
             scheduleModelModeRestoration();
@@ -4402,6 +4587,11 @@ The clock should be immediately functional and start displaying the current time
                 'Cost Tracking': openCostTrackingApp
             };
             return openFunctionMap[appName];
+        }
+        
+        // Helper function to check if an app is a system app by name
+        function isSystemAppByName(appName) {
+            return SYSTEM_APPS_DEFINITIONS.hasOwnProperty(appName);
         }
 
         // Helper function to get system app dimensions
@@ -4461,12 +4651,15 @@ The clock should be immediately functional and start displaying the current time
                         windowElement.style.display = 'block';
                         if (iconElement) iconElement.style.display = 'block';
                         existingApp.isHidden = false;
+                        
+                        // Update apps submenu to reflect the change
+                        updateAppsSubmenuContent();
                     }
                     
                     // Unminimize if minimized
                     if (existingApp.isMinimized) {
                         console.log('Unminimizing Digital Clock app');
-                        toggleMinimize(existingApp.id);
+                        toggleWindow(existingApp.id);
                     }
                     
                     // Bring to front
@@ -4492,7 +4685,14 @@ The clock should be immediately functional and start displaying the current time
             } else {
                 console.log('No existing Digital Clock app found, creating new one');
                 // Create new AI-generated digital clock app
-                createDigitalClockApp();
+                const newAppId = createDigitalClockApp();
+                
+                // Mark the new app as a system app
+                const newApp = apps.find(app => app.id === newAppId);
+                if (newApp) {
+                    newApp.isSystemApp = true;
+                    console.log('Marked new Digital Clock app as system app');
+                }
             }
             
             // Close start menu and submenu
@@ -5065,6 +5265,43 @@ Now create a functional app for: "${request}"`
         }
 
 
+        function escapeJsonString(str) {
+            return str
+                .replace(/\\/g, '\\\\')     // Escape backslashes
+                .replace(/"/g, '\\"');      // Escape double quotes
+            }
+
+        function sanitizeJsonCodeFields(jsonStr) {
+            let json;
+
+            // First try to parse it - if it fails, fall back to manual fix
+            try {
+                return JSON.parse(jsonStr); // If it works, no need to sanitize
+            } catch (e) {
+                // Proceed to sanitize
+            }
+
+            // Regex to extract key-value pairs
+            const fieldRegex = /"(\w+)"\s*:\s*"((?:\\.|[^"\\])*)"/gs;
+
+            const sanitized = jsonStr.replace(fieldRegex, (match, key, value) => {
+                if (["javascript", "html", "css"].includes(key)) {
+                const unescaped = value
+                    .replace(/\\"/g, '"')       // unescape double quotes
+                    .replace(/\\\\/g, '\\')     // unescape double backslashes
+                    .replace(/\\'/g, "'");      // unescape JS-style single quotes
+
+                const reescaped = escapeJsonString(unescaped);
+                return `"${key}": "${reescaped}"`;
+                }
+                return match;
+            });
+
+            // Final attempt to parse
+            return JSON.parse(sanitized);
+        }
+
+
 
         async function callLLMAPI(prompt, userRequest = '', description = 'API Request', appId = null) {
             // If appId is provided, append the ID prefixing prompt add-on
@@ -5158,6 +5395,7 @@ Now create a functional app for: "${request}"`
             // CARSTEN MODIFICATION
             //const content = data.choices[0].message.content;
             content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+            //content = sanitizeJsonCodeFields(content);
 
             //content = content.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t');
 
