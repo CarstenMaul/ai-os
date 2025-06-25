@@ -3,7 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Self-Evolving OS</title>
+    <title>AI-OS</title>
+    
+    <!--
+    NAMESPACE ISOLATION SYSTEM
+    =========================
+    
+    This AI-OS implements comprehensive namespace isolation to prevent conflicts between apps:
+    
+    1. APP CONTAINER ISOLATION
+       - Each app runs in its own DOM container: #content_${appId}
+       - CSS is automatically scoped to the app container
+       - JavaScript is wrapped in app-specific IIFE namespaces
+    
+    2. HTML ELEMENT NAMESPACING
+       - All element IDs must be prefixed: ${appId}_elementName
+       - All CSS classes must be prefixed: ${appId}__className
+       - Enforced through AI prompt instructions and validation
+    
+    3. JAVASCRIPT SCOPE ISOLATION
+       - Each app gets its own namespace: window[app_${appId}]
+       - Helper functions provided: app.getElementById(), app.querySelector()
+       - Custom events namespaced: ${appId}:eventName
+    
+    4. CSS NAMESPACE SCOPING
+       - All CSS rules automatically scoped to #content_${appId}
+       - Prevents style bleeding between apps
+       - Maintains theme support through .app-light-theme/.app-dark-theme
+    
+    5. CLEANUP SYSTEM
+       - Automatic cleanup when apps are closed
+       - Removes CSS, JavaScript, and namespace objects
+       - Prevents memory leaks and namespace pollution
+    
+    Key Functions:
+    - generateAppId(): Creates unique app identifiers
+    - namespaceCSS(): Scopes CSS to app containers
+    - namespaceJavaScript(): Wraps JS in isolated namespaces
+    - cleanupAppNamespace(): Removes app resources on close
+    - validateAppNamespace(): Validates namespace compliance
+    -->
+
     <style>
         * {
             margin: 0;
@@ -1006,6 +1046,193 @@
     </div>
 
     <script>
+        const ROLE_PROMPT = `
+You are an expert web developer specializing in creating modular, theme-aware web applications.
+Your task is to generate HTML, CSS, and JavaScript code for a new app based on user requests.
+
+        `;
+
+        const NAMESPACEISOLATION_GUIDELINES = `
+
+NAMESPACE ISOLATION REQUIREMENTS:
+- ALL HTML element IDs MUST be prefixed with "{appId}_" (e.g., id="{appId}_button1")
+- ALL CSS classes MUST be prefixed with "{appId}__" (e.g., class="{appId}__container")
+- ALL JavaScript variables and functions MUST be scoped to avoid conflicts
+- ALL custom events MUST be prefixed with "{appId}:" (e.g., "{appId}:dataChanged")
+- Use querySelector with app-specific selectors: document.querySelector('#{appId}_elementId')
+`;
+
+        // Global CSS Guidelines for App Creation
+        const CSS_GUIDELINES = `
+
+ESSENTIAL CSS GUIDELINES FOR THEME SUPPORT AND ACCESSIBILITY:
+
+TECHNICAL REQUIREMENTS:
+1. Use semantic HTML with proper button elements and unique IDs
+2. Center all content horizontally and vertically
+3. Responsive design that adapts to window size
+4. Clean, modern appearance with proper spacing
+5. CSS: Keep simple, no line breaks, avoid complex selectors
+6. HTML: Use single quotes for attributes to avoid JSON conflicts. NEVER use onclick attributes - use IDs instead
+7. IMPORTANT: class names can only contain lowercase letters, numbers, underscores, and dashes
+8. MANDATORY: the font color of an element should always contrast with the background color
+
+CRITICAL THEME REQUIREMENTS:
+- Apps automatically inherit .app-light-theme or .app-dark-theme classes
+- ALWAYS design for BOTH light and dark modes
+- Current theme: {currentTheme}
+
+MANDATORY CONTRAST RULES:
+1. Minimum 4.5:1 contrast ratio required
+2. NEVER light text on light backgrounds or dark text on dark backgrounds
+3. Yellow/warning colors MUST use dark text (#212529)
+4. All other colored buttons use white text (#ffffff)
+5. Display text must be clearly visible against display background
+6. Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
+7. Implement CSS grid or flexbox for precise button layout
+
+APPROVED COLOR PALETTE:
+
+Light Mode:
+- Backgrounds: #ffffff, #f8f9fa, #e9ecef
+- Text: #212529 (primary), #495057 (secondary), #6c757d (muted)
+- Buttons: #007bff (primary), #28a745 (success), #dc3545 (danger), #ffc107 (warning with dark text)
+
+Dark Mode:
+- Backgrounds: #2c3e50, #34495e, #495057
+- Text: #f8f9fa (primary), #e9ecef (secondary), #ced4da (muted)
+- Buttons: #0d6efd (primary), #198754 (success), #dc3545 (danger), #ffc107 (warning with dark text)
+
+SAFE COMBINATIONS:
+✅ #ffffff text on #007bff, #28a745, #dc3545 backgrounds
+✅ #212529 text on #ffc107 background (warning)
+✅ #212529 text on #ffffff background (light mode)
+✅ #f8f9fa text on #2c3e50 background (dark mode)
+
+❌ #ffffff text on #ffc107 (white on yellow - FORBIDDEN)
+❌ Light text on light backgrounds
+❌ Dark text on dark backgrounds
+
+IMPLEMENTATION:
+- Use theme-aware CSS classes for different modes
+- Include hover/focus states for all interactive elements
+- Ensure 44px minimum touch targets
+- Keep responsive design (300-600px window width)
+`;
+
+        // Global CSS Guidelines for App Creation
+        const JAVASCRIPT_GUIDELINES = `
+
+ESSENTIAL JAVASCRIPT CODE GENERATION GUIDELINES:
+- Write your JavaScript to handle all user interactions using addEventListener pattern
+- Ensure all form elements, buttons, and interactive areas have proper event handling
+- Test your logic mentally to ensure the app will work as expected
+- Keep code simple and avoid overly complex string manipulations that could cause parsing issues
+- The JSON must use double quotes " for all keys and string values
+- Escape all double quotes inside the JavaScript string as \"
+- Escape all backslashes \ as \\
+- Use \n for line breaks in multiline JavaScript code
+- Ensure the result can be parsed with JSON.parse() in JavaScript
+- Write clean JavaScript with addEventListener for all interactions
+- CRITICAL JSON FORMATTING: Ensure all strings are properly escaped for JSON
+- Avoid complex JavaScript with many quotes, brackets, or special characters
+- Keep JavaScript simple and readable to prevent JSON parsing errors
+- Always use document.getElementById() and addEventListener() pattern
+- Keep Javascript scripts simple and avoid complex string operations that could break JSON
+- All declared variables must be prefixed with "{appId}_" to avoid conflicts
+        `;
+
+        const APPCREATION_PROMPT = `
+TASK:
+You are creating a functional app for a windowed operating system interface.
+
+CRITICAL REQUIREMENTS:
+1. Create a COMPLETE, FUNCTIONAL app that works in a window
+2. The app will be placed inside a window with ID "content_{appId}"
+3. Use ONLY vanilla HTML, CSS, and JavaScript - no external libraries
+4. Make the app responsive and fit well in a window (300-600px wide)
+5. Include ALL necessary functionality for the requested app
+6. Use modern, clean UI design
+
+RESPONSE FORMAT - Return ONLY a JSON object with this structure:
+{
+  "title": "App Name",
+  "icon": "📱",
+  "html": "complete HTML content",
+  "css": "complete CSS styles",
+  "javascript": "complete JavaScript functionality"
+}
+
+ICON REQUIREMENTS:
+- Choose a single UTF-8 emoji that best represents the app's function
+- Examples: 📅 for calendar, 🧮 for calculator, 📝 for text editor, 🎮 for games, 📊 for charts, etc.
+- The icon should be intuitive and clearly represent the app's purpose
+
+CONTENT RULES:
+- Always create BOTH the User Interface AND the Logic (JavaScript)
+- For interactive elements (buttons, inputs, forms), ALWAYS include JavaScript
+- CRITICAL: Use addEventListener in JavaScript, NOT onclick attributes in HTML
+- Give all interactive elements unique IDs and reference them in JavaScript
+- IMPORTANT: onclick attributes will NOT work because JavaScript runs in isolated scope
+- Make sure you do not break the Response Format - return a valid JSON object
+
+    `;
+
+    // modificationPrompt
+        const APPMODIFY_PROMPT = `
+TASK:
+You are modifying an existing app for a windowed operating system interface.
+
+CURRENT APP CONTEXT:
+- App ID: {appId}
+- Current Title: {appTitle}
+
+- App Edit Prompts History:
+{promptHistory}
+
+CURRENT APP CODE:
+=== CURRENT HTML ===
+{currentHTML}
+
+=== CURRENT CSS ===
+{currentCSS}
+
+=== CURRENT JAVASCRIPT
+{currentJavaScript}
+
+MODIFICATION REQUEST: "{modificationRequest}"
+
+IMPORTANT: You are MODIFYING the existing app above, NOT creating a new one.
+
+MODIFICATION RULES
+1. Keep the existing functionality that works
+2. Only change what is needed for the modification request
+3. Preserve the current UI structure where possible, change the UI only if the user asks for it
+4. Build upon the existing code rather than replacing it entirely
+5. You will not write json code block delimiters.
+6. Also ENSURE the requests from the App Edit Prompts History keep implemented
+
+CRITICAL REQUIREMENTS
+1. MODIFY the existing app according to the user request
+2. Keep the same basic app structure but implement the requested changes
+3. The app will be placed inside a window with ID content_ + appId +
+4. Use ONLY vanilla HTML, CSS, and JavaScript - no external libraries
+5. Make the app responsive and fit well in a window (300-600px wide)
+6. Include ALL necessary functionality for the modified app
+7. Use modern, clean UI design
+8. FOLLOW CSS GUIDELINES for theme support and accessibility:
+
+RESPONSE FORMAT - Return ONLY a JSON object with this structure:
+{
+  "html": "complete HTML content",
+  "css": "complete CSS styles",
+  "javascript": "complete JavaScript functionality"
+}
+
+IMPORTANT: Do NOT include a "title" field - the app name and icon must remain unchanged during editing.
+`;
+
+
         // Global app management system
         let apps = [];
         let nextAppId = 1;
@@ -1089,6 +1316,135 @@
             const randomPart = Math.random().toString(36).substr(2, 4); // 4 random chars
             return `app_${timestamp}${randomPart}`;
         }
+
+        function validateAppNamespace(html, css, javascript, appId) {
+            const issues = [];
+            
+            // Check HTML for proper ID prefixing
+            const htmlIdMatches = html.match(/id=['"]([^'"]+)['"]/g) || [];
+            htmlIdMatches.forEach(match => {
+                const id = match.match(/id=['"]([^'"]+)['"]/)[1];
+                if (!id.startsWith(`${appId}_`)) {
+                    issues.push(`HTML ID "${id}" should be prefixed with "${appId}_"`);
+                }
+            });
+            
+            // Check HTML for proper class prefixing
+            const htmlClassMatches = html.match(/class=['"]([^'"]+)['"]/g) || [];
+            htmlClassMatches.forEach(match => {
+                const classes = match.match(/class=['"]([^'"]+)['"]/)[1].split(' ');
+                classes.forEach(className => {
+                    if (className.trim() && !className.startsWith(`${appId}__`) && !className.startsWith('app-')) {
+                        issues.push(`HTML class "${className}" should be prefixed with "${appId}__"`);
+                    }
+                });
+            });
+            
+            // Check CSS for proper scoping
+            if (css && !css.includes(`#content_${appId}`)) {
+                issues.push('CSS should be scoped to the app container');
+            }
+            
+            // Check JavaScript for namespace usage
+            if (javascript && !javascript.includes('appId')) {
+                issues.push('JavaScript should use the provided appId parameter for namespacing');
+            }
+            
+            if (issues.length > 0) {
+                console.warn(`Namespace validation issues for app ${appId}:`, issues);
+                return { valid: false, issues };
+            }
+            
+            return { valid: true, issues: [] };
+        }
+
+        function createAppHelperFunctions(appId) {
+            return `
+// App Helper Functions for ${appId}
+const app = {
+    id: '${appId}',
+    
+    // Get element by app-scoped ID (without prefix)
+    getElementById: (id) => document.getElementById('${appId}_' + id),
+    
+    // Query within app container
+    querySelector: (selector) => document.querySelector('#content_${appId} ' + selector),
+    querySelectorAll: (selector) => document.querySelectorAll('#content_${appId} ' + selector),
+    
+    // App-scoped event system
+    emit: (eventName, detail) => {
+        document.dispatchEvent(new CustomEvent('${appId}:' + eventName, { detail }));
+    },
+    
+    on: (eventName, handler) => {
+        document.addEventListener('${appId}:' + eventName, handler);
+    },
+    
+    off: (eventName, handler) => {
+        document.removeEventListener('${appId}:' + eventName, handler);
+    },
+    
+    // App data storage
+    data: window['${appId}_data'] || (window['${appId}_data'] = {}),
+    
+    // Utility functions
+    addClass: (elementId, className) => {
+        const el = app.getElementById(elementId);
+        if (el) el.classList.add('${appId}__' + className);
+    },
+    
+    removeClass: (elementId, className) => {
+        const el = app.getElementById(elementId);
+        if (el) el.classList.remove('${appId}__' + className);
+    }
+};
+            `;
+        }
+
+        // Debug function to test namespace isolation
+        function testNamespaceIsolation() {
+            console.log('🧪 Testing Namespace Isolation System...');
+            
+            // Test 1: Check if apps have unique IDs
+            const appIds = apps.map(app => app.id);
+            const uniqueIds = [...new Set(appIds)];
+            console.log(`✅ App ID Uniqueness: ${appIds.length === uniqueIds.length ? 'PASS' : 'FAIL'}`);
+            
+            // Test 2: Check if namespaces exist
+            let namespaceCount = 0;
+            apps.forEach(app => {
+                const namespace = `app_${app.id.replace(/-/g, '_')}`;
+                if (window[namespace]) {
+                    namespaceCount++;
+                }
+            });
+            console.log(`✅ Namespace Creation: ${namespaceCount}/${apps.length} apps have namespaces`);
+            
+            // Test 3: Check CSS isolation
+            const styleElements = document.querySelectorAll('[id^="style-app_"]');
+            console.log(`✅ CSS Isolation: ${styleElements.length} app-specific stylesheets found`);
+            
+            // Test 4: Check JavaScript isolation
+            const scriptElements = document.querySelectorAll('[id^="script-app_"]');
+            console.log(`✅ JavaScript Isolation: ${scriptElements.length} app-specific scripts found`);
+            
+            // Test 5: Check container isolation
+            const containers = document.querySelectorAll('[id^="content_app_"]');
+            console.log(`✅ Container Isolation: ${containers.length} app containers found`);
+            
+            console.log('🧪 Namespace Isolation Test Complete');
+            
+            return {
+                uniqueIds: appIds.length === uniqueIds.length,
+                namespaces: namespaceCount,
+                cssIsolation: styleElements.length,
+                jsIsolation: scriptElements.length,
+                containers: containers.length
+            };
+        }
+
+        // Make test function globally available for debugging
+        window.testNamespaceIsolation = testNamespaceIsolation;
 
         function createWindow(appId, title, content, width = 400, height = 300, icon = '📱') {
             const desktop = document.getElementById('desktop');
@@ -1346,8 +1702,10 @@
                 icon: icon,
                 isMinimized: false,
                 isMaximized: false,
+                system: false,
                 customRequest: customRequest,
-                promptHistory: []
+                promptHistory: [],
+                namespace: `app_${appId.replace(/-/g, '_')}` // Store namespace for cleanup
             };
 
             apps.push(app);
@@ -2019,14 +2377,52 @@
                 }
                 console.log(`System app ${appId} hidden`);
             } else {
-                // For user apps, remove completely as before
+                // For user apps, remove completely and clean up namespace
                 if (window) window.remove();
                 if (icon) icon.remove();
+                
+                // Clean up app-specific resources
+                cleanupAppNamespace(appId);
+                
                 apps = apps.filter(app => app.id !== appId);
-                console.log(`User app ${appId} removed`);
+                console.log(`User app ${appId} removed and namespace cleaned`);
             }
             
             updateAppCount();
+        }
+
+        function cleanupAppNamespace(appId) {
+            try {
+                // Remove app-specific CSS
+                const styleElement = document.getElementById(`style-${appId}`);
+                if (styleElement) {
+                    styleElement.remove();
+                }
+                
+                // Remove app-specific JavaScript storage
+                const scriptElement = document.getElementById(`script-${appId}`);
+                if (scriptElement) {
+                    scriptElement.remove();
+                }
+                
+                // Clean up app namespace from window object
+                const namespace = `app_${appId.replace(/-/g, '_')}`;
+                if (window[namespace]) {
+                    delete window[namespace];
+                }
+                
+                // Remove app-specific event listeners
+                const events = document._appEventListeners || {};
+                Object.keys(events).forEach(eventName => {
+                    if (eventName.startsWith(`${appId}:`)) {
+                        delete events[eventName];
+                    }
+                });
+                
+                console.log(`Cleaned up namespace for app ${appId}`);
+            } catch (error) {
+                console.warn(`Error cleaning up namespace for app ${appId}:`, error);
+            }
         }
 
         function minimizeWindow(appId) {
@@ -2393,6 +2789,7 @@
 
         // System Apps Definition Dictionary
         const SYSTEM_APPS_DEFINITIONS = {
+
             'Calculator': {
                 generationMode: 'SIMPLE',
                 icon: '🧮',
@@ -2400,7 +2797,6 @@
 
 EXACT LAYOUT REQUIREMENTS:
 - Display screen at the top: large, dark background, white text, right-aligned numbers
-- Button grid: exactly 4 columns by 5 rows
 - Row 1: Clear (C), Plus/Minus (±), Percentage (%), Division (÷)
 - Row 2: Seven (7), Eight (8), Nine (9), Multiplication (×)
 - Row 3: Four (4), Five (5), Six (6), Subtraction (-)
@@ -2409,36 +2805,7 @@ EXACT LAYOUT REQUIREMENTS:
 - Center all content in the window
 
 BUTTON SIZING AND SPACING:
-- All buttons should be uniform size except zero which spans two columns
-- Minimum button size: 60px width and 60px height for good touch targets
-- Equal spacing between all buttons: 8px gaps
-- Rounded corners on all buttons: 8px border radius
-- Clear visual separation between button types
-
-EXACT COLOR SCHEME WITH THEME SUPPORT:
-LIGHT MODE (.app-light-theme):
-- Number buttons (0-9): #ffffff background with #212529 text
-- Decimal point button (.): #ffffff background with #212529 text
-- Operator buttons (+, -, ×, ÷): #ff6b35 (orange) background with #ffffff text
-- Equals button (=): #28a745 (green) background with #ffffff text
-- Clear button (C): #dc3545 (red) background with #ffffff text
-- Additional function buttons (±, %): #f8f9fa background with #212529 text
-- Display area: #2c3e50 (dark) background with #ffffff text
-
-DARK MODE (.app-dark-theme):
-- Number buttons (0-9): #495057 background with #f8f9fa text
-- Decimal point button (.): #495057 background with #f8f9fa text
-- Operator buttons (+, -, ×, ÷): #ff8c42 (orange) background with #ffffff text
-- Equals button (=): #198754 (green) background with #ffffff text
-- Clear button (C): #dc3545 (red) background with #ffffff text
-- Additional function buttons (±, %): #6c757d background with #f8f9fa text
-- Display area: #1a1a1a (very dark) background with #f8f9fa text
-
-CRITICAL CONTRAST REQUIREMENTS:
-- NEVER use light text on light backgrounds or dark text on dark backgrounds
-- All button text must have minimum 4.5:1 contrast ratio with button background
-- Display text must be clearly visible against display background
-- Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
+- All buttons uniform size: exactly 60px × 60px
 
 VISUAL DESIGN DETAILS:
 - Clean, modern calculator appearance
@@ -2447,6 +2814,12 @@ VISUAL DESIGN DETAILS:
 - Active/pressed state: slightly darker version of button color
 - Professional typography with clear, readable fonts
 - Responsive design that scales well within the window
+- MANDATORY: column spacing between buttons: 5px max
+- Button colors:
+  - number buttons are grey (#28a745) with white text
+  - function buttons (C, ±, %, ÷, ×, -, +) are blue (#007bff) with white text
+  - equal button (=) is green (#fd7e14) with white text
+  - clear button (C) is red (#dc3545) with white text
 
 FUNCTIONALITY REQUIREMENTS:
 - All basic arithmetic operations working correctly
@@ -2458,17 +2831,16 @@ FUNCTIONALITY REQUIREMENTS:
 - Error handling for division by zero shows "Error"
 - Display updates immediately when any button is pressed
 - Keyboard support for number keys and basic operators
+- MANDATORY: show the selected operation in the display
 
 TECHNICAL IMPLEMENTATION:
-- Use semantic HTML with proper button elements and unique IDs
-- Implement CSS grid or flexbox for precise button layout
-- Write clean JavaScript with addEventListener for all interactions
 - Maintain proper calculator state between operations
 - Handle edge cases like multiple operators, leading zeros, decimal points
 - Ensure calculator behaves exactly like a standard calculator
 
 The calculator must be immediately functional with the exact color scheme and layout specified.`
             },
+
             'Digital Clock': {
                 generationMode: 'SIMPLE',
                 icon: '🕐',
@@ -2479,33 +2851,12 @@ ESSENTIAL REQUIREMENTS:
 - Update the display every second automatically
 - Show hours, minutes, and seconds in HH:MM:SS format
 - Use 12-hour format with AM/PM indicator
+- add a switch to switch between 12-hour (hh:mm:ss AM/PM) and 24-hour formats (HH:mm:ss)
+- the 12/24h switch must move when clicked not just toggle the format
 - Center the clock display in the window
 - Use a large, readable font for the time display
 - Include the current date below the time
 - Make it visually appealing with proper theme support
-
-DESIGN REQUIREMENTS WITH THEME SUPPORT:
-LIGHT MODE (.app-light-theme):
-- Background: #f8f9fa (light gray) or #ffffff (white)
-- Time display: #212529 (dark) text, 32px+ font size, bold
-- Date display: #495057 (medium dark) text, 16px font size
-- AM/PM indicator: #6c757d (gray) text, 18px font size
-- Container background: #ffffff with subtle shadow
-
-DARK MODE (.app-dark-theme):
-- Background: #2c3e50 (dark blue) or #34495e (medium dark)
-- Time display: #f8f9fa (light) text, 32px+ font size, bold
-- Date display: #e9ecef (medium light) text, 16px font size
-- AM/PM indicator: #ced4da (light gray) text, 18px font size
-- Container background: #495057 with subtle glow
-
-CRITICAL STYLING REQUIREMENTS:
-- Use CSS theme classes: .app-light-theme and .app-dark-theme
-- Ensure high contrast between text and background in both themes
-- Use monospace font for time display to prevent layout shifts
-- Center all content horizontally and vertically
-- Responsive design that adapts to window size
-- Clean, modern appearance with proper spacing
 
 FUNCTIONALITY:
 - Automatically start when the app opens
@@ -2516,6 +2867,7 @@ FUNCTIONALITY:
 
 The clock should be immediately functional and start displaying the current time as soon as the app loads.`
             },
+
             'Cost Tracking': {
                 generationMode: 'SIMPLE',
                 icon: '💰',
@@ -4060,102 +4412,6 @@ The clock should be immediately functional and start displaying the current time
             return SYSTEM_APPS_DEFINITIONS['Cost Tracking'].prompt;
         }
 
-        function createCostTrackingPromptOld() {
-            return `Create a Cost Tracking app that displays API usage costs. The app must access the global 'costHistory' array which contains cost entries with the following structure:
-            
-            costHistory = [
-                {
-                    timestamp: "2024-01-01T12:00:00.000Z",
-                    cost: 0.0025,
-                    description: "App Creation Request",
-                    prompt: "Create a calculator app..."
-                }
-            ]
-
-            SPECIFIC REQUIREMENTS:
-            1. Title: "💰 Cost Tracking"
-            2. Display total cost at the top in a highlighted summary box
-            3. Show number of API calls made
-            4. Display cost history in a table with columns: Date/Time, Cost, Description, Prompt
-            5. Sort entries by newest first (reverse chronological order)
-            6. Include a "Clear History" button that calls clearCostHistory() function
-            7. Include a "Load Costs" button that refreshes the data from the global costHistory
-            8. Handle empty history with a "No cost entries recorded yet" message
-            9. Use proper currency formatting ($X.XXXX)
-            10. Make the table scrollable if there are many entries
-            11. Truncate long prompts to fit in the table (max 100 characters)
-
-            STYLING REQUIREMENTS:
-            - Use a clean, professional layout
-            - Summary box should be prominent with blue accent color (#0078d4)
-            - Table should have borders and alternating row colors
-            - Cost values should be highlighted in red/pink color (#dc3545)
-            - Responsive design that works in a 400-600px window
-            - Include proper spacing and padding
-            - Buttons should be styled consistently
-
-            TECHNICAL REQUIREMENTS:
-            - CRITICAL: Access costHistory using window.costHistory (this is the global array with all cost data)
-            - ALWAYS use: const costs = window.costHistory || []; to safely access the data
-            - Calculate total cost: const total = costs.reduce((sum, entry) => sum + entry.cost, 0);
-            - Format dates using new Date(entry.timestamp).toLocaleDateString() and toLocaleTimeString()
-            - Clear History button MUST call: window.clearCostHistory()
-            - Load Costs button MUST call your local loadCostData() function
-            - MANDATORY: Create loadCostData() function that refreshes display from window.costHistory
-            - MANDATORY: Call loadCostData() immediately when app loads AND when 'appShown' event fires
-            - MANDATORY: Listen for 'appShown' event: document.addEventListener('appShown', loadCostData);
-            - Handle empty data gracefully with "No cost entries recorded yet" message
-            - DEBUGGING: Add console.log('Loading cost data:', window.costHistory); in loadCostData()
-
-            APP VISIBILITY EVENT:
-            - The system will dispatch a custom 'appShown' event when the app becomes visible
-            - Listen for this event: document.addEventListener('appShown', function(event) { if(event.detail.appId === 'your-app-id') loadCostData(); });
-            - This allows the app to refresh its data when reopened from hidden state
-            - Always refresh cost data when this event is received
-
-            EXAMPLE STRUCTURE:
-            - Summary section with total cost and call count
-            - Button row with "Load Costs" and "Clear History" buttons
-            - Scrollable table with cost entries
-            - Proper error handling for missing or invalid data
-
-            EXAMPLE CODE SNIPPET:
-            function loadCostData() {
-                console.log('Loading cost data:', window.costHistory);
-                const costs = window.costHistory || [];
-                const total = costs.reduce((sum, entry) => sum + entry.cost, 0);
-                
-                console.log('Found', costs.length, 'cost entries, total:', total);
-                
-                // Update summary
-                const totalElement = document.getElementById('total-cost');
-                const countElement = document.getElementById('call-count');
-                if (totalElement) totalElement.textContent = '$' + total.toFixed(4);
-                if (countElement) countElement.textContent = costs.length;
-                
-                // Update table
-                const tbody = document.getElementById('cost-table-body');
-                if (tbody) {
-                    tbody.innerHTML = '';
-                    if (costs.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No cost entries recorded yet.</td></tr>';
-                    } else {
-                        costs.slice().reverse().forEach(entry => {
-                            const row = tbody.insertRow();
-                            const date = new Date(entry.timestamp);
-                            row.innerHTML = '<td>' + date.toLocaleDateString() + ' ' + date.toLocaleTimeString() + '</td><td style="color: #dc3545; font-weight: bold;">$' + entry.cost.toFixed(4) + '</td><td>' + entry.description + '</td><td>' + (entry.prompt || 'N/A').substring(0, 100) + '</td>';
-                        });
-                    }
-                }
-            }
-            
-            // MANDATORY: Call loadCostData when app loads and on appShown event
-            loadCostData();
-            document.addEventListener('appShown', function(event) {
-                console.log('App shown event received for:', event.detail.appId);
-                loadCostData();
-            });`;
-        }
 
         function clearCostHistory() {
             if (confirm('Are you sure you want to clear all cost history? This action cannot be undone.')) {
@@ -4532,6 +4788,7 @@ The clock should be immediately functional and start displaying the current time
                 icon: icon,
                 isMinimized: false,
                 isMaximized: false,
+                system: true,
                 customRequest: appDefinition.prompt,
                 isSystemApp: true,
                 generationMode: appDefinition.generationMode,
@@ -5024,104 +5281,14 @@ The clock should be immediately functional and start displaying the current time
             // Get current theme
             const currentTheme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
             
-            return `You are creating a functional app for a windowed operating system interface. The user requested: "${request}"
-
-CRITICAL REQUIREMENTS:
-1. Create a COMPLETE, FUNCTIONAL app that works in a window
-2. The app will be placed inside a window with ID "content_${appId}"
-3. Use ONLY vanilla HTML, CSS, and JavaScript - no external libraries
-4. Make the app responsive and fit well in a window (300-600px wide)
-5. Include ALL necessary functionality for the requested app
-6. Use modern, clean UI design
-7. THEME SUPPORT: The system supports Dark Mode and Light Mode themes. Currently active theme: ${currentTheme}
-
-THEME REQUIREMENTS:
-- Create CSS that works well in BOTH Dark Mode and Light Mode
-- Use CSS classes with theme-specific styling: .app-light-theme and .app-dark-theme
-- The app will automatically apply the correct theme class based on system settings
-
-CRITICAL UI CONTRAST GUIDELINES:
-LIGHT MODE (.app-light-theme):
-- Primary backgrounds: #ffffff (white), #f8f9fa (light gray)
-- Secondary backgrounds: #e9ecef (medium light gray), #dee2e6 (border gray)
-- Text on light backgrounds: #212529 (dark), #495057 (medium dark)
-- Button backgrounds: #007bff (blue), #28a745 (green), #dc3545 (red), #ffc107 (yellow), #6c757d (gray)
-- Button text: #ffffff (white) on colored buttons, #212529 (dark) on light buttons
-- Input fields: #ffffff background with #495057 text and #ced4da borders
-- Links: #007bff (blue) with #0056b3 hover
-- NEVER use light text on light backgrounds or white text on white/light colored buttons
-
-DARK MODE (.app-dark-theme):
-- Primary backgrounds: #2c3e50 (dark blue), #34495e (medium dark)
-- Secondary backgrounds: #3a4a5c (lighter dark), #495057 (medium)
-- Text on dark backgrounds: #f8f9fa (light), #e9ecef (medium light)
-- Button backgrounds: #0d6efd (blue), #198754 (green), #dc3545 (red), #ffc107 (yellow), #6c757d (gray)
-- Button text: #ffffff (white) on all colored buttons
-- Input fields: #495057 background with #f8f9fa text and #6c757d borders
-- Links: #66b3ff (light blue) with #99ccff hover
-- NEVER use dark text on dark backgrounds
-
-MANDATORY CONTRAST RULES:
-1. ALWAYS ensure minimum 4.5:1 contrast ratio between text and background
-2. Button text MUST be clearly visible against button background
-3. Use these safe color combinations:
-   - Light mode: Dark text (#212529) on light backgrounds (#ffffff, #f8f9fa)
-   - Dark mode: Light text (#f8f9fa) on dark backgrounds (#2c3e50, #34495e)
-4. For colored buttons, ALWAYS use white text (#ffffff) unless the button is very light
-5. Test readability: If you can't clearly read the text, change the color
-6. Use border/outline for buttons with poor contrast
-7. Avoid these problematic combinations:
-   - White text on yellow, light gray, or light colored backgrounds
-   - Dark text on dark colored backgrounds
-   - Gray text on gray backgrounds without sufficient contrast
-
-BUTTON STYLING REQUIREMENTS:
-- Primary buttons: Use strong colors (#007bff, #28a745) with white text
-- Secondary buttons: Use #6c757d with white text or #f8f9fa with dark text
-- Danger buttons: Use #dc3545 with white text
-- Warning buttons: Use #ffc107 with dark text (#212529)
-- Light buttons: Use #f8f9fa background with dark text (#212529)
-- Always add hover states with slightly darker/lighter versions
-- Include focus states for accessibility
-
-RESPONSE FORMAT - Return ONLY a JSON object with this structure:
-{
-  "title": "App Name",
-  "icon": "📱",
-  "html": "complete HTML content",
-  "css": "complete CSS styles",
-  "javascript": "complete JavaScript functionality"
-}
-
-ICON REQUIREMENTS:
-- Choose a single UTF-8 emoji that best represents the app's function
-- Examples: 📅 for calendar, 🧮 for calculator, 📝 for text editor, 🎮 for games, 📊 for charts, etc.
-- The icon should be intuitive and clearly represent the app's purpose
-
-CONTENT RULES:
-- HTML: Use single quotes for attributes to avoid JSON conflicts. NEVER use onclick attributes - use IDs instead
-- CSS: Keep simple, no line breaks, avoid complex selectors
-- JavaScript: Keep simple and avoid complex string operations that could break JSON
-- NO base64 encoding - use plain text
-- Always create BOTH the User Interface AND the Logic (JavaScript)
-- For interactive elements (buttons, inputs, forms), ALWAYS include JavaScript
-- CRITICAL: Use addEventListener in JavaScript, NOT onclick attributes in HTML
-- Give all interactive elements unique IDs and reference them in JavaScript
-- IMPORTANT: onclick attributes will NOT work because JavaScript runs in isolated scope
-- Always use document.getElementById() and addEventListener() pattern
-- CRITICAL JSON FORMATTING: Ensure all strings are properly escaped for JSON
-- Avoid complex JavaScript with many quotes, brackets, or special characters
-- Keep JavaScript simple and readable to prevent JSON parsing errors
-- Make sure you do not break the Response Format - return a valid JSON object
-IMPLEMENTATION GUIDELINES:
-- Structure your HTML with semantic elements and proper IDs for all interactive components
-- Style your CSS to be clean and responsive, using the theme classes for light/dark mode support
-- Write your JavaScript to handle all user interactions using addEventListener pattern
-- Ensure all form elements, buttons, and interactive areas have proper event handling
-- Test your logic mentally to ensure the app will work as expected
-- Keep code simple and avoid overly complex string manipulations that could cause parsing issues
-
-Now create a functional app for: "${request}"`
+            let prompt = ROLE_PROMPT + 
+                         APPCREATION_PROMPT.replace(/{appId}/g, appId) +
+                         NAMESPACEISOLATION_GUIDELINES.replace(/{appId}/g, appId) +
+                         CSS_GUIDELINES.replace(/{currentTheme}/g, currentTheme) +
+                         JAVASCRIPT_GUIDELINES.replace(/{appId}/g, appId) +
+                         "Now create a functional app for: " + request;
+  
+            return prompt;
         }
 
         // Function to show prompt history for an app
@@ -5271,35 +5438,48 @@ Now create a functional app for: "${request}"`
                 .replace(/"/g, '\\"');      // Escape double quotes
             }
 
-        function sanitizeJsonCodeFields(jsonStr) {
-            let json;
+function escapeJsonString(str) {
+    return str
+        .replace(/\\/g, '\\\\')      // Escape backslash
+        .replace(/"/g, '\\"')        // Escape double quote
+        .replace(/\n/g, '\\n')       // Escape newline
+        .replace(/\r/g, '\\r')       // Escape carriage return
+        .replace(/\t/g, '\\t');      // Escape tab
+}
 
-            // First try to parse it - if it fails, fall back to manual fix
-            try {
-                return JSON.parse(jsonStr); // If it works, no need to sanitize
-            } catch (e) {
-                // Proceed to sanitize
-            }
+function sanitizeJsonCodeFields(jsonStr) {
+    // First try to parse directly
+    try {
+        JSON.parse(jsonStr);
+        return jsonStr; // If valid JSON, return as is
+    } catch (e) {
+        // Proceed to sanitize if JSON is malformed
+    }
 
-            // Regex to extract key-value pairs
-            const fieldRegex = /"(\w+)"\s*:\s*"((?:\\.|[^"\\])*)"/gs;
+    // Regex to extract key-value pairs with string values
+    const fieldRegex = /"(\w+)"\s*:\s*"((?:\\.|[^"\\])*)"/gs;
 
-            const sanitized = jsonStr.replace(fieldRegex, (match, key, value) => {
-                if (["javascript", "html", "css"].includes(key)) {
-                const unescaped = value
-                    .replace(/\\"/g, '"')       // unescape double quotes
-                    .replace(/\\\\/g, '\\')     // unescape double backslashes
-                    .replace(/\\'/g, "'");      // unescape JS-style single quotes
+    const sanitized = jsonStr.replace(fieldRegex, (match, key, value) => {
+        if (["javascript", "html", "css"].includes(key)) {
+            // First unescape to get raw code
+            const unescaped = value
+                .replace(/\\\\/g, '\\')   // unescape backslashes
+                .replace(/\\"/g, '"')     // unescape double quotes
+                .replace(/\\n/g, '\n')    // unescape newlines
+                .replace(/\\r/g, '\r')    // unescape carriage returns
+                .replace(/\\t/g, '\t');   // unescape tabs
 
-                const reescaped = escapeJsonString(unescaped);
-                return `"${key}": "${reescaped}"`;
-                }
-                return match;
-            });
-
-            // Final attempt to parse
-            return JSON.parse(sanitized);
+            // Then escape properly again
+            const reescaped = escapeJsonString(unescaped);
+            return `"${key}": "${reescaped}"`;
         }
+        return match;
+    });
+
+    // Final parse attempt after sanitization
+    return sanitized;
+}
+
 
 
 
@@ -5353,7 +5533,7 @@ Now create a functional app for: "${request}"`
                 // OpenAI models may not support custom temperature, use default (1)
                 requestBody.temperature = 1;
             } else {
-                requestBody.max_tokens = 16000;
+                requestBody.max_tokens = 32000;
                 requestBody.temperature = 0.7;
             }
             
@@ -5392,56 +5572,8 @@ Now create a functional app for: "${request}"`
             
             content = data.choices[0].message.content;
             
-            // CARSTEN MODIFICATION
-            //const content = data.choices[0].message.content;
             content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-            //content = sanitizeJsonCodeFields(content);
-
-            //content = content.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t');
-
-            // Extract JSON from response with improved parsing
-            /*
-            let jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                try {
-                    return JSON.parse(jsonMatch[0]);
-                } catch (parseError) {
-                    console.warn('First JSON parse attempt failed:', parseError.message);
-                    
-                    // Try to find a more specific JSON block
-                    const jsonBlocks = content.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
-                    if (jsonBlocks) {
-                        for (const block of jsonBlocks) {
-                            try {
-                                const parsed = JSON.parse(block);
-                                if (parsed.title && parsed.html) {
-                                    return parsed;
-                                }
-                            } catch (e) {
-                                continue;
-                            }
-                        }
-                    }
-                    
-                    // Try to clean up common JSON issues
-                    let cleanedJson = jsonMatch[0]
-                        .replace(/\n/g, '\\n')
-                        .replace(/\r/g, '\\r')
-                        .replace(/\t/g, '\\t')
-                        .replace(/\\/g, '\\\\')
-                        .replace(/"/g, '\\"');
-                    
-                    try {
-                        return JSON.parse(cleanedJson);
-                    } catch (cleanupError) {
-                        console.error('All JSON parsing attempts failed:', cleanupError.message);
-                        throw new Error(`JSON parsing failed: ${parseError.message}`);
-                    }
-                }
-            }
-            
-            throw new Error('Invalid response format - no JSON found');
-            */
+            content = sanitizeJsonCodeFields(content);
 
             // Try full parse
             const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -5526,11 +5658,105 @@ Now create a functional app for: "${request}"`
         function addAppCSS(css, appId) {
             const styleElement = document.createElement('style');
             styleElement.id = `style-${appId}`;
-            styleElement.textContent = css;
+            
+            // Apply namespace isolation to CSS
+            const namespacedCSS = namespaceCSS(css, appId);
+            styleElement.textContent = namespacedCSS;
             document.head.appendChild(styleElement);
         }
 
+        function namespaceCSS(css, appId) {
+            // Scope all CSS rules to the app container with theme inheritance
+            const containerSelector = `#content_${appId}`;
+            
+            // Add theme-aware base styles for the app container
+            const themeBaseStyles = `
+/* Theme-aware base styles for app ${appId} */
+${containerSelector} {
+    color: inherit;
+    background: inherit;
+}
+
+/* Light theme styles */
+.app-light-theme ${containerSelector} {
+    background: #ffffff;
+    color: #212529;
+}
+
+.app-light-theme ${containerSelector} input,
+.app-light-theme ${containerSelector} textarea,
+.app-light-theme ${containerSelector} select {
+    background: #ffffff;
+    color: #212529;
+    border: 1px solid #ced4da;
+}
+
+.app-light-theme ${containerSelector} button {
+    background: #007bff;
+    color: #ffffff;
+    border: 1px solid #007bff;
+}
+
+.app-light-theme ${containerSelector} button:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+/* Dark theme styles */
+.app-dark-theme ${containerSelector} {
+    background: #2c3e50;
+    color: #f8f9fa;
+}
+
+.app-dark-theme ${containerSelector} input,
+.app-dark-theme ${containerSelector} textarea,
+.app-dark-theme ${containerSelector} select {
+    background: #495057;
+    color: #f8f9fa;
+    border: 1px solid #6c757d;
+}
+
+.app-dark-theme ${containerSelector} button {
+    background: #0d6efd;
+    color: #ffffff;
+    border: 1px solid #0d6efd;
+}
+
+.app-dark-theme ${containerSelector} button:hover {
+    background: #0b5ed7;
+    border-color: #0b5ed7;
+}
+            `;
+            
+            // Split CSS into rules and namespace each one
+            const rules = css.split('}').filter(rule => rule.trim());
+            const namespacedRules = rules.map(rule => {
+                if (!rule.trim()) return '';
+                
+                const [selectors, declarations] = rule.split('{');
+                if (!selectors || !declarations) return rule + '}';
+                
+                // Process each selector
+                const processedSelectors = selectors.split(',').map(selector => {
+                    const trimmedSelector = selector.trim();
+                    if (!trimmedSelector) return selector;
+                    
+                    // Skip @media, @keyframes, and other @ rules
+                    if (trimmedSelector.startsWith('@')) return selector;
+                    
+                    // Add container scope to each selector
+                    return `${containerSelector} ${trimmedSelector}`;
+                }).join(', ');
+                
+                return `${processedSelectors} {${declarations}}`;
+            });
+            
+            // Combine theme base styles with namespaced app styles
+            return themeBaseStyles + '\n' + namespacedRules.join('\n');
+        }
+
         function executeAppJavaScript(javascript, appId) {
+            let namespacedJS = '';
             try {
                 // Store the JavaScript in a script element for later retrieval
                 const scriptElement = document.createElement('script');
@@ -5539,12 +5765,51 @@ Now create a functional app for: "${request}"`
                 scriptElement.textContent = javascript;
                 document.head.appendChild(scriptElement);
                 
+                // Apply namespace isolation to JavaScript
+                const helperFunctions = createAppHelperFunctions(appId);
+                namespacedJS = namespaceJavaScript(javascript, appId, helperFunctions);
+                
                 // Execute JavaScript in global scope so it can access document and DOM
-                eval(javascript);
+                eval(namespacedJS);
             } catch (error) {
-                console.log(javascript);
+                console.log('Original JavaScript:', javascript);
+                console.log('Namespaced JavaScript:', namespacedJS);
                 console.error(`JavaScript execution failed for app ${appId}:`, error);
+                throw new Error(`JavaScript execution failed for app ${appId}: ${error.message}`);
             }
+        }
+
+        function namespaceJavaScript(javascript, appId, helperFunctions = '') {
+            // Wrap JavaScript in an IIFE with app namespace
+            const namespacedJS = `
+(function(appId) {
+    // Create app-specific namespace
+    appNamespace = 'app_' + appId.replace(/-/g, '_');
+    window[appNamespace] = window[appNamespace] || {};
+    
+    ${helperFunctions}
+    
+    // Legacy helper functions for backward compatibility
+    const getElementById = (id) => document.getElementById(appId + '_' + id);
+    const querySelector = (selector) => document.querySelector('#content_' + appId + ' ' + selector);
+    const querySelectorAll = (selector) => document.querySelectorAll('#content_' + appId + ' ' + selector);
+    
+    // Custom event helpers with namespace
+    const dispatchAppEvent = (eventName, detail) => {
+        document.dispatchEvent(new CustomEvent(appId + ':' + eventName, { detail }));
+    };
+    
+    const addAppEventListener = (eventName, handler) => {
+        document.addEventListener(appId + ':' + eventName, handler);
+    };
+    
+    // Execute the app's JavaScript code
+    ${javascript}
+    
+})('${appId}');
+            `;
+            
+            return namespacedJS;
         }
 
         function updateAppTitle(appId, newTitle) {
@@ -5682,54 +5947,21 @@ Now create a functional app for: "${request}"`
             console.log(`🎨 Current CSS length: ${currentCSS.length}`);
             console.log(`⚙️ Current JavaScript length: ${currentJavaScript.length}`);
             
+            let thisAppPromptHistory = ''
+            app.promptHistory.slice(1).forEach((entry, index) => {
+                thisAppPromptHistory += `\n\nPrompt #${index + 1} (${entry.type}):\n${entry.userRequest}`;
+            });
+
             // Create a modification prompt that includes the current app code
             // Use string concatenation to avoid template literal issues
-            const modificationPrompt = 'You are modifying an existing app for a windowed operating system interface.\n\n' +
-                'CURRENT APP CONTEXT:\n' +
-                '- Current Title: "' + app.title + '"\n' +
-                '- Original Request: "' + (app.customRequest || 'Unknown') + '"\n' +
-                '- App ID: ' + appId + '\n\n' +
-                'CURRENT APP CODE:\n' +
-                '=== CURRENT HTML ===\n' +
-                currentHTML + '\n\n' +
-                '=== CURRENT CSS ===\n' +
-                currentCSS + '\n\n' +
-                '=== CURRENT JAVASCRIPT ===\n' +
-                currentJavaScript + '\n\n' +
-                'MODIFICATION REQUEST: "' + modificationRequest + '"\n\n' +
-                'IMPORTANT: You are MODIFYING the existing app above, NOT creating a new one. Please:\n' +
-                '1. Keep the existing functionality that works\n' +
-                '2. Only change what is needed for the modification request\n' +
-                '3. Preserve the current UI structure where possible\n' +
-                '4. Build upon the existing code rather than replacing it entirely\n' +
-                '5. You will not write json code block delimiters.\n\n' +
-                'CRITICAL REQUIREMENTS:\n' +
-                '1. MODIFY the existing app according to the user request\n' +
-                '2. Keep the same basic app structure but implement the requested changes\n' +
-                '3. The app will be placed inside a window with ID content_' + appId + '\n' +
-                '4. Use ONLY vanilla HTML, CSS, and JavaScript - no external libraries\n' +
-                '5. Make the app responsive and fit well in a window (300-600px wide)\n' +
-                '6. Include ALL necessary functionality for the modified app\n' +
-                '7. Use modern, clean UI design\n\n' +
-                'RESPONSE FORMAT - Return ONLY a JSON object with this structure:\n' +
-                '{\n' +
-                '  "html": "complete HTML content",\n' +
-                '  "css": "complete CSS styles",\n' +
-                '  "javascript": "complete JavaScript functionality"\n' +
-                '}\n\n' +
-                'IMPORTANT: Do NOT include a "title" field - the app name and icon must remain unchanged during editing.\n\n' +
-                'CONTENT RULES:\n' +
-                '- HTML: Use single quotes for attributes to avoid JSON conflicts. NEVER use onclick attributes - use IDs instead\n' +
-                '- CSS: Keep simple, no line breaks\n' +
-                '- JavaScript: ALWAYS provide interactive logic when UI elements need functionality\n' +
-                '- NO base64 encoding - use plain text\n' +
-                '- Always create BOTH the User Interface AND the Logic (JavaScript)\n' +
-                '- For interactive elements (buttons, inputs, forms), ALWAYS include JavaScript\n' +
-                '- CRITICAL: Use addEventListener in JavaScript, NOT onclick attributes in HTML\n' +
-                '- Give all interactive elements unique IDs and reference them in JavaScript\n' +
-                '- IMPORTANT: onclick attributes will NOT work because JavaScript runs in isolated scope\n' +
-                '- Always use document.getElementById() and addEventListener() pattern\n\n' +
-                'Implement the modification: ' + modificationRequest;
+            const modificationPrompt = ROLE_PROMPT +
+                APPMODIFY_PROMPT.replace(/{appId}/g, appId)
+                    .replace(/{appTitle}/g, app.title)
+                    .replace(/{modificationRequest}/g, modificationRequest)
+                    .replace(/{promptHistory}/g, thisAppPromptHistory)
+                    .replace(/{currentHTML}/g, currentHTML)
+                    .replace(/{currentCSS}/g, currentCSS)
+                    .replace(/{currentJavaScript}/g, currentJavaScript);
 
             // Show loading state
             const contentElement = document.getElementById(`content_${appId}`);
