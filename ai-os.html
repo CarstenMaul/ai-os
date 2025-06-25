@@ -1185,7 +1185,9 @@ CONTENT RULES:
     // modificationPrompt
         const APPMODIFY_PROMPT = `
 TASK:
-You are modifying an existing app for a windowed operating system interface.
+You are modifying an existing app for a windowed operating system interface. The user wants you to make changes to the existing app. The user may also submit images to show problems or give graphical advice for changes.
+This is the modification request of the user:
+{modificationRequest}
 
 CURRENT APP CONTEXT:
 - App ID: {appId}
@@ -1203,8 +1205,6 @@ CURRENT APP CODE:
 
 === CURRENT JAVASCRIPT
 {currentJavaScript}
-
-MODIFICATION REQUEST: "{modificationRequest}"
 
 IMPORTANT: You are MODIFYING the existing app above, NOT creating a new one.
 
