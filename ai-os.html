@@ -1080,6 +1080,8 @@ TECHNICAL REQUIREMENTS:
 6. HTML: Use single quotes for attributes to avoid JSON conflicts. NEVER use onclick attributes - use IDs instead
 7. IMPORTANT: class names can only contain lowercase letters, numbers, underscores, and dashes
 8. MANDATORY: the font color of an element should always contrast with the background color
+9. IMPORTANT: Always check, that all css classes used in the html have been generated
+10. MANDATORY: check that css classes are effectively applied to the HTML elements
 
 CRITICAL THEME REQUIREMENTS:
 - Apps automatically inherit .app-light-theme or .app-dark-theme classes
@@ -1087,13 +1089,13 @@ CRITICAL THEME REQUIREMENTS:
 - Current theme: {currentTheme}
 
 MANDATORY CONTRAST RULES:
-1. Minimum 4.5:1 contrast ratio required
-2. NEVER light text on light backgrounds or dark text on dark backgrounds
-3. Yellow/warning colors MUST use dark text (#212529)
-4. All other colored buttons use white text (#ffffff)
-5. Display text must be clearly visible against display background
-6. Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
-7. Implement CSS grid or flexbox for precise button layout
+1. NEVER light text on light backgrounds or dark text on dark backgrounds
+2. Display text must be clearly visible against display background
+3. Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
+4. Implement CSS grid or flexbox for precise button layout
+5. MANDADOTRY: make sure text is always readable against the background color
+6. For input fields, always set the color attibute
+7. MANDATORY: make sure button text is always readable against the button background color
 
 APPROVED COLOR PALETTE:
 
@@ -3227,34 +3229,6 @@ The clock should be immediately functional and start displaying the current time
             10. Make the table scrollable if there are many entries
             11. Truncate long prompts to fit in the table (max 100 characters)
 
-            STYLING REQUIREMENTS WITH THEME SUPPORT:
-            LIGHT MODE (.app-light-theme):
-            - Background: #ffffff (white) or #f8f9fa (light gray)
-            - Summary box: #e3f2fd (light blue) background with #0d47a1 (dark blue) text
-            - Table headers: #f8f9fa background with #212529 text
-            - Table rows: Alternating #ffffff and #f8f9fa backgrounds with #212529 text
-            - Cost values: #dc3545 (red) text for emphasis
-            - Buttons: #007bff (blue) background with #ffffff text
-            - Borders: #dee2e6 (light gray) for table and containers
-
-            DARK MODE (.app-dark-theme):
-            - Background: #2c3e50 (dark blue) or #34495e (medium dark)
-            - Summary box: #1e3a5f (dark blue) background with #66b3ff (light blue) text
-            - Table headers: #495057 background with #f8f9fa text
-            - Table rows: Alternating #3a4a5c and #495057 backgrounds with #f8f9fa text
-            - Cost values: #ff6b6b (light red) text for emphasis
-            - Buttons: #0d6efd (blue) background with #ffffff text
-            - Borders: #6c757d (gray) for table and containers
-
-            CRITICAL CONTRAST REQUIREMENTS:
-            - Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
-            - Ensure minimum 4.5:1 contrast ratio between text and background
-            - Cost values must be clearly visible in both themes
-            - Button text must be white (#ffffff) on colored button backgrounds
-            - Table text must have high contrast against row backgrounds
-            - Use proper spacing and padding for readability
-            - Responsive design that works in 400-600px windows
-
             TECHNICAL REQUIREMENTS:
             - CRITICAL: Access costHistory using window.costHistory (this is the global array with all cost data)
             - ALWAYS use: const costs = window.costHistory || []; to safely access the data
@@ -3267,6 +3241,8 @@ The clock should be immediately functional and start displaying the current time
             - MANDATORY: Listen for 'appShown' event: document.addEventListener('appShown', loadCostData);
             - Handle empty data gracefully with "No cost entries recorded yet" message
             - DEBUGGING: Add console.log('Loading cost data:', window.costHistory); in loadCostData()
+            - add proper css styles for any buttons
+            - add proper css styles for the table and summary section
 
             APP VISIBILITY EVENT:
             - The system will dispatch a custom 'appShown' event when the app becomes visible
@@ -4033,7 +4009,7 @@ The clock should be immediately functional and start displaying the current time
                         messages: [{ role: 'user', content: 'Hello! This is a test message.' }],
                         ...(provider === 'openai' ?
                             { max_completion_tokens: 50, temperature: 1 } :
-                            { max_tokens: 50, temperature: 0.7 })
+                            { max_tokens: 50, temperature: 0.5 })
                     })
                 });
                 
