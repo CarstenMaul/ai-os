@@ -1012,7 +1012,11 @@
     <div class="start-menu" id="start-menu">
         <div class="menu-section">
             <div class="menu-title">Request New App</div>
-            <input type="text" class="request-input" id="app-request" placeholder="Describe the app you want (e.g., calculator, calendar, quiz app, weather app, etc.)">
+            <input type="text" class="request-input" id="app-request" placeholder="Describe the app you want (e.g., calculator, calendar, quiz app, weather app, etc.) - You can also paste screenshots with Ctrl+V">
+            <div id="new-app-pasted-images" style="margin-top: 10px; display: none;">
+                <div style="font-size: 12px; color: #ccc; margin-bottom: 8px;">📷 Pasted Images:</div>
+                <div id="new-app-image-preview-container" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+            </div>
             <button class="request-button" onclick="requestApp()">Create App with AI</button>
         </div>
         
@@ -1263,6 +1267,153 @@ IMPORTANT: Do NOT include a "title" field - the app name and icon must remain un
                     document.getElementById('start-menu').classList.remove('show');
                 }
             });
+            
+            // Initialize new app request image pasting functionality
+            initializeNewAppImagePasting();
+        }
+
+        // Global variable to store pasted images for new app requests
+        let newAppPastedImages = [];
+
+        function initializeNewAppImagePasting() {
+            const appRequestInput = document.getElementById('app-request');
+            if (!appRequestInput) return;
+
+            // Add paste event listener for image support
+            appRequestInput.addEventListener('paste', async (e) => {
+                const items = e.clipboardData.items;
+                
+                for (let item of items) {
+                    if (item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        
+                        const file = item.getAsFile();
+                        if (file) {
+                            try {
+                                // Convert image to base64
+                                const base64 = await fileToBase64NewApp(file);
+                                
+                                // Add to pasted images array
+                                const imageData = {
+                                    base64: base64,
+                                    type: file.type,
+                                    name: `new-app-image-${Date.now()}.${file.type.split('/')[1]}`
+                                };
+                                newAppPastedImages.push(imageData);
+                                
+                                // Show image preview
+                                showNewAppImagePreview(imageData, newAppPastedImages.length - 1);
+                                
+                                // Show the pasted images container
+                                const pastedImagesContainer = document.getElementById('new-app-pasted-images');
+                                if (pastedImagesContainer) {
+                                    pastedImagesContainer.style.display = 'block';
+                                }
+                                
+                                console.log('Image pasted successfully for new app:', imageData.name);
+                            } catch (error) {
+                                console.error('Error processing pasted image for new app:', error);
+                                alert('Error processing pasted image. Please try again.');
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Helper function to convert file to base64 for new app
+            function fileToBase64NewApp(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            // Helper function to show image preview for new app
+            function showNewAppImagePreview(imageData, index) {
+                const container = document.getElementById('new-app-image-preview-container');
+                if (!container) return;
+
+                const previewDiv = document.createElement('div');
+                previewDiv.style.cssText = `
+                    position: relative;
+                    display: inline-block;
+                    border: 1px solid #666;
+                    border-radius: 4px;
+                    overflow: hidden;
+                `;
+
+                const img = document.createElement('img');
+                img.src = imageData.base64;
+                img.style.cssText = `
+                    width: 60px;
+                    height: 60px;
+                    object-fit: cover;
+                    display: block;
+                `;
+
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '×';
+                removeBtn.style.cssText = `
+                    position: absolute;
+                    top: 2px;
+                    right: 2px;
+                    width: 16px;
+                    height: 16px;
+                    background: rgba(220, 53, 69, 0.8);
+                    color: white;
+                    border: none;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    font-size: 10px;
+                    line-height: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                `;
+
+                removeBtn.addEventListener('click', () => {
+                    // Remove from array
+                    newAppPastedImages.splice(index, 1);
+                    // Remove preview
+                    previewDiv.remove();
+                    // Hide container if no images left
+                    if (newAppPastedImages.length === 0) {
+                        const pastedImagesContainer = document.getElementById('new-app-pasted-images');
+                        if (pastedImagesContainer) {
+                            pastedImagesContainer.style.display = 'none';
+                        }
+                    }
+                    // Update indices for remaining images
+                    updateNewAppImageIndices();
+                });
+
+                previewDiv.appendChild(img);
+                previewDiv.appendChild(removeBtn);
+                container.appendChild(previewDiv);
+            }
+
+            // Helper function to update image indices after removal
+            function updateNewAppImageIndices() {
+                const container = document.getElementById('new-app-image-preview-container');
+                if (!container) return;
+                
+                const previews = container.children;
+                for (let i = 0; i < previews.length; i++) {
+                    const removeBtn = previews[i].querySelector('button');
+                    if (removeBtn) {
+                        removeBtn.onclick = () => {
+                            newAppPastedImages.splice(i, 1);
+                            previews[i].remove();
+                            if (newAppPastedImages.length === 0) {
+                                document.getElementById('new-app-pasted-images').style.display = 'none';
+                            }
+                            updateNewAppImageIndices();
+                        };
+                    }
+                }
+            }
         }
 
         function updateClock() {
@@ -1719,6 +1870,38 @@ const app = {
             return appId;
         }
 
+        function createAppWithImages(customRequest, images) {
+            const appId = generateAppId();
+            const title = 'New App';
+            const icon = generateAppIcon(customRequest, title);
+            const content = createAIGeneratedAppContentWithImages(customRequest, images, appId);
+
+            const app = {
+                id: appId,
+                type: 'ai-generated',
+                title: title,
+                icon: icon,
+                isMinimized: false,
+                isMaximized: false,
+                system: false,
+                customRequest: customRequest,
+                promptHistory: [],
+                namespace: `app_${appId.replace(/-/g, '_')}`, // Store namespace for cleanup
+                hasImages: true,
+                imageCount: images.length
+            };
+
+            apps.push(app);
+            createWindow(appId, title, content, 400, 300, icon);
+            createTaskbarIcon(appId, title, icon);
+            updateAppCount();
+            
+            // Update apps submenu to include the new user-generated app
+            updateAppsSubmenuContent();
+
+            return appId;
+        }
+
         function createTaskbarIcon(appId, title, appIcon = '📱') {
             const iconsContainer = document.getElementById('app-icons');
             const icon = document.createElement('div');
@@ -1732,9 +1915,30 @@ const app = {
 
         function requestApp() {
             const request = document.getElementById('app-request').value.trim();
-            if (request) {
-                createApp(request);
+            if (request || newAppPastedImages.length > 0) {
+                if (newAppPastedImages.length > 0) {
+                    console.log(`Creating app with ${newAppPastedImages.length} images`);
+                    createAppWithImages(request, newAppPastedImages);
+                } else {
+                    createApp(request);
+                }
+                
+                // Clear the input and images
                 document.getElementById('app-request').value = '';
+                newAppPastedImages = [];
+                
+                // Hide image preview container
+                const pastedImagesContainer = document.getElementById('new-app-pasted-images');
+                if (pastedImagesContainer) {
+                    pastedImagesContainer.style.display = 'none';
+                }
+                
+                // Clear image previews
+                const imageContainer = document.getElementById('new-app-image-preview-container');
+                if (imageContainer) {
+                    imageContainer.innerHTML = '';
+                }
+                
                 document.getElementById('start-menu').classList.remove('show');
             }
         }
@@ -2240,12 +2444,12 @@ const app = {
             dialog.innerHTML = `
                 <div style="margin-bottom: 16px;">
                     <h3 style="margin: 0 0 8px 0; color: ${document.body.classList.contains('dark-theme') ? '#f8f9fa' : '#333'}; font-size: 18px;">✏️ Edit App</h3>
-                    <p style="margin: 0; color: ${document.body.classList.contains('dark-theme') ? '#e9ecef' : '#666'}; font-size: 14px;">Enter modification instructions for "${app.title}":</p>
+                    <p style="margin: 0; color: ${document.body.classList.contains('dark-theme') ? '#e9ecef' : '#666'}; font-size: 14px;">Enter modification instructions for "${app.title}". You can also paste screenshots (Ctrl+V):</p>
                 </div>
                 <div style="margin-bottom: 20px;">
                     <textarea
                         id="text-prompt-input-${appId}"
-                        placeholder="Add a new feature or modify the existing functionality..."
+                        placeholder="Add a new feature or modify the existing functionality... You can also paste screenshots here with Ctrl+V"
                         style="
                             width: 100%;
                             height: 120px;
@@ -2259,6 +2463,10 @@ const app = {
                             color: ${document.body.classList.contains('dark-theme') ? '#f8f9fa' : '#333'};
                         "
                     ></textarea>
+                    <div id="pasted-images-${appId}" style="margin-top: 10px; display: none;">
+                        <div style="font-size: 12px; color: ${document.body.classList.contains('dark-theme') ? '#e9ecef' : '#666'}; margin-bottom: 8px;">📷 Pasted Images:</div>
+                        <div id="image-preview-container-${appId}" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end;">
                     <button
@@ -2302,6 +2510,122 @@ const app = {
                 textarea.select();
             }, 100);
 
+            // Store pasted images for this dialog
+            let pastedImages = [];
+
+            // Add paste event listener for image support
+            textarea.addEventListener('paste', async (e) => {
+                const items = e.clipboardData.items;
+                
+                for (let item of items) {
+                    if (item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        
+                        const file = item.getAsFile();
+                        if (file) {
+                            try {
+                                // Convert image to base64
+                                const base64 = await fileToBase64(file);
+                                
+                                // Add to pasted images array
+                                const imageData = {
+                                    base64: base64,
+                                    type: file.type,
+                                    name: `pasted-image-${Date.now()}.${file.type.split('/')[1]}`
+                                };
+                                pastedImages.push(imageData);
+                                
+                                // Show image preview
+                                showImagePreview(appId, imageData, pastedImages.length - 1);
+                                
+                                // Show the pasted images container
+                                const pastedImagesContainer = document.getElementById(`pasted-images-${appId}`);
+                                if (pastedImagesContainer) {
+                                    pastedImagesContainer.style.display = 'block';
+                                }
+                                
+                                console.log('Image pasted successfully:', imageData.name);
+                            } catch (error) {
+                                console.error('Error processing pasted image:', error);
+                                alert('Error processing pasted image. Please try again.');
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Helper function to convert file to base64
+            function fileToBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            // Helper function to show image preview
+            function showImagePreview(appId, imageData, index) {
+                const container = document.getElementById(`image-preview-container-${appId}`);
+                if (!container) return;
+
+                const previewDiv = document.createElement('div');
+                previewDiv.style.cssText = `
+                    position: relative;
+                    display: inline-block;
+                    border: 1px solid ${document.body.classList.contains('dark-theme') ? '#6c757d' : '#ddd'};
+                    border-radius: 4px;
+                    overflow: hidden;
+                `;
+
+                const img = document.createElement('img');
+                img.src = imageData.base64;
+                img.style.cssText = `
+                    width: 80px;
+                    height: 80px;
+                    object-fit: cover;
+                    display: block;
+                `;
+
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '×';
+                removeBtn.style.cssText = `
+                    position: absolute;
+                    top: 2px;
+                    right: 2px;
+                    width: 20px;
+                    height: 20px;
+                    background: rgba(220, 53, 69, 0.8);
+                    color: white;
+                    border: none;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    font-size: 12px;
+                    line-height: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                `;
+
+                removeBtn.addEventListener('click', () => {
+                    // Remove from array
+                    pastedImages.splice(index, 1);
+                    // Remove preview
+                    previewDiv.remove();
+                    // Hide container if no images left
+                    if (pastedImages.length === 0) {
+                        const pastedImagesContainer = document.getElementById(`pasted-images-${appId}`);
+                        if (pastedImagesContainer) {
+                            pastedImagesContainer.style.display = 'none';
+                        }
+                    }
+                });
+
+                previewDiv.appendChild(img);
+                previewDiv.appendChild(removeBtn);
+                container.appendChild(previewDiv);
+            }
+
             // Handle button clicks
             const cancelBtn = document.getElementById(`text-prompt-cancel-${appId}`);
             const submitBtn = document.getElementById(`text-prompt-submit-${appId}`);
@@ -2314,9 +2638,17 @@ const app = {
 
             submitBtn.addEventListener('click', () => {
                 const promptText = textarea.value.trim();
-                if (promptText) {
+                if (promptText || pastedImages.length > 0) {
                     console.log(`Text modification request for app ${appId}: ${promptText}`);
-                    modifyApp(appId, promptText);
+                    console.log(`Pasted images count: ${pastedImages.length}`);
+                    
+                    // Create modification request with images
+                    const modificationData = {
+                        text: promptText,
+                        images: pastedImages
+                    };
+                    
+                    modifyAppWithImages(appId, modificationData);
                     closeDialog();
                 } else {
                     textarea.focus();
@@ -5181,6 +5513,33 @@ The clock should be immediately functional and start displaying the current time
             `;
         }
 
+        // AI-Generated App Content Creator with Images
+        function createAIGeneratedAppContentWithImages(request, images, appId) {
+            // Start LLM processing with images immediately
+            setTimeout(() => processAppWithLLMAndImages(request, images, appId), 100);
+            
+            return `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                    <h2 style="margin: 0 0 20px 0; color: #333; font-weight: 300;">Creating your app</h2>
+                    <p style="margin: 0 0 30px 0; color: #666;">Analyzing ${images.length} screenshot(s)...</p>
+                    <div class="spinner" style="
+                        width: 40px;
+                        height: 40px;
+                        border: 4px solid #f3f3f3;
+                        border-top: 4px solid #0078d4;
+                        border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                    "></div>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+        }
+
         // LLM Processing Function
         async function processAppWithLLM(request, appId, retryCount = 0) {
             const maxRetries = 3;
@@ -5258,6 +5617,106 @@ The clock should be immediately functional and start displaying the current time
                     // Retry after 2 seconds
                     setTimeout(() => {
                         processAppWithLLM(request, appId, retryCount + 1);
+                    }, 2000);
+                    
+                } else {
+                    // All retries exhausted, show final error
+                    console.error(`💥 All ${maxRetries} attempts failed for app ${appId}`);
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    if (contentElement) {
+                        contentElement.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                                <h2 style="margin: 0 0 20px 0; color: #dc3545;">❌ Error</h2>
+                                <p style="color: #666; margin: 0 0 15px 0;">Failed after ${maxRetries} attempts</p>
+                                <p style="color: #999; font-size: 14px; margin: 0;">${error.message}</p>
+                            </div>
+                        `;
+                    }
+                }
+            }
+        }
+
+        async function processAppWithLLMAndImages(request, images, appId, retryCount = 0) {
+            const maxRetries = 3;
+            
+            try {
+                debugLog(`🔄 Processing app with images (attempt ${retryCount + 1}/${maxRetries})`);
+                
+                // Create prompt for windowed app generation with images
+                let prompt = createWindowedAppPrompt(request, appId);
+                
+                // Add image context
+                if (images && images.length > 0) {
+                    prompt += `\n\nIMAGE CONTEXT:\nThe user has provided ${images.length} screenshot(s) to help with app creation. Please analyze the provided images and incorporate any relevant visual information, UI elements, design patterns, or functionality shown in the screenshots into your app creation.`;
+                }
+                
+                // Call LLM API with images
+                const response = await callLLMAPIWithImages(prompt, request, images, 'App Creation Request with Images', appId);
+                
+                if (response && response.html) {
+                    console.log(`✅ LLM processing with images successful on attempt ${retryCount + 1}`);
+                    
+                    // Replace the placeholder content with the generated app
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    if (contentElement) {
+                        contentElement.innerHTML = response.html;
+                        
+                        // Add CSS if provided
+                        if (response.css) {
+                            addAppCSS(response.css, appId);
+                        }
+                        
+                        // Execute JavaScript if provided
+                        if (response.javascript) {
+                            executeAppJavaScript(response.javascript, appId);
+                        }
+                        
+                        // Auto-size and center the window based on content
+                        setTimeout(() => {
+                            autoSizeAndCenterWindow(appId);
+                        }, 100);
+                        
+                        // Update app title if provided
+                        if (response.title) {
+                            updateAppTitle(appId, response.title);
+                        }
+                        
+                        // Update app icon if provided
+                        if (response.icon) {
+                            updateAppIcon(appId, response.icon);
+                        }
+                    }
+                } else {
+                    throw new Error('Invalid response from LLM - missing HTML content');
+                }
+                
+            } catch (error) {
+                console.error(`❌ LLM processing with images failed (attempt ${retryCount + 1}):`, error);
+                
+                // Don't retry if it's a configuration error
+                const isConfigError = error.message.includes('not configured') ||
+                                    error.message.includes('API key') ||
+                                    error.message.includes('URL not configured');
+                
+                // Check if we should retry
+                if (retryCount < maxRetries - 1 && !isConfigError) {
+                    console.log(`🔄 Retrying in 2 seconds... (${retryCount + 2}/${maxRetries})`);
+                    
+                    // Show retry status
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    if (contentElement) {
+                        contentElement.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                                <h3 style="margin: 0 0 15px 0; color: #ffc107;">🔄 Retrying...</h3>
+                                <p style="color: #666; margin: 0 0 10px 0;">Attempt ${retryCount + 2} of ${maxRetries}</p>
+                                <p style="color: #999; font-size: 14px; margin: 0;">Previous error: ${error.message}</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // Retry after 2 seconds
+                    setTimeout(() => {
+                        processAppWithLLMAndImages(request, images, appId, retryCount + 1);
                     }, 2000);
                     
                 } else {
@@ -5571,6 +6030,151 @@ function sanitizeJsonCodeFields(jsonStr) {
             updateCostDisplay(data, description, userRequest);
             
             content = data.choices[0].message.content;
+            
+            content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+            content = sanitizeJsonCodeFields(content);
+
+            // Try full parse
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error("Invalid response format - no JSON found");
+
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch (initialError) {
+                console.log(content);
+                console.warn('First JSON parse attempt failed:', initialError.message);
+                
+                // Try multiple nested-looking JSON objects
+                const jsonBlocks = content.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+                if (jsonBlocks) {
+                    for (const block of jsonBlocks) {
+                        try {
+                            const parsed = JSON.parse(block);
+                            if (parsed.title && parsed.html) {
+                                return parsed;
+                            }
+                        } catch {}
+                    }
+                }
+
+                // No auto-cleaning step here: better to surface the real error
+                throw new Error(`JSON parsing failed: ${initialError.message}`);
+            }
+        }
+
+        async function callLLMAPIWithImages(prompt, userRequest = '', images = [], description = 'API Request with Images', appId = null) {
+            // If appId is provided, record the prompt in the app's history
+            if (appId) {
+                const promptType = description.includes('Edit') ? 'edit' : 'creation';
+                recordPromptInHistory(appId, prompt, promptType, userRequest);
+            }
+            
+            // Check if provider is properly configured
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openrouter' && (!CONFIG.OPENROUTER_API_KEY || CONFIG.OPENROUTER_API_KEY === 'sk-...')) {
+                throw new Error('OpenRouter API key not configured');
+            }
+            
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openai' && (!CONFIG.OPENROUTER_API_KEY || CONFIG.OPENROUTER_API_KEY === 'sk-proj-...')) {
+                throw new Error('OpenAI API key not configured');
+            }
+            
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'lmstudio' && (!CONFIG.OPENROUTER_URL || CONFIG.OPENROUTER_URL === 'https://openrouter.ai/api/v1/chat/completions')) {
+                throw new Error('LMStudio URL not configured');
+            }
+            
+            // Prepare headers based on current provider
+            let headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            // Add provider-specific headers
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openrouter') {
+                headers['Authorization'] = `Bearer ${CONFIG.OPENROUTER_API_KEY}`;
+                headers['HTTP-Referer'] = window.location.origin;
+                headers['X-Title'] = 'Self-Evolving OS';
+            } else if (CONFIG.CURRENT_LLM_PROVIDER === 'openai') {
+                headers['Authorization'] = `Bearer ${CONFIG.OPENROUTER_API_KEY}`; // Reused config key
+            } else if (CONFIG.CURRENT_LLM_PROVIDER === 'lmstudio') {
+                // LMStudio typically doesn't require authorization header
+                // headers['Authorization'] is not needed
+            }
+            
+            // Prepare messages with images
+            const messages = [];
+            
+            // Add the main prompt
+            const messageContent = [
+                {
+                    type: "text",
+                    text: prompt
+                }
+            ];
+            
+            // Add images if provided
+            if (images && images.length > 0) {
+                console.log(`Adding ${images.length} images to the request`);
+                images.forEach((imageData, index) => {
+                    messageContent.push({
+                        type: "image_url",
+                        image_url: {
+                            url: imageData.base64,
+                            detail: "high"
+                        }
+                    });
+                    console.log(`Added image ${index + 1}: ${imageData.name}`);
+                });
+            }
+            
+            messages.push({
+                role: 'user',
+                content: messageContent
+            });
+            
+            const requestBody = {
+                model: CONFIG.MODEL,
+                messages: messages
+            };
+            
+            // Use the correct parameters based on provider
+            if (CONFIG.CURRENT_LLM_PROVIDER === 'openai') {
+                requestBody.max_completion_tokens = 16000;
+                requestBody.temperature = 1;
+            } else {
+                requestBody.max_tokens = 32000;
+                requestBody.temperature = 0.7;
+            }
+            
+            console.log('Sending request with images to LLM:', {
+                provider: CONFIG.CURRENT_LLM_PROVIDER,
+                model: CONFIG.MODEL,
+                imageCount: images.length,
+                promptLength: prompt.length
+            });
+            
+            const response = await fetch(CONFIG.OPENROUTER_URL, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`API request with images failed for ${CONFIG.CURRENT_LLM_PROVIDER}:`, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorText: errorText,
+                    url: CONFIG.OPENROUTER_URL,
+                    imageCount: images.length
+                });
+                throw new Error(`API request failed: ${response.status} - ${response.statusText}: ${errorText}`);
+            }
+
+            const data = await response.json();
+            
+            // Extract cost information from response
+            updateCostDisplay(data, description, userRequest);
+            
+            let content = data.choices[0].message.content;
             
             content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
             content = sanitizeJsonCodeFields(content);
@@ -5991,6 +6595,81 @@ ${containerSelector} {
             processAppModificationWithLLM(modificationPrompt, appId, modificationRequest);
         }
 
+        function modifyAppWithImages(appId, modificationData) {
+            console.log(`Modifying app ${appId} with request: ${modificationData.text}`);
+            console.log(`Including ${modificationData.images.length} images`);
+            
+            const app = apps.find(a => a.id === appId);
+            if (!app) {
+                console.error(`App ${appId} not found`);
+                return;
+            }
+            
+            // Extract current app code
+            const appContentElement = document.getElementById(`content_${appId}`);
+            const currentHTML = appContentElement ? appContentElement.innerHTML : '';
+            
+            // Extract current CSS for this app
+            const currentStyleElement = document.getElementById(`style-${appId}`);
+            const currentCSS = currentStyleElement ? currentStyleElement.textContent : '';
+            
+            // Extract current JavaScript for this app
+            const currentScriptElement = document.getElementById(`script-${appId}`);
+            const currentJavaScript = currentScriptElement ? currentScriptElement.textContent : '';
+            
+            console.log(`📄 Current HTML length: ${currentHTML.length}`);
+            console.log(`🎨 Current CSS length: ${currentCSS.length}`);
+            console.log(`⚙️ Current JavaScript length: ${currentJavaScript.length}`);
+            
+            let thisAppPromptHistory = ''
+            app.promptHistory.slice(1).forEach((entry, index) => {
+                thisAppPromptHistory += `\n\nPrompt #${index + 1} (${entry.type}):\n${entry.userRequest}`;
+            });
+
+            // Create a modification prompt that includes the current app code
+            let modificationPrompt = ROLE_PROMPT +
+                APPMODIFY_PROMPT.replace(/{appId}/g, appId)
+                    .replace(/{appTitle}/g, app.title)
+                    .replace(/{modificationRequest}/g, modificationData.text)
+                    .replace(/{promptHistory}/g, thisAppPromptHistory)
+                    .replace(/{currentHTML}/g, currentHTML)
+                    .replace(/{currentCSS}/g, currentCSS)
+                    .replace(/{currentJavaScript}/g, currentJavaScript);
+
+            // Add image context if images are provided
+            if (modificationData.images && modificationData.images.length > 0) {
+                modificationPrompt += `\n\nIMAGE CONTEXT:\nThe user has provided ${modificationData.images.length} screenshot(s) to help with the modification. Please analyze the provided images and incorporate any relevant visual information, UI elements, or design patterns shown in the screenshots into your modification of the app.`;
+            }
+
+            // Show loading state
+            const contentElement = document.getElementById(`content_${appId}`);
+            if (contentElement) {
+                contentElement.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                        <h2 style="margin: 0 0 30px 0; color: #333; font-weight: 300;">Modifying your app</h2>
+                        ${modificationData.images.length > 0 ? `<p style="margin: 0 0 20px 0; color: #666;">Analyzing ${modificationData.images.length} screenshot(s)...</p>` : ''}
+                        <div class="spinner" style="
+                            width: 40px;
+                            height: 40px;
+                            border: 4px solid #f3f3f3;
+                            border-top: 4px solid #0078d4;
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                        "></div>
+                    </div>
+                    <style>
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    </style>
+                `;
+            }
+            
+            // Process the modification with LLM, including images
+            processAppModificationWithLLMAndImages(modificationPrompt, appId, modificationData.text, modificationData.images);
+        }
+
         async function processAppModificationWithLLM(prompt, appId, modificationRequest, retryCount = 0) {
             const maxRetries = 3;
             
@@ -6073,6 +6752,104 @@ ${containerSelector} {
                 } else {
                     // All retries exhausted, show final error
                     console.error(`💥 All ${maxRetries} modification attempts failed for app ${appId}`);
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    if (contentElement) {
+                        contentElement.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                                <h2 style="margin: 0 0 20px 0; color: #dc3545;">❌ Modification Failed</h2>
+                                <p style="color: #666; margin: 0 0 15px 0;">Failed after ${maxRetries} attempts</p>
+                                <p style="color: #999; font-size: 14px; margin: 0;">${error.message}</p>
+                            </div>
+                        `;
+                    }
+                }
+            }
+        }
+
+        async function processAppModificationWithLLMAndImages(prompt, appId, modificationRequest, images, retryCount = 0) {
+            const maxRetries = 3;
+            
+            try {
+                debugLog(`🔄 Processing app modification with images (attempt ${retryCount + 1}/${maxRetries}) for app ${appId}`);
+                
+                // Call LLM API with the modification prompt and images
+                const response = await callLLMAPIWithImages(prompt, modificationRequest, images, 'App Edit Request with Images', appId);
+                console.log('Modification response:', response);
+                
+                if (response && response.html) {
+                    console.log(`✅ App modification with images successful on attempt ${retryCount + 1}`);
+                    
+                    // Update the app content
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    if (contentElement) {
+                        contentElement.innerHTML = response.html;
+                        
+                        // Add CSS if provided
+                        if (response.css) {
+                            addAppCSS(response.css, appId);
+                        }
+                        
+                        // Execute JavaScript if provided
+                        if (response.javascript) {
+                            executeAppJavaScript(response.javascript, appId);
+                        }
+                        
+                        // Keep the original request but add modification history
+                        const app = apps.find(a => a.id === appId);
+                        if (app) {
+                            if (!app.modificationHistory) {
+                                app.modificationHistory = [];
+                            }
+                            app.modificationHistory.push({
+                                request: modificationRequest,
+                                timestamp: new Date().toISOString(),
+                                hasImages: true,
+                                imageCount: images.length
+                            });
+                            // Update the current state to reflect the latest modification
+                            app.lastModification = modificationRequest;
+                        }
+                        
+                        // Note: App title and icon are preserved during editing
+                        
+                        console.log(`App ${appId} successfully modified with ${images.length} images`);
+                    }
+                } else {
+                    throw new Error('Invalid modification response - missing HTML content');
+                }
+                
+            } catch (error) {
+                console.error(`❌ App modification with images failed (attempt ${retryCount + 1}):`, error);
+                
+                // Don't retry if it's a configuration error
+                const isConfigError = error.message.includes('not configured') ||
+                                    error.message.includes('API key') ||
+                                    error.message.includes('URL not configured');
+                
+                // Check if we should retry
+                if (retryCount < maxRetries - 1 && !isConfigError) {
+                    console.log(`🔄 Retrying modification with images in 2 seconds... (${retryCount + 2}/${maxRetries})`);
+                    
+                    // Show retry status
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    if (contentElement) {
+                        contentElement.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                                <h3 style="margin: 0 0 15px 0; color: #ffc107;">🔄 Retrying Modification...</h3>
+                                <p style="color: #666; margin: 0 0 10px 0;">Attempt ${retryCount + 2} of ${maxRetries}</p>
+                                <p style="color: #999; font-size: 14px; margin: 0;">Previous error: ${error.message}</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // Retry after 2 seconds
+                    setTimeout(() => {
+                        processAppModificationWithLLMAndImages(prompt, appId, modificationRequest, images, retryCount + 1);
+                    }, 2000);
+                    
+                } else {
+                    // All retries exhausted, show final error
+                    console.error(`💥 All ${maxRetries} modification attempts with images failed for app ${appId}`);
                     const contentElement = document.getElementById(`content_${appId}`);
                     if (contentElement) {
                         contentElement.innerHTML = `
