@@ -4,45 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-OS</title>
-    
-    <!--
-    NAMESPACE ISOLATION SYSTEM
-    =========================
-    
-    This AI-OS implements comprehensive namespace isolation to prevent conflicts between apps:
-    
-    1. APP CONTAINER ISOLATION
-       - Each app runs in its own DOM container: #content_${appId}
-       - CSS is automatically scoped to the app container
-       - JavaScript is wrapped in app-specific IIFE namespaces
-    
-    2. HTML ELEMENT NAMESPACING
-       - All element IDs must be prefixed: ${appId}_elementName
-       - All CSS classes must be prefixed: ${appId}__className
-       - Enforced through AI prompt instructions and validation
-    
-    3. JAVASCRIPT SCOPE ISOLATION
-       - Each app gets its own namespace: window[app_${appId}]
-       - Helper functions provided: app.getElementById(), app.querySelector()
-       - Custom events namespaced: ${appId}:eventName
-    
-    4. CSS NAMESPACE SCOPING
-       - All CSS rules automatically scoped to #content_${appId}
-       - Prevents style bleeding between apps
-       - Maintains theme support through .app-light-theme/.app-dark-theme
-    
-    5. CLEANUP SYSTEM
-       - Automatic cleanup when apps are closed
-       - Removes CSS, JavaScript, and namespace objects
-       - Prevents memory leaks and namespace pollution
-    
-    Key Functions:
-    - generateAppId(): Creates unique app identifiers
-    - namespaceCSS(): Scopes CSS to app containers
-    - namespaceJavaScript(): Wraps JS in isolated namespaces
-    - cleanupAppNamespace(): Removes app resources on close
-    - validateAppNamespace(): Validates namespace compliance
-    -->
 
     <style>
         * {
@@ -2987,48 +2948,186 @@ const app = {
                 return;
             }
 
-            // Get the current app content
-            const contentElement = document.getElementById(`content_${appId}`);
-            const currentHTML = contentElement ? contentElement.innerHTML : '';
-            
-            // Get the current CSS for this app
-            const styleElement = document.getElementById(`style-${appId}`);
-            const currentCSS = styleElement ? styleElement.textContent : '';
-            
-            // Get the current JavaScript for this app (if any)
-            const scriptElement = document.getElementById(`script-${appId}`);
-            const currentJavaScript = scriptElement ? scriptElement.textContent : '';
+            try {
+                // Get the current app content
+                const contentElement = document.getElementById(`content_${appId}`);
+                const currentHTML = contentElement ? contentElement.innerHTML : '';
+                
+                // Get the current CSS for this app
+                const styleElement = document.getElementById(`style-${appId}`);
+                let currentCSS = '';
+                
+                if (styleElement) {
+                    // Try to get original CSS from data attribute first
+                    const originalCSS = styleElement.getAttribute('data-original-css');
+                    if (originalCSS) {
+                        currentCSS = originalCSS;
+                        console.log(`Using original CSS for app ${appId}`);
+                    } else {
+                        // Fallback to current CSS content (may be namespaced)
+                        currentCSS = styleElement.textContent;
+                        console.log(`Using current CSS for app ${appId} (may be namespaced)`);
+                    }
+                }
+                
+                // Get the current JavaScript for this app (if any)
+                const scriptElement = document.getElementById(`script-${appId}`);
+                const currentJavaScript = scriptElement ? scriptElement.textContent : '';
 
-            // Create app data object
-            const appData = {
-                id: app.id,
-                title: app.title,
-                type: app.type,
-                customRequest: app.customRequest,
-                html: currentHTML,
-                css: currentCSS,
-                javascript: currentJavaScript,
-                isMinimized: app.isMinimized,
-                isMaximized: app.isMaximized,
-                modificationHistory: app.modificationHistory || [],
-                lastModification: app.lastModification || null,
-                promptHistory: app.promptHistory || [],
-                exportDate: new Date().toISOString(),
-                version: '1.1'
-            };
+                // Get window dimensions and position for restoration
+                const windowElement = document.getElementById(`window_${appId}`);
+                let windowState = {
+                    width: 400,
+                    height: 300,
+                    left: 100,
+                    top: 100
+                };
+                
+                if (windowElement) {
+                    windowState = {
+                        width: parseInt(windowElement.style.width) || 400,
+                        height: parseInt(windowElement.style.height) || 300,
+                        left: parseInt(windowElement.style.left) || 100,
+                        top: parseInt(windowElement.style.top) || 100
+                    };
+                }
 
-            // Create and download the file
-            const dataStr = JSON.stringify(appData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                // Create comprehensive app data object with all current features
+                const appData = {
+                    // Basic app information
+                    id: app.id,
+                    title: app.title,
+                    icon: app.icon || '📱',
+                    type: app.type,
+                    customRequest: app.customRequest,
+                    
+                    // App content
+                    html: currentHTML,
+                    css: currentCSS,
+                    javascript: currentJavaScript,
+                    
+                    // Window state
+                    windowState: windowState,
+                    isMinimized: app.isMinimized,
+                    isMaximized: app.isMaximized,
+                    
+                    // App history and modifications
+                    modificationHistory: app.modificationHistory || [],
+                    lastModification: app.lastModification || null,
+                    promptHistory: app.promptHistory || [],
+                    
+                    // System app properties
+                    isSystemApp: app.isSystemApp || false,
+                    isHidden: app.isHidden || false,
+                    generationMode: app.generationMode || 'SIMPLE',
+                    
+                    // Image support (if app was created with images)
+                    hasImages: app.hasImages || false,
+                    imageCount: app.imageCount || 0,
+                    
+                    // Namespace information for proper isolation
+                    namespace: app.namespace || `app_${appId.replace(/-/g, '_')}`,
+                    
+                    // Export metadata
+                    exportDate: new Date().toISOString(),
+                    exportedBy: 'Self-Evolving OS v2.0.0',
+                    version: '2.0',
+                    
+                    // Compatibility information
+                    compatibility: {
+                        minVersion: '2.0.0',
+                        features: [
+                            'namespace-isolation',
+                            'theme-support',
+                            'voice-modification',
+                            'prompt-history',
+                            'window-state-restoration'
+                        ]
+                    }
+                };
+
+                // Create and download the file with improved naming
+                const dataStr = JSON.stringify(appData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                // Generate a more descriptive filename
+                const sanitizedTitle = app.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+                const filename = `${sanitizedTitle}_${app.id}_${timestamp}.json`;
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up the blob URL
+                setTimeout(() => {
+                    URL.revokeObjectURL(link.href);
+                }, 100);
+                
+                console.log(`Downloaded app: ${app.title} (${app.id}) as ${filename}`);
+                
+                // Show success notification
+                showDownloadNotification(app.title, filename);
+                
+            } catch (error) {
+                console.error('Error downloading app:', error);
+                alert(`Failed to download app: ${error.message}`);
+            }
+        }
+
+        function showDownloadNotification(appTitle, filename) {
+            // Create a temporary notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #28a745;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                z-index: 10001;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 14px;
+                max-width: 300px;
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s ease;
+            `;
             
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `${app.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${app.id}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 18px;">💾</span>
+                    <div>
+                        <div style="font-weight: bold;">App Downloaded</div>
+                        <div style="font-size: 12px; opacity: 0.9;">${appTitle}</div>
+                        <div style="font-size: 11px; opacity: 0.7;">${filename}</div>
+                    </div>
+                </div>
+            `;
             
-            console.log(`Downloaded app: ${app.title} (${app.id})`);
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 10);
+            
+            // Animate out and remove
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
         }
 
         function loadAppFromFile(file) {
@@ -3043,46 +3142,139 @@ const app = {
                         throw new Error('Invalid app file format - missing required fields');
                     }
                     
-                    // Generate a new app ID to avoid conflicts
-                    const newAppId = generateAppId();
+                    // Check version compatibility
+                    const appVersion = appData.version || '1.0';
+                    const isLegacyFormat = parseFloat(appVersion) < 2.0;
                     
-                    // Create the app object
+                    if (isLegacyFormat) {
+                        console.log('Loading legacy app format, upgrading...');
+                    }
+                    
+                    // Use the original app ID from the saved app, or generate one if missing
+                    const appId = appData.id || generateAppId();
+                    
+                    // Check if an app with this ID already exists
+                    const existingApp = apps.find(app => app.id === appId);
+                    if (existingApp) {
+                        // If app already exists, close it first
+                        closeApp(appId);
+                    }
+                    
+                    // Create the app object with all modern features
                     const newApp = {
-                        id: newAppId,
+                        id: appId,
                         type: appData.type || 'imported',
                         title: appData.title,
+                        icon: appData.icon || '📱',
                         isMinimized: false,
                         isMaximized: false,
                         customRequest: appData.customRequest || 'Imported app',
-                        promptHistory: appData.promptHistory || []
+                        promptHistory: appData.promptHistory || [],
+                        modificationHistory: appData.modificationHistory || [],
+                        lastModification: appData.lastModification || null,
+                        isSystemApp: appData.isSystemApp || false,
+                        isHidden: false,
+                        generationMode: appData.generationMode || 'SIMPLE',
+                        hasImages: appData.hasImages || false,
+                        imageCount: appData.imageCount || 0,
+                        namespace: `app_${appId.replace(/-/g, '_')}`
                     };
                     
                     // Add to apps array
                     apps.push(newApp);
                     
-                    // Create the window with the imported content
-                    createWindow(newAppId, appData.title, appData.html);
-                    createTaskbarIcon(newAppId, appData.title);
+                    // Determine window dimensions
+                    let windowWidth = 400;
+                    let windowHeight = 300;
+                    
+                    if (appData.windowState) {
+                        windowWidth = appData.windowState.width || 400;
+                        windowHeight = appData.windowState.height || 300;
+                    }
+                    
+                    // Use the original content without modification since we're using the original app ID
+                    const originalHTML = appData.html;
+                    const originalCSS = appData.css || '';
+                    const originalJavaScript = appData.javascript || '';
+                    
+                    console.log(`Loading app with original ID: ${appId}`);
+                    
+                    // Create the window with the original content
+                    createWindow(appId, appData.title, originalHTML, windowWidth, windowHeight, newApp.icon);
+                    createTaskbarIcon(appId, appData.title, newApp.icon);
                     
                     // Add CSS if present
-                    if (appData.css) {
-                        addAppCSS(appData.css, newAppId);
+                    if (originalCSS) {
+                        addAppCSS(originalCSS, appId);
                     }
                     
                     updateAppCount();
                     
-                    // Execute JavaScript and auto-size after content is fully rendered
+                    // Execute JavaScript and restore window state after content is fully rendered
                     setTimeout(() => {
-                        // Execute JavaScript if present
-                        if (appData.javascript) {
-                            executeAppJavaScript(appData.javascript, newAppId);
+                        try {
+                            // Verify that the app content container exists before proceeding
+                            const contentContainer = document.getElementById(`content_${appId}`);
+                            if (!contentContainer) {
+                                throw new Error(`App content container not found: content_${appId}`);
+                            }
+                            
+                            console.log(`App container found: content_${appId}`);
+                            
+                            // Execute JavaScript if present
+                            if (originalJavaScript) {
+                                console.log(`Executing JavaScript for app ${appId}`);
+                                try {
+                                    executeAppJavaScript(originalJavaScript, appId);
+                                    console.log(`JavaScript executed successfully for app ${appId}`);
+                                } catch (jsError) {
+                                    console.error(`JavaScript execution failed for app ${appId}:`, jsError);
+                                    // Don't throw here, continue with other setup
+                                }
+                            }
+                            
+                            // Restore window position if available
+                            if (appData.windowState) {
+                                const windowElement = document.getElementById(`window_${appId}`);
+                                if (windowElement) {
+                                    windowElement.style.left = (appData.windowState.left || 100) + 'px';
+                                    windowElement.style.top = (appData.windowState.top || 100) + 'px';
+                                    console.log(`Restored window position for app ${appId}`);
+                                }
+                            } else {
+                                // Auto-size and center the window based on content for legacy apps
+                                autoSizeAndCenterWindow(appId);
+                            }
+                            
+                            // Apply current theme to the imported app
+                            applyThemeToApp(appId);
+                            
+                            // Update apps submenu to include the imported app
+                            updateAppsSubmenuContent();
+                            
+                            console.log(`App ${appId} loaded successfully`);
+                            
+                        } catch (setupError) {
+                            console.error(`Error during app setup for ${appId}:`, setupError);
+                            // Show user-friendly error message
+                            const contentContainer = document.getElementById(`content_${appId}`);
+                            if (contentContainer) {
+                                contentContainer.innerHTML = `
+                                    <div style="padding: 20px; text-align: center; color: #dc3545;">
+                                        <h3>⚠️ App Load Error</h3>
+                                        <p>The app loaded but some features may not work correctly.</p>
+                                        <p style="font-size: 12px; color: #666;">Error: ${setupError.message}</p>
+                                    </div>
+                                `;
+                            }
                         }
                         
-                        // Auto-size and center the window based on content
-                        autoSizeAndCenterWindow(newAppId);
-                    }, 200);
+                    }, 500); // Increased timeout to ensure DOM is ready
                     
-                    console.log(`Loaded app: ${appData.title} as ${newAppId}`);
+                    console.log(`Loaded app: ${appData.title} as ${appId} (version: ${appVersion})`);
+                    
+                    // Show success notification
+                    showImportNotification(appData.title, appVersion, isLegacyFormat);
                     
                 } catch (error) {
                     console.error('Failed to load app:', error);
@@ -3095,6 +3287,169 @@ const app = {
             };
             
             reader.readAsText(file);
+        }
+
+        function replaceAppIdReferences(content, oldAppId, newAppId) {
+            if (!content || !oldAppId || !newAppId || oldAppId === newAppId) {
+                return content;
+            }
+            
+            let updatedContent = content;
+            console.log(`Replacing app ID references: ${oldAppId} → ${newAppId}`);
+            
+            // Escape special regex characters in app IDs
+            const escapedOldAppId = oldAppId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const escapedNewAppId = newAppId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            
+            // Define replacement patterns with more specific matching
+            const replacements = [
+                // HTML id attributes: id="oldAppId_something"
+                {
+                    pattern: new RegExp(`(id=["'])${escapedOldAppId}_([^"']+)(["'])`, 'g'),
+                    replacement: `$1${newAppId}_$2$3`,
+                    description: 'HTML id attributes'
+                },
+                // HTML class attributes: class="...oldAppId__something..."
+                {
+                    pattern: new RegExp(`(class=["'][^"']*\\s?)${escapedOldAppId}__([^"'\\s]+)`, 'g'),
+                    replacement: `$1${newAppId}__$2`,
+                    description: 'HTML class attributes'
+                },
+                // CSS selectors: #oldAppId_something
+                {
+                    pattern: new RegExp(`(#)${escapedOldAppId}_([\\w-]+)`, 'g'),
+                    replacement: `$1${newAppId}_$2`,
+                    description: 'CSS ID selectors'
+                },
+                // CSS selectors: .oldAppId__something
+                {
+                    pattern: new RegExp(`(\\.)${escapedOldAppId}__([\\w-]+)`, 'g'),
+                    replacement: `$1${newAppId}__$2`,
+                    description: 'CSS class selectors'
+                },
+                // JavaScript getElementById calls: getElementById('oldAppId_something')
+                {
+                    pattern: new RegExp(`(getElementById\\(['"])${escapedOldAppId}_([^'"]+)(['"]\\))`, 'g'),
+                    replacement: `$1${newAppId}_$2$3`,
+                    description: 'JavaScript getElementById calls'
+                },
+                // JavaScript querySelector calls: querySelector('#oldAppId_something')
+                {
+                    pattern: new RegExp(`(querySelector\\(['"]#)${escapedOldAppId}_([^'"]+)(['"]\\))`, 'g'),
+                    replacement: `$1${newAppId}_$2$3`,
+                    description: 'JavaScript querySelector calls'
+                },
+                // JavaScript querySelectorAll calls: querySelectorAll('#oldAppId_something')
+                {
+                    pattern: new RegExp(`(querySelectorAll\\(['"]#)${escapedOldAppId}_([^'"]+)(['"]\\))`, 'g'),
+                    replacement: `$1${newAppId}_$2$3`,
+                    description: 'JavaScript querySelectorAll calls'
+                },
+                // Content container references: content_oldAppId
+                {
+                    pattern: new RegExp(`\\bcontent_${escapedOldAppId}\\b`, 'g'),
+                    replacement: `content_${newAppId}`,
+                    description: 'Content container references'
+                },
+                // Window references: window_oldAppId
+                {
+                    pattern: new RegExp(`\\bwindow_${escapedOldAppId}\\b`, 'g'),
+                    replacement: `window_${newAppId}`,
+                    description: 'Window references'
+                },
+                // Style element references: style-oldAppId
+                {
+                    pattern: new RegExp(`\\bstyle-${escapedOldAppId}\\b`, 'g'),
+                    replacement: `style-${newAppId}`,
+                    description: 'Style element references'
+                },
+                // Script element references: script-oldAppId
+                {
+                    pattern: new RegExp(`\\bscript-${escapedOldAppId}\\b`, 'g'),
+                    replacement: `script-${newAppId}`,
+                    description: 'Script element references'
+                },
+                // Icon references: icon_oldAppId
+                {
+                    pattern: new RegExp(`\\bicon_${escapedOldAppId}\\b`, 'g'),
+                    replacement: `icon_${newAppId}`,
+                    description: 'Icon references'
+                },
+                // App namespace references: app_oldAppId (with underscores)
+                {
+                    pattern: new RegExp(`\\bapp_${escapedOldAppId.replace(/-/g, '_')}\\b`, 'g'),
+                    replacement: `app_${newAppId.replace(/-/g, '_')}`,
+                    description: 'App namespace references'
+                }
+            ];
+            
+            // Apply each replacement
+            let totalReplacements = 0;
+            replacements.forEach(({ pattern, replacement, description }) => {
+                const matches = updatedContent.match(pattern);
+                if (matches && matches.length > 0) {
+                    console.log(`  ${description}: ${matches.length} matches`);
+                    updatedContent = updatedContent.replace(pattern, replacement);
+                    totalReplacements += matches.length;
+                }
+            });
+            
+            console.log(`Total replacements made: ${totalReplacements}`);
+            return updatedContent;
+        }
+
+        function showImportNotification(appTitle, version, isLegacyFormat) {
+            // Create a temporary notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #007bff;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                z-index: 10001;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 14px;
+                max-width: 300px;
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s ease;
+            `;
+            
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 18px;">📁</span>
+                    <div>
+                        <div style="font-weight: bold;">App Imported</div>
+                        <div style="font-size: 12px; opacity: 0.9;">${appTitle}</div>
+                        <div style="font-size: 11px; opacity: 0.7;">
+                            Version: ${version}${isLegacyFormat ? ' (upgraded)' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 10);
+            
+            // Animate out and remove
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
         }
 
         function triggerLoadApp() {
@@ -5463,12 +5818,7 @@ The clock should be immediately functional and start displaying the current time
             }
         }
 
-        // AI-Generated App Content Creator
-        function createAIGeneratedAppContent(request, appId) {
-            // Start LLM processing immediately
-            setTimeout(() => processAppWithLLM(request, appId), 100);
-            
-            return `
+        const SPINNER_ANIMATION = `
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
                     <h2 style="margin: 0 0 30px 0; color: #333; font-weight: 300;">Creating your app</h2>
                     <div class="spinner" style="
@@ -5486,7 +5836,15 @@ The clock should be immediately functional and start displaying the current time
                         100% { transform: rotate(360deg); }
                     }
                 </style>
-            `;
+        `;
+
+
+        // AI-Generated App Content Creator
+        function createAIGeneratedAppContent(request, appId) {
+            // Start LLM processing immediately
+            setTimeout(() => processAppWithLLM(request, appId), 100);
+            
+            return SPINNER_ANIMATION;
         }
 
         // AI-Generated App Content Creator with Images
@@ -5494,26 +5852,7 @@ The clock should be immediately functional and start displaying the current time
             // Start LLM processing with images immediately
             setTimeout(() => processAppWithLLMAndImages(request, images, appId), 100);
             
-            return `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
-                    <h2 style="margin: 0 0 20px 0; color: #333; font-weight: 300;">Creating your app</h2>
-                    <p style="margin: 0 0 30px 0; color: #666;">Analyzing ${images.length} screenshot(s)...</p>
-                    <div class="spinner" style="
-                        width: 40px;
-                        height: 40px;
-                        border: 4px solid #f3f3f3;
-                        border-top: 4px solid #0078d4;
-                        border-radius: 50%;
-                        animation: spin 1s linear infinite;
-                    "></div>
-                </div>
-                <style>
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                </style>
-            `;
+            return SPINNER_ANIMATION;
         }
 
         // LLM Processing Function
@@ -6236,12 +6575,37 @@ function sanitizeJsonCodeFields(jsonStr) {
 
 
         function addAppCSS(css, appId) {
+            // Remove existing style element if it exists
+            const existingStyle = document.getElementById(`style-${appId}`);
+            if (existingStyle) {
+                existingStyle.remove();
+            }
+            
             const styleElement = document.createElement('style');
             styleElement.id = `style-${appId}`;
             
-            // Apply namespace isolation to CSS
-            const namespacedCSS = namespaceCSS(css, appId);
-            styleElement.textContent = namespacedCSS;
+            // Check if CSS is already namespaced (contains #content_appId)
+            const containerSelector = `#content_${appId}`;
+            const isAlreadyNamespaced = css.includes(containerSelector);
+            
+            let finalCSS;
+            let originalCSS;
+            
+            if (isAlreadyNamespaced) {
+                console.log(`CSS for app ${appId} is already namespaced, using as-is`);
+                finalCSS = css;
+                // Try to extract original CSS by removing namespacing (best effort)
+                originalCSS = css;
+            } else {
+                console.log(`CSS for app ${appId} needs namespacing`);
+                originalCSS = css; // Store the original CSS
+                // Apply namespace isolation to CSS
+                finalCSS = namespaceCSS(css, appId);
+            }
+            
+            // Store the original CSS in a data attribute for later retrieval
+            styleElement.setAttribute('data-original-css', originalCSS);
+            styleElement.textContent = finalCSS;
             document.head.appendChild(styleElement);
         }
 
@@ -6338,6 +6702,12 @@ ${containerSelector} {
         function executeAppJavaScript(javascript, appId) {
             let namespacedJS = '';
             try {
+                // Verify that the app container exists before executing JavaScript
+                const contentContainer = document.getElementById(`content_${appId}`);
+                if (!contentContainer) {
+                    throw new Error(`App content container not found: content_${appId}`);
+                }
+                
                 // Store the JavaScript in a script element for later retrieval
                 const scriptElement = document.createElement('script');
                 scriptElement.id = `script-${appId}`;
@@ -6349,13 +6719,21 @@ ${containerSelector} {
                 const helperFunctions = createAppHelperFunctions(appId);
                 namespacedJS = namespaceJavaScript(javascript, appId, helperFunctions);
                 
+                console.log(`Executing JavaScript for app ${appId}`);
+                
                 // Execute JavaScript in global scope so it can access document and DOM
                 eval(namespacedJS);
+                
+                console.log(`JavaScript executed successfully for app ${appId}`);
+                
             } catch (error) {
+                console.error(`JavaScript execution failed for app ${appId}:`, error);
                 console.log('Original JavaScript:', javascript);
                 console.log('Namespaced JavaScript:', namespacedJS);
-                console.error(`JavaScript execution failed for app ${appId}:`, error);
-                throw new Error(`JavaScript execution failed for app ${appId}: ${error.message}`);
+                
+                // Don't throw the error, just log it and continue
+                // This prevents the entire app loading process from failing
+                console.warn(`App ${appId} loaded but JavaScript functionality may be limited`);
             }
         }
 
@@ -6546,25 +6924,7 @@ ${containerSelector} {
             // Show loading state
             const contentElement = document.getElementById(`content_${appId}`);
             if (contentElement) {
-                contentElement.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
-                        <h2 style="margin: 0 0 30px 0; color: #333; font-weight: 300;">Modifying your app</h2>
-                        <div class="spinner" style="
-                            width: 40px;
-                            height: 40px;
-                            border: 4px solid #f3f3f3;
-                            border-top: 4px solid #0078d4;
-                            border-radius: 50%;
-                            animation: spin 1s linear infinite;
-                        "></div>
-                    </div>
-                    <style>
-                        @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                        }
-                    </style>
-                `;
+                contentElement.innerHTML = SPINNER_ANIMATION;
             }
             
             // Process the modification with LLM
@@ -6620,26 +6980,7 @@ ${containerSelector} {
             // Show loading state
             const contentElement = document.getElementById(`content_${appId}`);
             if (contentElement) {
-                contentElement.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
-                        <h2 style="margin: 0 0 30px 0; color: #333; font-weight: 300;">Modifying your app</h2>
-                        ${modificationData.images.length > 0 ? `<p style="margin: 0 0 20px 0; color: #666;">Analyzing ${modificationData.images.length} screenshot(s)...</p>` : ''}
-                        <div class="spinner" style="
-                            width: 40px;
-                            height: 40px;
-                            border: 4px solid #f3f3f3;
-                            border-top: 4px solid #0078d4;
-                            border-radius: 50%;
-                            animation: spin 1s linear infinite;
-                        "></div>
-                    </div>
-                    <style>
-                        @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                        }
-                    </style>
-                `;
+                contentElement.innerHTML = SPINNER_ANIMATION;
             }
             
             // Process the modification with LLM, including images
