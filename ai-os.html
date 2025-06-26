@@ -1092,10 +1092,9 @@ MANDATORY CONTRAST RULES:
 1. NEVER light text on light backgrounds or dark text on dark backgrounds
 2. Display text must be clearly visible against display background
 3. Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
-4. Implement CSS grid or flexbox for precise button layout
-5. MANDADOTRY: make sure text is always readable against the background color
-6. For input fields, always set the color attibute
-7. MANDATORY: make sure button text is always readable against the button background color
+4. MANDADOTRY: make sure text is always readable against the background color
+5. For input fields, always set the color attibute
+6. MANDATORY: make sure button text is always readable against the button background color
 
 APPROVED COLOR PALETTE:
 
@@ -1195,20 +1194,8 @@ CURRENT APP CONTEXT:
 - App ID: {appId}
 - Current Title: {appTitle}
 
-- App Edit Prompts History:
+- Prompt History:
 {promptHistory}
-
-CURRENT APP CODE:
-=== CURRENT HTML ===
-{currentHTML}
-
-=== CURRENT CSS ===
-{currentCSS}
-
-=== CURRENT JAVASCRIPT
-{currentJavaScript}
-
-IMPORTANT: You are MODIFYING the existing app above, NOT creating a new one.
 
 MODIFICATION RULES
 1. Keep the existing functionality that works
@@ -1216,7 +1203,9 @@ MODIFICATION RULES
 3. Preserve the current UI structure where possible, change the UI only if the user asks for it
 4. Build upon the existing code rather than replacing it entirely
 5. You will not write json code block delimiters.
-6. Also ENSURE the requests from the App Edit Prompts History keep implemented
+6. MANDATORY: Also ENSURE the requirements the user asked for in the prompt history keep implemented
+7. IMPORTANT: Do NOT include a "title" field - the app name and icon must remain unchanged during editing.
+8. IMPORTANT: MODIFY the code, do not replace it entirely - keep the existing app structure
 
 CRITICAL REQUIREMENTS
 1. MODIFY the existing app according to the user request
@@ -1235,7 +1224,17 @@ RESPONSE FORMAT - Return ONLY a JSON object with this structure:
   "javascript": "complete JavaScript functionality"
 }
 
-IMPORTANT: Do NOT include a "title" field - the app name and icon must remain unchanged during editing.
+IMPORTANT: You are MODIFYING the existing app below, NOT creating a new one.
+
+CURRENT APP CODE:
+=== CURRENT HTML ===
+{currentHTML}
+
+=== CURRENT CSS ===
+{currentCSS}
+
+=== CURRENT JAVASCRIPT
+{currentJavaScript}
 `;
 
 
@@ -3166,6 +3165,7 @@ FUNCTIONALITY REQUIREMENTS:
 - Display updates immediately when any button is pressed
 - Keyboard support for number keys and basic operators
 - MANDATORY: show the selected operation in the display
+- The calculator should be in a html container that ensures it will not resize when the window is beeing resized
 
 TECHNICAL IMPLEMENTATION:
 - Maintain proper calculator state between operations
