@@ -77,6 +77,225 @@
     </div>
 
     <script>
+        // ===== SHARED DATA REGISTRY SYSTEM =====
+        // Global shared data storage
+
+        console.log('Initializing shared data registry system...');
+        window.sharedData = {};
+        window.sharedDataMeta = {};
+        window.dataSubscribers = {};
+        
+        // Create the dataRegistry API object
+        window.dataRegistry = {
+            // Get specific data object
+            getData: function(name) {
+                return window.sharedData[name];
+            },
+            
+            // Get all registered data objects
+            getAllData: function() {
+                return { ...window.sharedData };
+            },
+            
+            // Get data object information (description, structure)
+            getDataInfo: function(name) {
+                return window.sharedDataMeta[name] || {};
+            },
+            
+            // Register new data object
+            registerData: function(name, data, description, structure) {
+                window.sharedData[name] = data;
+                window.sharedDataMeta[name] = {
+                    description: description || 'No description provided',
+                    structure: structure || 'Unknown structure',
+                    registeredAt: new Date().toISOString()
+                };
+                console.log(`Data object '${name}' registered:`, description);
+                
+                // Notify subscribers of new data registration
+                this.notifySubscribers(name, data, 'registered');
+            },
+            
+            // Update existing data object
+            updateData: function(name, newData) {
+                if (window.sharedData.hasOwnProperty(name)) {
+                    window.sharedData[name] = newData;
+                    console.log(`Data object '${name}' updated`);
+                    
+                    // Notify subscribers of data change
+                    this.notifySubscribers(name, newData, 'updated');
+                } else {
+                    console.warn(`Data object '${name}' not found for update`);
+                }
+            },
+            
+            // Subscribe to data changes
+            subscribe: function(name, callback) {
+                if (!window.dataSubscribers[name]) {
+                    window.dataSubscribers[name] = [];
+                }
+                window.dataSubscribers[name].push(callback);
+                console.log(`Subscribed to data object '${name}'`);
+            },
+            
+            // Unsubscribe from data changes
+            unsubscribe: function(name, callback) {
+                if (window.dataSubscribers[name]) {
+                    const index = window.dataSubscribers[name].indexOf(callback);
+                    if (index > -1) {
+                        window.dataSubscribers[name].splice(index, 1);
+                        console.log(`Unsubscribed from data object '${name}'`);
+                    }
+                }
+            },
+            
+            // Notify subscribers of data changes
+            notifySubscribers: function(name, data, action) {
+                if (window.dataSubscribers[name]) {
+                    window.dataSubscribers[name].forEach(callback => {
+                        try {
+                            callback(data, action, name);
+                        } catch (error) {
+                            console.error(`Error in data subscriber for '${name}':`, error);
+                        }
+                    });
+                }
+                
+                // Also dispatch global event for backward compatibility
+                const event = new CustomEvent('sharedDataChanged', {
+                    detail: { name: name, value: data, action: action }
+                });
+                document.dispatchEvent(event);
+            }
+        };
+        
+        // Function to analyze data structure automatically
+        function analyzeDataStructure(data) {
+            if (data === null) return 'null';
+            if (data === undefined) return 'undefined';
+            
+            const type = typeof data;
+            
+            if (type === 'boolean') {
+                return `Boolean: ${data}`;
+            }
+            
+            if (type === 'number') {
+                return `Number: ${data}`;
+            }
+            
+            if (type === 'string') {
+                if (data.length > 50) {
+                    return `String (${data.length} chars): "${data.substring(0, 47)}..."`;
+                }
+                return `String: "${data}"`;
+            }
+            
+            if (type === 'function') {
+                return 'Function';
+            }
+            
+            if (Array.isArray(data)) {
+                if (data.length === 0) {
+                    return 'Array: [] (empty)';
+                }
+                
+                const firstItem = data[0];
+                const itemType = typeof firstItem;
+                
+                if (itemType === 'object' && firstItem !== null) {
+                    const keys = Object.keys(firstItem).slice(0, 3);
+                    const keyStr = keys.length > 3 ? `${keys.join(', ')}, ...` : keys.join(', ');
+                    return `Array[${data.length}] of objects: [{${keyStr}}]`;
+                } else {
+                    return `Array[${data.length}] of ${itemType}s: [${firstItem}, ...]`;
+                }
+            }
+            
+            if (type === 'object') {
+                // Check for special objects
+                if (data instanceof Date) {
+                    return `Date: ${data.toISOString()}`;
+                }
+                
+                if (data instanceof RegExp) {
+                    return `RegExp: ${data.toString()}`;
+                }
+                
+                // Check for Web Storage API
+                if (data && typeof data.getItem === 'function' && typeof data.setItem === 'function') {
+                    return 'Web Storage API: {getItem(), setItem(), removeItem(), clear(), length, key()}';
+                }
+                
+                // Regular object
+                const keys = Object.keys(data);
+                if (keys.length === 0) {
+                    return 'Object: {} (empty)';
+                }
+                
+                const keyStr = keys.length > 5 ? `${keys.slice(0, 5).join(', ')}, ...` : keys.join(', ');
+                return `Object: {${keyStr}}`;
+            }
+            
+            return `${type}`;
+        }
+        
+        // Legacy functions for backward compatibility
+        function getSharedData(name) {
+            return window.dataRegistry.getData(name);
+        }
+        
+        function setSharedData(name, value) {
+            window.dataRegistry.updateData(name, value);
+        }
+        
+        function registerSharedData(name, data, description, structure) {
+            window.dataRegistry.registerData(name, data, description, structure);
+        }
+        
+        // Initialize with default data
+        registerSharedData('user-preferences', {theme: 'light', language: 'en'}, 'User interface preferences and settings', 'Object: {theme: string ("light"|"dark"), language: string (ISO code like "en", "de")}');
+        
+        // Initialize cost tracking data (will be updated when cost tracking is loaded)
+        registerSharedData('cost-history', [], 'API usage cost tracking history for monitoring expenses', 'Array of objects: [{timestamp: string (ISO date), cost: number (decimal), description: string, prompt: string (truncated to 200 chars)}]');
+        registerSharedData('cost-tracking-enabled', true, 'Boolean flag controlling whether API costs are tracked', 'Boolean: true (tracking enabled) | false (tracking disabled)');
+        
+        // Initialize apps management data
+        registerSharedData('running-apps', [], 'Registry of all currently running applications with their metadata', 'Array of objects: [{id: string, title: string, icon: string (emoji), type: string, isMinimized: boolean, isMaximized: boolean, isHidden: boolean, isSystemApp: boolean, generationMode: string, timestamp: string (ISO date)}]');
+        
+        // Initialize system data
+        registerSharedData('system-info', {
+            os: 'AI-OS',
+            version: '1.0.0',
+            startTime: new Date().toISOString(),
+            totalAppsCreated: 0
+        }, 'System information, version details, and runtime statistics', 'Object: {os: string ("AI-OS"), version: string (semver), startTime: string (ISO date), totalAppsCreated: number (counter)}');
+        
+        // Initialize persistent storage references
+        registerSharedData('localStorage', localStorage, 'Browser local storage for persistent data across sessions', 'Web Storage API object: {getItem(key): string|null, setItem(key, value): void, removeItem(key): void, clear(): void, length: number, key(index): string|null}');
+        registerSharedData('sessionStorage', sessionStorage, 'Browser session storage for temporary data within current session', 'Web Storage API object: {getItem(key): string|null, setItem(key, value): void, removeItem(key): void, clear(): void, length: number, key(index): string|null}');
+        
+
+        // Function to update the shared apps registry
+        function updateSharedAppsRegistry() {
+            if (typeof setSharedData === 'function') {
+                // Create a sanitized version of apps for sharing (remove sensitive data)
+                const sharedApps = apps.map(app => ({
+                    id: app.id,
+                    title: app.title,
+                    icon: app.icon,
+                    type: app.type,
+                    isMinimized: app.isMinimized,
+                    isMaximized: app.isMaximized,
+                    isHidden: app.isHidden,
+                    isSystemApp: app.isSystemApp || false,
+                    generationMode: app.generationMode,
+                    timestamp: app.timestamp || new Date().toISOString()
+                }));
+                setSharedData('running-apps', sharedApps);
+            }
+        }
+
         const ROLE_PROMPT = `
 You are an expert web developer specializing in creating modular, theme-aware web applications.
 Your task is to generate HTML, CSS, and JavaScript code for a new app based on user requests.
@@ -172,6 +391,24 @@ ESSENTIAL JAVASCRIPT CODE GENERATION GUIDELINES:
 - Always use document.getElementById() and addEventListener() pattern
 - Keep Javascript scripts simple and avoid complex string operations that could break JSON
 - All declared variables must be prefixed with "{appId}_" to avoid conflicts
+- CRITICAL: never use window.prompt() or window.alert() in the JavaScript code, always implement custom UI for user interactions
+- CRITICAL: NEVER add a listener to the key events
+
+CRITICAL REQUIREMENT - INIT FUNCTION:
+- YOU MUST CREATE AN INIT FUNCTION - THIS IS MANDATORY AND NON-NEGOTIABLE
+- Use this EXACT pattern in your JavaScript (use window[appNamespace], NOT window.app_{appId}):
+  window[appNamespace].init = function() {
+    // Put ALL initialization code here (event listeners, setup, timers, etc.)
+    // This function will be called after the app is loaded into the DOM
+  };
+- IMPORTANT: Use window[appNamespace].init, NOT window.app_{appId}.init
+- CRITICAL: The appNamespace variable is automatically created and available - DO NOT declare it yourself
+- DO NOT write: const appNamespace = ... or let appNamespace = ... or var appNamespace = ...
+- The appNamespace variable is already available for you to use
+- The init function MUST contain ALL event listener setup and initialization logic
+- Do NOT put any event listeners or initialization code outside the init function
+- The init function will be automatically called after the app is created
+- FAILURE TO INCLUDE THE INIT FUNCTION WILL RESULT IN BROKEN FUNCTIONALITY
         `;
 
         const APPCREATION_PROMPT = `
@@ -192,8 +429,44 @@ RESPONSE FORMAT - Return ONLY a JSON object with this structure:
   "icon": "📱",
   "html": "complete HTML content",
   "css": "complete CSS styles",
-  "javascript": "complete JavaScript functionality"
+  "javascript": "complete JavaScript functionality INCLUDING MANDATORY INIT FUNCTION"
 }
+
+CRITICAL: Your JavaScript MUST include this init function pattern:
+window[appNamespace].init = function() {
+  // ALL initialization code goes here
+};
+IMPORTANT:
+- Use window[appNamespace].init, NOT window.app_{appId}.init
+- DO NOT declare appNamespace yourself - it is already available
+- DO NOT write: const appNamespace = ... or let appNamespace = ... or var appNamespace = ...
+
+DATA REGISTRY SYSTEM:
+Apps can access and register shared data objects through the global data registry system:
+
+ACCESSING REGISTERED DATA:
+- Use: window.dataRegistry.getData('dataName') to get data
+- Use: window.dataRegistry.getAllData() to get all registered data objects
+- Use: window.dataRegistry.subscribe('dataName', callbackFunction) to listen for changes
+
+REGISTERING NEW DATA:
+- Use: window.dataRegistry.registerData('dataName', dataObject, 'description', 'structure info')
+- Example: window.dataRegistry.registerData('userPreferences', {theme: 'dark'}, 'User UI preferences', 'Object with theme, language, etc.')
+
+UPDATING DATA:
+- Use: window.dataRegistry.updateData('dataName', newDataObject) to update existing data
+- This will notify all subscribers of the change
+
+AVAILABLE DATA OBJECTS:
+{availableDataObjects}
+
+PERSISTENT STORAGE ACCESS:
+- localStorage: window.dataRegistry.registerData('localData', localStorage, 'Browser local storage', 'Web Storage API')
+- sessionStorage: window.dataRegistry.registerData('sessionData', sessionStorage, 'Browser session storage', 'Web Storage API')
+- cookies: Use document.cookie and register as data object if needed
+- IndexedDB: Can be registered as data object for complex data storage
+
+Use these data objects when relevant to your app's functionality!
 
 ICON REQUIREMENTS:
 - Choose a single UTF-8 emoji that best represents the app's function
@@ -252,6 +525,47 @@ RESPONSE FORMAT - Return ONLY a JSON object with this structure:
 }
 
 IMPORTANT: You are MODIFYING the existing app below, NOT creating a new one.
+
+INIT FUNCTION REQUIREMENT:
+- MANDATORY: Ensure the app has an init function for initialization using this pattern:
+  window[appNamespace].init = function() {
+    // Put all initialization code here (event listeners, setup, etc.)
+    // This function will be called after the app is loaded into the DOM
+  };
+- IMPORTANT: Use window[appNamespace].init, NOT window.app_{appId}.init
+- CRITICAL: The appNamespace variable is automatically available - DO NOT declare it yourself
+- DO NOT write: const appNamespace = ... or let appNamespace = ... or var appNamespace = ...
+- The init function should contain ALL event listener setup and initialization logic
+- Do NOT put event listeners or initialization code outside the init function
+- If the existing app doesn't have an init function, add one during modification
+- If it already has an init function, preserve and enhance it as needed
+
+DATA REGISTRY SYSTEM:
+Apps can access and register shared data objects through the global data registry system:
+
+ACCESSING REGISTERED DATA:
+- Use: window.dataRegistry.getData('dataName') to get data
+- Use: window.dataRegistry.getAllData() to get all registered data objects
+- Use: window.dataRegistry.subscribe('dataName', callbackFunction) to listen for changes
+
+REGISTERING NEW DATA:
+- Use: window.dataRegistry.registerData('dataName', dataObject, 'description', 'structure info')
+- Example: window.dataRegistry.registerData('userPreferences', {theme: 'dark'}, 'User UI preferences', 'Object with theme, language, etc.')
+
+UPDATING DATA:
+- Use: window.dataRegistry.updateData('dataName', newDataObject) to update existing data
+- This will notify all subscribers of the change
+
+AVAILABLE DATA OBJECTS:
+{availableDataObjects}
+
+PERSISTENT STORAGE ACCESS:
+- localStorage: window.dataRegistry.registerData('localData', localStorage, 'Browser local storage', 'Web Storage API')
+- sessionStorage: window.dataRegistry.registerData('sessionData', sessionStorage, 'Browser session storage', 'Web Storage API')
+- cookies: Use document.cookie and register as data object if needed
+- IndexedDB: Can be registered as data object for complex data storage
+
+Use these data objects when relevant to your app's functionality!
 
 CURRENT APP CODE:
 === CURRENT HTML ===
@@ -318,6 +632,11 @@ TECHNICAL IMPLEMENTATION:
 - Maintain proper calculator state between operations
 - Handle edge cases like multiple operators, leading zeros, decimal points
 - Ensure calculator behaves exactly like a standard calculator
+- MANDATORY: Create an init function for app initialization:
+  window[appNamespace].init = function() {
+    // Put all event listeners and initialization code here
+    // This function will be called after the app is loaded into the DOM
+  };
 
 The calculator must be immediately functional with the exact color scheme and layout specified.`
             },
@@ -346,13 +665,19 @@ FUNCTIONALITY:
 - Display current date in a readable format
 - Handle time changes correctly (including midnight transitions)
 
-The clock should be immediately functional and start displaying the current time as soon as the app loads.`
+The clock should be immediately functional and start displaying the current time as soon as the app loads.
+
+MANDATORY: Create an init function for app initialization:
+window[appNamespace].init = function() {
+  // Put all event listeners, timer setup, and initialization code here
+  // This function will be called after the app is loaded into the DOM
+};`
             },
 
             'Cost Tracking': {
                 generationMode: 'SIMPLE',
                 icon: '💰',
-                prompt: `Create a Cost Tracking app that displays API usage costs. The app must access the global 'costHistory' array which contains cost entries with the following structure:
+                prompt: `Create a Cost Tracking app that displays API usage costs using the Data Registry system. The app must access cost data through the data registry which contains cost entries with the following structure:
             
             costHistory = [
                 {
@@ -369,25 +694,26 @@ The clock should be immediately functional and start displaying the current time
             3. Show number of API calls made
             4. Display cost history in a table with columns: Date/Time, Cost, Description, Prompt
             5. Sort entries by newest first (reverse chronological order)
-            6. Include a "Clear History" button that calls clearCostHistory() function
-            7. Include a "Load Costs" button that refreshes the data from the global costHistory
+            6. Include a "Clear History" button that clears the cost history data
+            7. Include a "Load Costs" button that refreshes the data from the data registry
             8. Handle empty history with a "No cost entries recorded yet" message
             9. Use proper currency formatting ($X.XXXX)
             10. Make the table scrollable if there are many entries
             11. Truncate long prompts to fit in the table (max 100 characters)
 
-            TECHNICAL REQUIREMENTS:
-            - CRITICAL: Access costHistory using window.costHistory (this is the global array with all cost data)
-            - ALWAYS use: const costs = window.costHistory || []; to safely access the data
+            DATA REGISTRY INTEGRATION:
+            - CRITICAL: Access cost data using window.dataRegistry.getData('cost-history')
+            - ALWAYS use: const costs = window.dataRegistry.getData('cost-history') || []; to safely access the data
             - Calculate total cost: const total = costs.reduce((sum, entry) => sum + entry.cost, 0);
             - Format dates using new Date(entry.timestamp).toLocaleDateString() and toLocaleTimeString()
-            - Clear History button MUST call: window.clearCostHistory()
+            - Clear History button MUST call: window.dataRegistry.updateData('cost-history', [])
             - Load Costs button MUST call your local loadCostData() function
-            - MANDATORY: Create loadCostData() function that refreshes display from window.costHistory
+            - MANDATORY: Create loadCostData() function that refreshes display from data registry
             - MANDATORY: Call loadCostData() immediately when app loads AND when 'appShown' event fires
             - MANDATORY: Listen for 'appShown' event: document.addEventListener('appShown', loadCostData);
             - Handle empty data gracefully with "No cost entries recorded yet" message
-            - DEBUGGING: Add console.log('Loading cost data:', window.costHistory); in loadCostData()
+            - DEBUGGING: Add console.log('Loading cost data:', window.dataRegistry.getData('cost-history')); in loadCostData()
+            - SUBSCRIBE TO CHANGES: Use window.dataRegistry.subscribe('cost-history', loadCostData) to auto-refresh when data changes
             - add proper css styles for any buttons
             - add proper css styles for the table and summary section
 
@@ -405,8 +731,8 @@ The clock should be immediately functional and start displaying the current time
 
             EXAMPLE CODE SNIPPET:
             function loadCostData() {
-                console.log('Loading cost data:', window.costHistory);
-                const costs = window.costHistory || [];
+                console.log('Loading cost data from data registry...');
+                const costs = window.dataRegistry.getData('cost-history') || [];
                 const total = costs.reduce((sum, entry) => sum + entry.cost, 0);
                 
                 console.log('Found', costs.length, 'cost entries, total:', total);
@@ -435,10 +761,83 @@ The clock should be immediately functional and start displaying the current time
             
             // MANDATORY: Call loadCostData when app loads and on appShown event
             loadCostData();
+            // Subscribe to data changes for auto-refresh
+            window.dataRegistry.subscribe('cost-history', loadCostData);
             document.addEventListener('appShown', function(event) {
                 console.log('App shown event received for:', event.detail.appId);
                 loadCostData();
-            });`
+            });
+
+MANDATORY: Create an init function for app initialization:
+window[appNamespace].init = function() {
+  // Put all event listeners and initialization code here
+  // This function will be called after the app is loaded into the DOM
+  loadCostData(); // Load initial data
+  // Subscribe to data changes for auto-refresh
+  window.dataRegistry.subscribe('cost-history', loadCostData);
+  document.addEventListener('appShown', function(event) {
+    console.log('App shown event received for:', event.detail.appId);
+    loadCostData();
+  });
+};`
+            },
+
+            'Data Registry': {
+                generationMode: 'SIMPLE',
+                icon: '📊',
+                prompt: `Create a Data Registry Browser app that displays all registered shared data objects with a professional interface and specific design requirements.
+
+EXACT LAYOUT REQUIREMENTS:
+- Header section with title "Data Registry" and refresh button (🔄)
+- Main table with columns: Name, Description, Data Type, Current Value Preview, Actions
+- Each row must have a "Console Log" button in the Actions column
+- Footer section with action buttons: "Add Sample Data", "Clear Sample Data", "Export Registry"
+- Handle empty registry state with message "No shared data registered yet"
+
+VISUAL DESIGN DETAILS:
+- Clean, modern table design with alternating row colors
+- Header row with dark background (#343a40) and white text
+- Data rows with light background (#f8f9fa) alternating with white
+- Buttons styled consistently: blue for actions, green for positive actions, red for destructive actions
+- Console Log buttons should be small, styled with gray background (#6c757d) and white text
+- Actions column should be narrow, just wide enough for the Console Log button
+- Responsive design that fits well within the window
+- Professional typography with clear, readable fonts
+- Proper spacing and padding throughout
+
+FUNCTIONALITY REQUIREMENTS:
+- Display all data using window.dataRegistry.getAllData()
+- Show descriptions from window.dataRegistry.getDataInfo(key).description
+- Show structure info from window.dataRegistry.getDataInfo(key).structure
+- Determine data type using typeof or Array.isArray() for arrays
+- Preview values: show first 50 characters for strings, full value for numbers/booleans
+- Each row must have a "Console Log" button that outputs the data object to console
+- Console Log button should use: console.log('Data Key:', key, 'Value:', window.dataRegistry.getData(key), 'Info:', window.dataRegistry.getDataInfo(key))
+- Refresh button updates the display by re-reading from data registry
+- Add Sample Data button creates test entries using window.dataRegistry.registerData()
+- Clear Sample Data button removes test entries using window.dataRegistry.updateData()
+- Export Registry button shows JSON representation of all data
+- Subscribe to data changes for real-time updates using window.dataRegistry.subscribe()
+
+TECHNICAL IMPLEMENTATION:
+- Use proper error handling for missing data or metadata
+- Handle all JavaScript data types: string, number, boolean, object, array
+- Ensure table updates dynamically when refresh is clicked or data changes
+- Maintain proper state management for sample data
+- Include proper null/undefined checks for safety
+- Subscribe to data registry changes for automatic updates
+
+MANDATORY FEATURES:
+- Must work with the new data registry API system
+- Must use window.dataRegistry.getAllData(), getData(), getDataInfo(), registerData(), updateData()
+- Must subscribe to data changes for real-time updates
+- Must handle empty registry gracefully
+- Must be contained in a proper HTML structure that won't resize unexpectedly
+- MANDATORY: Create an init function for app initialization:
+  window[appNamespace].init = function() {
+    // Put all event listeners and initialization code here
+    // This function will be called after the app is loaded into the DOM
+  };`
             }
         };
 
@@ -1065,6 +1464,7 @@ const app = {
             };
 
             apps.push(app);
+            updateSharedAppsRegistry();
             createWindow(appId, title, content, 400, 300, icon);
             createTaskbarIcon(appId, title, icon);
             updateAppCount();
@@ -1097,6 +1497,7 @@ const app = {
             };
 
             apps.push(app);
+            updateSharedAppsRegistry();
             createWindow(appId, title, content, 400, 300, icon);
             createTaskbarIcon(appId, title, icon);
             updateAppCount();
@@ -1908,6 +2309,7 @@ const app = {
                 if (window) {
                     window.style.display = 'none';
                     app.isHidden = true;
+                    updateSharedAppsRegistry();
                 }
                 if (icon) {
                     icon.style.display = 'none';
@@ -1922,6 +2324,7 @@ const app = {
                 cleanupAppNamespace(appId);
                 
                 apps = apps.filter(app => app.id !== appId);
+                updateSharedAppsRegistry();
                 console.log(`User app ${appId} removed and namespace cleaned`);
             }
             
@@ -1969,6 +2372,7 @@ const app = {
             if (window && app) {
                 window.classList.add('minimized');
                 app.isMinimized = true;
+                updateSharedAppsRegistry();
                 updateIconState(appId);
             }
         }
@@ -1980,6 +2384,7 @@ const app = {
             if (window && app) {
                 window.classList.toggle('maximized');
                 app.isMaximized = !app.isMaximized;
+                updateSharedAppsRegistry();
                 bringToFront(appId);
             }
         }
@@ -1992,6 +2397,7 @@ const app = {
                 if (app.isMinimized) {
                     window.classList.remove('minimized');
                     app.isMinimized = false;
+                    updateSharedAppsRegistry();
                     bringToFront(appId);
                 } else {
                     minimizeWindow(appId);
@@ -2149,6 +2555,7 @@ const app = {
             };
 
             apps.push(managerApp);
+            updateSharedAppsRegistry();
             createWindow(managerId, 'App Manager', appListContent);
             createTaskbarIcon(managerId, 'App Manager');
             updateAppCount();
@@ -2425,6 +2832,7 @@ const app = {
                     
                     // Add to apps array
                     apps.push(newApp);
+                    updateSharedAppsRegistry();
                     
                     // Determine window dimensions
                     let windowWidth = 400;
@@ -2749,10 +3157,24 @@ const app = {
 
         // Global cost tracking
         let costTrackingEnabled = true;
-        let costHistory = [];
         
-        // Make costHistory globally accessible for generated apps
-        window.costHistory = costHistory;
+        // Initialize cost tracking through data registry
+        function initializeCostTracking() {
+            // Get existing cost history from data registry or create empty array
+            let costHistory = window.dataRegistry.getData('cost-history') || [];
+            
+            // Make costHistory globally accessible for backward compatibility
+            window.costHistory = costHistory;
+            
+            // Update data registry if it was empty
+            if (!window.dataRegistry.getData('cost-history')) {
+                window.dataRegistry.updateData('cost-history', costHistory);
+            }
+        }
+        
+        // Initialize cost tracking
+        initializeCostTracking();
+        
 
         // Global debug mode
         let debugMode = false;
@@ -2819,6 +3241,7 @@ const app = {
             };
 
             apps.push(setupApp);
+            updateSharedAppsRegistry();
             createWindow(setupId, 'Setup Assistant', setupContent, 600, 500);
             createTaskbarIcon(setupId, 'Setup Assistant');
             updateAppCount();
@@ -3971,6 +4394,11 @@ const app = {
                 if (settings.costTracking !== undefined) {
                     costTrackingEnabled = settings.costTracking;
                     
+                    // Update shared data registry (if available)
+                    if (typeof setSharedData === 'function') {
+                        setSharedData('cost-tracking-enabled', costTrackingEnabled);
+                    }
+                    
                     // Show/hide cost tracking app in start menu based on setting
                     updateCostTrackingAppVisibility();
                 }
@@ -4011,9 +4439,14 @@ const app = {
                 prompt: prompt.substring(0, 200) + (prompt.length > 200 ? '...' : '') // Limit prompt length
             };
             
+            // Get current cost history from data registry
+            let costHistory = window.dataRegistry.getData('cost-history') || [];
             costHistory.push(entry);
             
-            // Update global window reference
+            // Update data registry (this will notify all subscribers)
+            window.dataRegistry.updateData('cost-history', costHistory);
+            
+            // Update global window reference for backward compatibility
             window.costHistory = costHistory;
             
             // Save to localStorage for persistence
@@ -4026,13 +4459,18 @@ const app = {
             try {
                 const saved = localStorage.getItem('costHistory');
                 if (saved) {
-                    costHistory = JSON.parse(saved);
-                    // Update global window reference
+                    const costHistory = JSON.parse(saved);
+                    // Update data registry
+                    window.dataRegistry.updateData('cost-history', costHistory);
+                    // Update global window reference for backward compatibility
                     window.costHistory = costHistory;
                 }
             } catch (error) {
                 debugWarn('Failed to load cost history:', error);
-                costHistory = [];
+                const costHistory = [];
+                // Update data registry
+                window.dataRegistry.updateData('cost-history', costHistory);
+                // Update global window reference for backward compatibility
                 window.costHistory = costHistory;
             }
         }
@@ -4123,6 +4561,65 @@ const app = {
             hideAppsSubmenu();
             document.getElementById('start-menu').classList.remove('show');
         }
+        function openDataRegistryApp() {
+            // Check if Data Registry app already exists
+            const existingApp = apps.find(app => app.title === 'Data Registry' || app.title === '📊 Data Registry');
+            
+            if (existingApp) {
+                // If app exists, show/focus the existing window
+                const windowElement = document.getElementById('window_' + existingApp.id);
+                const iconElement = document.getElementById('icon_' + existingApp.id);
+                
+                if (windowElement) {
+                    // Show if hidden
+                    if (existingApp.isHidden) {
+                        windowElement.style.display = 'block';
+                        if (iconElement) iconElement.style.display = 'block';
+                        existingApp.isHidden = false;
+                        
+                        // Update apps submenu to reflect the change
+                        updateAppsSubmenuContent();
+                    }
+                    
+                    // Unminimize if minimized
+                    if (existingApp.isMinimized) {
+                        toggleWindow(existingApp.id);
+                    }
+                    
+                    // Bring to front
+                    windowElement.style.zIndex = getHighestZIndex() + 1;
+                    
+                    // Dispatch app shown event to notify the app it's visible
+                    dispatchAppShownEvent(existingApp.id);
+                    
+                    debugLog('Opened existing Data Registry app');
+                } else {
+                    // Window doesn't exist but app is in array, recreate it
+                    generateSystemApp('Data Registry', existingApp.id);
+                    
+                    // Ensure it's still marked as system app
+                    existingApp.isSystemApp = true;
+                    existingApp.isHidden = false;
+                    
+                    debugLog('Recreated Data Registry app window');
+                }
+            } else {
+                // Create new AI-generated data registry app
+                generateSystemApp('Data Registry');
+                
+                // Mark the new app as a system app
+                const newApp = apps[apps.length - 1]; // Get the last added app
+                if (newApp) {
+                    newApp.isSystemApp = true;
+                    console.log('Marked new Data Registry app as system app');
+                }
+            }
+            
+            // Close start menu
+            hideAppsSubmenu();
+            document.getElementById('start-menu').classList.remove('show');
+        }
+
 
         function createCostTrackingApp() {
             return generateSystemApp('Cost Tracking');
@@ -4148,7 +4645,12 @@ const app = {
 
         function clearCostHistory() {
             if (confirm('Are you sure you want to clear all cost history? This action cannot be undone.')) {
-                costHistory = [];
+                const costHistory = [];
+                
+                // Update data registry (this will notify all subscribers)
+                window.dataRegistry.updateData('cost-history', costHistory);
+                
+                // Update global window reference for backward compatibility
                 window.costHistory = costHistory;
                 localStorage.removeItem('costHistory');
                 
@@ -4161,7 +4663,7 @@ const app = {
                 // Reset total cost
                 totalCost = 0;
                 
-                alert('Cost history cleared successfully! Please refresh any open Cost Tracking apps to see the changes.');
+                alert('Cost history cleared successfully! Cost Tracking apps will automatically refresh.');
             }
         }
         
@@ -4171,7 +4673,8 @@ const app = {
         // Global function for apps to load cost data
         function loadCostData() {
             // This function can be called by generated apps to get fresh cost data
-            // Return the current cost history and total
+            // Get current cost history from data registry
+            const costHistory = window.dataRegistry.getData('cost-history') || [];
             const totalCost = costHistory.reduce((sum, entry) => sum + entry.cost, 0);
             return {
                 costHistory: costHistory,
@@ -4529,6 +5032,7 @@ const app = {
             };
 
             apps.push(app);
+            updateSharedAppsRegistry();
             createWindow(finalAppId, appName, content, dimensions.width, dimensions.height, icon);
             createTaskbarIcon(finalAppId, appName, icon);
             updateAppCount();
@@ -4574,7 +5078,8 @@ const app = {
             const openFunctionMap = {
                 'Calculator': openCalculatorApp,
                 'Digital Clock': openDigitalClockApp,
-                'Cost Tracking': openCostTrackingApp
+                'Cost Tracking': openCostTrackingApp,
+                'Data Registry': openDataRegistryApp
             };
             return openFunctionMap[appName];
         }
@@ -4589,7 +5094,8 @@ const app = {
             const dimensionMap = {
                 'Calculator': { width: 350, height: 450 },
                 'Digital Clock': { width: 400, height: 300 },
-                'Cost Tracking': { width: 600, height: 500 }
+                'Cost Tracking': { width: 600, height: 500 },
+                'Data Registry': { width: 700, height: 500 }
             };
             return dimensionMap[appName] || { width: 400, height: 300 };
         }
@@ -5125,8 +5631,28 @@ const app = {
             // Get current theme
             const currentTheme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
             
-            let prompt = ROLE_PROMPT + 
-                         APPCREATION_PROMPT.replace(/{appId}/g, appId) +
+            // Get available data objects from registry
+            let availableDataObjects = 'None currently registered';
+            if (window.dataRegistry && typeof window.dataRegistry.getAllData === 'function') {
+                const allData = window.dataRegistry.getAllData();
+                if (Object.keys(allData).length > 0) {
+                    availableDataObjects = Object.keys(allData).map(key => {
+                        const info = window.dataRegistry.getDataInfo ? window.dataRegistry.getDataInfo(key) : {};
+                        const data = allData[key];
+                        
+                        // Analyze structure if not provided
+                        let structure = info.structure;
+                        if (!structure || structure === 'Unknown structure') {
+                            structure = analyzeDataStructure(data);
+                        }
+                        
+                        return `- ${key}: ${info.description || 'No description'} (${structure})`;
+                    }).join('\n');
+                }
+            }
+            
+            let prompt = ROLE_PROMPT +
+                         APPCREATION_PROMPT.replace(/{appId}/g, appId).replace(/{availableDataObjects}/g, availableDataObjects) +
                          NAMESPACEISOLATION_GUIDELINES.replace(/{appId}/g, appId) +
                          CSS_GUIDELINES.replace(/{currentTheme}/g, currentTheme) +
                          JAVASCRIPT_GUIDELINES.replace(/{appId}/g, appId) +
@@ -5790,11 +6316,43 @@ ${containerSelector} {
                 namespacedJS = namespaceJavaScript(javascript, appId, helperFunctions);
                 
                 console.log(`Executing JavaScript for app ${appId}`);
+                console.log('Original JavaScript:', javascript);
+                console.log('Namespaced JavaScript:', namespacedJS);
                 
                 // Execute JavaScript in global scope so it can access document and DOM
                 eval(namespacedJS);
                 
                 console.log(`JavaScript executed successfully for app ${appId}`);
+                
+                // Call app init function if it exists (after JavaScript has been executed)
+                setTimeout(() => {
+                    try {
+                        const appNamespace = 'app_' + appId.replace(/-/g, '_');
+                        if (window[appNamespace] && typeof window[appNamespace].init === 'function') {
+                            console.log(`Calling init function for app ${appId}`);
+                            window[appNamespace].init();
+                        } else {
+                            console.warn(`No init function found for app ${appId} - creating fallback initialization`);
+                            // Create fallback init function that sets up basic event listeners
+                            if (window[appNamespace]) {
+                                window[appNamespace].init = function() {
+                                    console.log(`Fallback init function called for app ${appId}`);
+                                    // Try to set up basic event listeners for common elements
+                                    const appContent = document.getElementById(`content_${appId}`);
+                                    if (appContent) {
+                                        const buttons = appContent.querySelectorAll('button');
+                                        const inputs = appContent.querySelectorAll('input');
+                                        console.log(`Found ${buttons.length} buttons and ${inputs.length} inputs in app ${appId}`);
+                                    }
+                                };
+                                // Call the fallback init function
+                                window[appNamespace].init();
+                            }
+                        }
+                    } catch (initError) {
+                        console.warn(`Error calling init function for app ${appId}:`, initError);
+                    }
+                }, 50); // Small delay to ensure everything is ready
                 
             } catch (error) {
                 console.error(`JavaScript execution failed for app ${appId}:`, error);
@@ -5812,7 +6370,7 @@ ${containerSelector} {
             const namespacedJS = `
 (function(appId) {
     // Create app-specific namespace
-    appNamespace = 'app_' + appId.replace(/-/g, '_');
+    const appNamespace = 'app_' + appId.replace(/-/g, '_');
     window[appNamespace] = window[appNamespace] || {};
     
     ${helperFunctions}
@@ -5843,6 +6401,11 @@ ${containerSelector} {
         function updateAppTitle(appId, newTitle) {
             const app = apps.find(a => a.id === appId);
             if (app) {
+                // Don't change titles for system apps
+                if (app.isSystemApp) {
+                    console.log(`Skipping title update for system app: ${app.title}`);
+                    return;
+                }
                 app.title = newTitle;
                 
                 // Update window title text
@@ -5980,6 +6543,26 @@ ${containerSelector} {
                 thisAppPromptHistory += `\n\nPrompt #${index + 1} (${entry.type}):\n${entry.userRequest}`;
             });
 
+            // Get available data objects from registry
+            let availableDataObjects = 'None currently registered';
+            if (window.dataRegistry && typeof window.dataRegistry.getAllData === 'function') {
+                const allData = window.dataRegistry.getAllData();
+                if (Object.keys(allData).length > 0) {
+                    availableDataObjects = Object.keys(allData).map(key => {
+                        const info = window.dataRegistry.getDataInfo ? window.dataRegistry.getDataInfo(key) : {};
+                        const data = allData[key];
+                        
+                        // Analyze structure if not provided
+                        let structure = info.structure;
+                        if (!structure || structure === 'Unknown structure') {
+                            structure = analyzeDataStructure(data);
+                        }
+                        
+                        return `- ${key}: ${info.description || 'No description'} (${structure})`;
+                    }).join('\n');
+                }
+            }
+
             // Create a modification prompt that includes the current app code
             // Use string concatenation to avoid template literal issues
             const modificationPrompt = ROLE_PROMPT +
@@ -5987,6 +6570,7 @@ ${containerSelector} {
                     .replace(/{appTitle}/g, app.title)
                     .replace(/{modificationRequest}/g, modificationRequest)
                     .replace(/{promptHistory}/g, thisAppPromptHistory)
+                    .replace(/{availableDataObjects}/g, availableDataObjects)
                     .replace(/{currentHTML}/g, currentHTML)
                     .replace(/{currentCSS}/g, currentCSS)
                     .replace(/{currentJavaScript}/g, currentJavaScript);
@@ -6032,12 +6616,33 @@ ${containerSelector} {
                 thisAppPromptHistory += `\n\nPrompt #${index + 1} (${entry.type}):\n${entry.userRequest}`;
             });
 
+            // Get available data objects from registry
+            let availableDataObjects = 'None currently registered';
+            if (window.dataRegistry && typeof window.dataRegistry.getAllData === 'function') {
+                const allData = window.dataRegistry.getAllData();
+                if (Object.keys(allData).length > 0) {
+                    availableDataObjects = Object.keys(allData).map(key => {
+                        const info = window.dataRegistry.getDataInfo ? window.dataRegistry.getDataInfo(key) : {};
+                        const data = allData[key];
+                        
+                        // Analyze structure if not provided
+                        let structure = info.structure;
+                        if (!structure || structure === 'Unknown structure') {
+                            structure = analyzeDataStructure(data);
+                        }
+                        
+                        return `- ${key}: ${info.description || 'No description'} (${structure})`;
+                    }).join('\n');
+                }
+            }
+
             // Create a modification prompt that includes the current app code
             let modificationPrompt = ROLE_PROMPT +
                 APPMODIFY_PROMPT.replace(/{appId}/g, appId)
                     .replace(/{appTitle}/g, app.title)
                     .replace(/{modificationRequest}/g, modificationData.text)
                     .replace(/{promptHistory}/g, thisAppPromptHistory)
+                    .replace(/{availableDataObjects}/g, availableDataObjects)
                     .replace(/{currentHTML}/g, currentHTML)
                     .replace(/{currentCSS}/g, currentCSS)
                     .replace(/{currentJavaScript}/g, currentJavaScript);
@@ -6560,6 +7165,7 @@ ${containerSelector} {
             };
 
             apps.push(settingsApp);
+            updateSharedAppsRegistry();
             createWindow(settingsId, 'Settings', settingsContent, 700, 500);
             createTaskbarIcon(settingsId, 'Settings');
             updateAppCount();
