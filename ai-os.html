@@ -392,7 +392,13 @@ ESSENTIAL JAVASCRIPT CODE GENERATION GUIDELINES:
 - Keep Javascript scripts simple and avoid complex string operations that could break JSON
 - All declared variables must be prefixed with "{appId}_" to avoid conflicts
 - CRITICAL: never use window.prompt() or window.alert() in the JavaScript code, always implement custom UI for user interactions
-- CRITICAL: NEVER add a listener to the key events
+- CRITICAL: NEVER add global key event listeners (document.addEventListener('keydown'/'keyup'/'keypress') or window.addEventListener('keydown'/'keyup'/'keypress'))
+- CRITICAL: Use the provided app.onKey() method instead for key handling that respects app focus
+- CRITICAL: Key events will only be delivered to the currently focused/active app
+- KEY HANDLING API: Use app.onKey('keydown', function(event) { ... }) to register key handlers
+- KEY HANDLING API: Use app.offKey('keydown', handlerFunction) to remove key handlers
+- KEY HANDLING API: Supported event types: 'keydown', 'keyup', 'keypress'
+- KEY HANDLING API: Key handlers automatically receive events only when the app window is focused/active
 
 CRITICAL REQUIREMENT - INIT FUNCTION:
 - YOU MUST CREATE AN INIT FUNCTION - THIS IS MANDATORY AND NON-NEGOTIABLE
@@ -435,6 +441,12 @@ RESPONSE FORMAT - Return ONLY a JSON object with this structure:
 CRITICAL: Your JavaScript MUST include this init function pattern:
 window[appNamespace].init = function() {
   // ALL initialization code goes here
+  // Example key handling (only receives events when app has focus):
+  // app.onKey('keydown', function(event) {
+  //   if (event.key === 'Enter') {
+  //     // Handle Enter key
+  //   }
+  // });
 };
 IMPORTANT:
 - Use window[appNamespace].init, NOT window.app_{appId}.init
@@ -467,6 +479,13 @@ PERSISTENT STORAGE ACCESS:
 - IndexedDB: Can be registered as data object for complex data storage
 
 Use these data objects when relevant to your app's functionality!
+
+KEY EVENT HANDLING:
+- Apps can register keyboard event handlers using app.onKey(eventType, handlerFunction)
+- Key events are only delivered to the currently focused/active app window
+- Supported event types: 'keydown', 'keyup', 'keypress'
+- Example: app.onKey('keydown', function(event) { if (event.key === 'Enter') { /* handle */ } });
+- This prevents apps from "stealing" key events from other apps or the main system
 
 ICON REQUIREMENTS:
 - Choose a single UTF-8 emoji that best represents the app's function
@@ -624,7 +643,7 @@ FUNCTIONALITY REQUIREMENTS:
 - Proper order of operations and chaining calculations
 - Error handling for division by zero shows "Error"
 - Display updates immediately when any button is pressed
-- Keyboard support for number keys and basic operators
+- Keyboard support for number keys and basic operators using app.onKey() API
 - MANDATORY: show the selected operation in the display
 - The calculator should be in a html container that ensures it will not resize when the window is beeing resized
 
@@ -636,6 +655,17 @@ TECHNICAL IMPLEMENTATION:
   window[appNamespace].init = function() {
     // Put all event listeners and initialization code here
     // This function will be called after the app is loaded into the DOM
+    
+    // Example keyboard support using the focus-aware key handling API:
+    // app.onKey('keydown', function(event) {
+    //   if (event.key >= '0' && event.key <= '9') {
+    //     // Handle number keys
+    //   } else if (event.key === '+' || event.key === '-' || event.key === '*' || event.key === '/') {
+    //     // Handle operator keys
+    //   } else if (event.key === 'Enter' || event.key === '=') {
+    //     // Handle equals
+    //   }
+    // });
   };
 
 The calculator must be immediately functional with the exact color scheme and layout specified.`
@@ -806,9 +836,10 @@ VISUAL DESIGN DETAILS:
 - Proper spacing and padding throughout
 
 FUNCTIONALITY REQUIREMENTS:
-- Display all data using window.dataRegistry.getAllData()
-- Show descriptions from window.dataRegistry.getDataInfo(key).description
-- Show structure info from window.dataRegistry.getDataInfo(key).structure
+- CRITICAL: Display all data using window.dataRegistry.getAllData() (NOT getAllDataRegistry)
+- CRITICAL: Show descriptions from window.dataRegistry.getDataInfo(key).description
+- CRITICAL: Show structure info from window.dataRegistry.getDataInfo(key).structure
+- CRITICAL: Use window.dataRegistry.getData(key) to get individual data objects
 - Determine data type using typeof or Array.isArray() for arrays
 - Preview values: show first 50 characters for strings, full value for numbers/booleans
 - Each row must have a "Console Log" button that outputs the data object to console
@@ -837,6 +868,13 @@ MANDATORY FEATURES:
   window[appNamespace].init = function() {
     // Put all event listeners and initialization code here
     // This function will be called after the app is loaded into the DOM
+    
+    // Example of correct data registry usage:
+    // const allData = window.dataRegistry.getAllData(); // CORRECT
+    // const dataInfo = window.dataRegistry.getDataInfo('user-preferences'); // CORRECT
+    // const specificData = window.dataRegistry.getData('user-preferences'); // CORRECT
+    
+    // NEVER use: window.dataRegistry.getAllDataRegistry() - this method does not exist!
   };`
             }
         };
@@ -847,6 +885,31 @@ MANDATORY FEATURES:
         let activeWindow = null;
         let dragData = null;
         let resizeData = null;
+
+        // Global key event listener that only forwards events to the active app
+        function handleGlobalKeyEvent(event) {
+            // Only forward key events to the currently active/focused app
+            if (activeWindow && window.appKeyHandlers && window.appKeyHandlers[activeWindow]) {
+                const handlers = window.appKeyHandlers[activeWindow][event.type];
+                if (handlers && handlers.length > 0) {
+                    // Call all registered handlers for this event type
+                    handlers.forEach(handler => {
+                        try {
+                            handler(event);
+                        } catch (error) {
+                            console.error(`Error in key handler for app ${activeWindow}:`, error);
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Clean up key handlers when an app is closed
+        function cleanupAppKeyHandlers(appId) {
+            if (window.appKeyHandlers && window.appKeyHandlers[appId]) {
+                delete window.appKeyHandlers[appId];
+            }
+        }
 
         // Initialize the system
         function init() {
@@ -874,6 +937,14 @@ MANDATORY FEATURES:
             
             // Initialize new app request image pasting functionality
             initializeNewAppImagePasting();
+            
+            // Initialize global key event management system
+            window.appKeyHandlers = {};
+            
+            // Register global key event listeners
+            document.addEventListener('keydown', handleGlobalKeyEvent);
+            document.addEventListener('keyup', handleGlobalKeyEvent);
+            document.addEventListener('keypress', handleGlobalKeyEvent);
         }
 
         // Global variable to store pasted images for new app requests
@@ -1142,6 +1213,24 @@ const app = {
     // App data storage
     data: window['${appId}_data'] || (window['${appId}_data'] = {}),
     
+    // Key event handling (only receives events when app has focus)
+    onKey: (eventType, handler) => {
+        if (!window.appKeyHandlers) window.appKeyHandlers = {};
+        if (!window.appKeyHandlers['${appId}']) window.appKeyHandlers['${appId}'] = {};
+        if (!window.appKeyHandlers['${appId}'][eventType]) window.appKeyHandlers['${appId}'][eventType] = [];
+        window.appKeyHandlers['${appId}'][eventType].push(handler);
+    },
+    
+    // Remove key event handler
+    offKey: (eventType, handler) => {
+        if (window.appKeyHandlers && window.appKeyHandlers['${appId}'] && window.appKeyHandlers['${appId}'][eventType]) {
+            const index = window.appKeyHandlers['${appId}'][eventType].indexOf(handler);
+            if (index > -1) {
+                window.appKeyHandlers['${appId}'][eventType].splice(index, 1);
+            }
+        }
+    },
+    
     // Utility functions
     addClass: (elementId, className) => {
         const el = app.getElementById(elementId);
@@ -1307,6 +1396,20 @@ const app = {
                     downloadApp(appId);
                 });
             }
+            
+            // Add click handler to window content to bring window to focus
+            const windowContent = document.getElementById(`content_${appId}`);
+            if (windowContent) {
+                windowContent.addEventListener('click', function(e) {
+                    // Only bring to front if clicking directly on content, not on child elements that might have their own handlers
+                    bringToFront(appId);
+                });
+            }
+            
+            // Also add click handler to the window itself
+            window.addEventListener('click', function(e) {
+                bringToFront(appId);
+            });
             
             bringToFront(appId);
             return window;
@@ -2358,6 +2461,9 @@ const app = {
                         delete events[eventName];
                     }
                 });
+                
+                // Clean up app-specific key handlers
+                cleanupAppKeyHandlers(appId);
                 
                 console.log(`Cleaned up namespace for app ${appId}`);
             } catch (error) {
@@ -6327,10 +6433,34 @@ ${containerSelector} {
                 // Call app init function if it exists (after JavaScript has been executed)
                 setTimeout(() => {
                     try {
+                        // Ensure data registry is available before calling init
+                        if (!window.dataRegistry) {
+                            console.error(`Data registry not available for app ${appId}, skipping init`);
+                            return;
+                        }
+                        
                         const appNamespace = 'app_' + appId.replace(/-/g, '_');
                         if (window[appNamespace] && typeof window[appNamespace].init === 'function') {
                             console.log(`Calling init function for app ${appId}`);
-                            window[appNamespace].init();
+                            // Wrap init call in try-catch to handle any data registry errors
+                            try {
+                                window[appNamespace].init();
+                            } catch (initError) {
+                                console.error(`Error in init function for app ${appId}:`, initError);
+                                // Show user-friendly error message
+                                const contentElement = document.getElementById(`content_${appId}`);
+                                if (contentElement) {
+                                    contentElement.innerHTML = `
+                                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                                            <h3 style="margin: 0 0 15px 0; color: #dc3545;">⚠️ App Initialization Error</h3>
+                                            <p style="color: #666; margin: 0 0 10px 0;">The app encountered an error during startup.</p>
+                                            <p style="color: #999; font-size: 14px; margin: 0;">${initError.message}</p>
+                                            <button onclick="location.reload()" style="margin-top: 15px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Reload Page</button>
+                                        </div>
+                                    `;
+                                }
+                                throw initError;
+                            }
                         } else {
                             console.warn(`No init function found for app ${appId} - creating fallback initialization`);
                             // Create fallback init function that sets up basic event listeners
