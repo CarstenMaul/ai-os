@@ -2,7 +2,12 @@
 
 A revolutionary web-based operating system interface powered by artificial intelligence that can create and modify applications on demand using natural language commands and voice input.
 
+You will find some demo-apps, that had been generated with ai-os, in the /demo-apps folder. You can load the demo apps via Start -> Load App
+
+Have fun!
+
 ![Alt text](ai-os_desktop.jpg)
+
 
 ## 🌟 Features
 
