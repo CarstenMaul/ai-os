@@ -2,6 +2,8 @@
 
 A revolutionary web-based operating system interface powered by artificial intelligence that can create and modify applications on demand using natural language commands and voice input.
 
+![Alt text](ai-os_desktop.jpg)
+
 ## 🌟 Features
 
 ### Core Functionality

@@ -1,0 +1,932 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+}
+
+.desktop {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.taskbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: rgba(0, 0, 0, 0.8);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 1000;
+}
+
+.start-button {
+    background: #0078d4;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    margin-right: 20px;
+    min-height: 44px;
+    transition: all 0.2s ease;
+}
+
+.start-button:hover {
+    background: #106ebe;
+}
+
+.model-toggle-container {
+    margin-right: 20px;
+}
+
+.model-toggle-button {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    min-height: 36px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.model-toggle-button:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+.model-toggle-button.tough-mode {
+    background: #dc3545;
+}
+
+.model-toggle-button.tough-mode:hover {
+    background: #c82333;
+}
+
+.app-icons {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+}
+
+.app-icon {
+    width: 40px;
+    height: 35px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: white;
+    font-size: 18px;
+    text-align: center;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.taskbar-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.app-icon:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.app-icon:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.app-icon.active {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.window {
+    position: absolute;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    min-width: 300px;
+    min-height: 200px;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.window.maximized {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: calc(100% - 50px) !important;
+    border-radius: 0;
+}
+
+.window.minimized {
+    display: none;
+}
+
+.window-header {
+    background: #f0f0f0;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    -webkit-user-select: none;
+    user-select: none;
+    min-height: 50px;
+}
+
+.window-title {
+    font-weight: bold;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.window-icon {
+    font-size: 14px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.window-title-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.window-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.window-control {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.minimize { background: #ffc107; }
+.maximize { background: #28a745; }
+.close { background: #dc3545; color: white; }
+
+.window-control:hover {
+    opacity: 0.8;
+}
+
+.window-voice-button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #007bff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 6px;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.window-voice-button:hover {
+    background: #0056b3;
+}
+
+.window-voice-button.recording {
+    background: #dc3545;
+    animation: pulse 1s infinite;
+}
+
+.window-text-button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #28a745;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 6px;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.window-text-button:hover {
+    background: #218838;
+}
+
+.window-download-button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #6f42c1;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 6px;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.window-download-button:hover {
+    background: #5a32a3;
+}
+
+.window-history-button {
+    width: 40px;
+    height: 40px;
+    background: #fd7e14;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    transition: background 0.2s;
+}
+
+.window-history-button:hover {
+    background: #e8590c;
+}
+
+.window-content {
+    padding: 20px;
+    height: calc(100% - 81px);
+    overflow: auto;
+}
+
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: se-resize;
+    background: linear-gradient(-45deg, transparent 0%, transparent 40%, #ccc 40%, #ccc 60%, transparent 60%);
+}
+
+.start-menu {
+    position: fixed;
+    bottom: 50px;
+    left: 20px;
+    width: 300px;
+    background: rgba(0, 0, 0, 0.9);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border-radius: 8px;
+    padding: 20px;
+    display: none;
+    z-index: 1001;
+}
+
+.start-menu.show {
+    display: block;
+}
+
+.menu-section {
+    margin-bottom: 20px;
+}
+
+.menu-title {
+    color: white;
+    font-weight: bold;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.menu-item {
+    padding: 15px 20px;
+    color: white;
+    cursor: pointer;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: background 0.2s;
+    font-size: 16px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-item.has-submenu {
+    position: relative;
+}
+
+.menu-item.has-submenu .apps-submenu {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    width: 280px;
+    max-height: 400px;
+    background: rgba(0, 0, 0, 0.9);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border-radius: 8px;
+    padding: 15px;
+    display: none;
+    z-index: 1002;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    margin-left: 10px;
+}
+
+.menu-item.has-submenu .apps-submenu.show {
+    display: block;
+}
+
+.menu-item.has-submenu::after {
+    content: '▶';
+    position: absolute;
+    right: 15px;
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+.menu-item.has-submenu:hover::after {
+    transform: translateX(2px);
+}
+
+.apps-submenu.show {
+    display: block;
+}
+
+.apps-submenu-title {
+    color: white;
+    font-weight: bold;
+    margin-bottom: 15px;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 8px;
+}
+
+.apps-submenu-item {
+    padding: 12px 15px;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    transition: background 0.2s;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.apps-submenu-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.submenu-app-icon {
+    font-size: 16px;
+    line-height: 1;
+    min-width: 20px;
+}
+
+.submenu-app-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.request-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.request-button {
+    background: #0078d4;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.request-button:hover {
+    background: #106ebe;
+}
+
+.status-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    font-size: 12px;
+    z-index: 1000;
+}
+
+.voice-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.voice-button {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: all 0.2s;
+}
+
+.voice-button:hover {
+    background: #c82333;
+}
+
+.voice-button.listening {
+    background: #28a745;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.voice-status {
+    font-size: 11px;
+    color: #ccc;
+}
+
+/* Voice Command Popup */
+.voice-command-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    padding: 20px 30px;
+    border-radius: 15px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    font-size: 18px;
+    font-weight: 500;
+    text-align: center;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.voice-command-popup.show {
+    opacity: 1;
+}
+
+.voice-command-popup.fade-out {
+    opacity: 0;
+    transition: opacity 0.5s ease-out;
+}
+
+.voice-command-popup::before {
+    content: '🎤';
+    display: block;
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+/* Theme Styles */
+body.dark-theme {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+}
+
+body.dark-theme .taskbar {
+    background: rgba(0, 0, 0, 0.9);
+    color: #f8f9fa;
+}
+
+body.dark-theme .start-menu {
+    background: rgba(0, 0, 0, 0.95);
+    color: #f8f9fa;
+}
+
+body.dark-theme .window {
+    background: #2c3e50;
+    color: #f8f9fa;
+}
+
+body.dark-theme .window-header {
+    background: #34495e;
+    border-bottom: 1px solid #4a5f7a;
+    color: #f8f9fa;
+}
+
+body.dark-theme .window-content {
+    background: #2c3e50;
+    color: #f8f9fa;
+}
+
+body.dark-theme .status-bar {
+    background: rgba(0, 0, 0, 0.9);
+    color: #f8f9fa;
+}
+
+body.dark-theme .settings-container {
+    background: #2c3e50;
+    color: #f8f9fa;
+}
+
+body.dark-theme .settings-nav {
+    background: #34495e;
+    border-right: 1px solid #4a5f7a;
+}
+
+body.dark-theme .settings-nav-btn {
+    color: #e9ecef !important;
+    font-weight: 500;
+}
+
+body.dark-theme .settings-nav-btn:hover {
+    background: #4a5f7a;
+    color: #ffffff !important;
+}
+
+body.dark-theme .settings-nav-btn.active {
+    background: #3498db;
+    color: #ffffff !important;
+    border-left-color: #3498db;
+}
+
+body.dark-theme .setting-item {
+    border-bottom: 1px solid #4a5f7a;
+}
+
+body.dark-theme .setting-item label {
+    color: #f8f9fa !important;
+    font-weight: 500;
+}
+
+body.dark-theme .setting-item input,
+body.dark-theme .setting-item select {
+    background: #34495e;
+    border: 1px solid #4a5f7a;
+    color: #f8f9fa;
+}
+
+body.dark-theme .settings-footer {
+    background: #34495e;
+    border-top: 1px solid #4a5f7a;
+}
+
+/* Enhanced Dark Mode text contrast */
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4,
+body.dark-theme h5,
+body.dark-theme h6 {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+body.dark-theme .settings-header h1,
+body.dark-theme .settings-header h2,
+body.dark-theme .settings-title {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+body.dark-theme .settings-content h3 {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+body.dark-theme p {
+    color: #e9ecef !important;
+}
+
+body.dark-theme .menu-title {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+body.dark-theme .menu-item {
+    color: #f8f9fa !important;
+    font-weight: 500;
+}
+
+body.dark-theme .menu-item:hover {
+    background: rgba(52, 152, 219, 0.2) !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .start-button {
+    color: #f8f9fa !important;
+    font-weight: 600;
+}
+
+body.dark-theme .model-toggle-button {
+    color: #f8f9fa !important;
+    border: 1px solid #4a5f7a !important;
+}
+
+/* Specific fix for Settings header with inline style override */
+body.dark-theme #settings-main-title {
+    color: #ffffff !important;
+    font-weight: 700;
+    text-shadow: none;
+}
+
+body.dark-theme .settings-container h1,
+body.dark-theme .settings-container h2,
+body.dark-theme .settings-container .settings-title,
+body.dark-theme .settings-panel h3 {
+    color: #ffffff !important;
+    font-weight: 700;
+    text-shadow: none;
+}
+
+/* Fix for any remaining dim text */
+body.dark-theme * {
+    color: inherit;
+}
+
+body.dark-theme .settings-content {
+    color: #f8f9fa !important;
+}
+
+/* Dark theme fixes for voice command popup and request input */
+body.dark-theme .voice-command-popup {
+    background: rgba(44, 62, 80, 0.95) !important;
+    color: #ffffff !important;
+    border: 2px solid rgba(52, 152, 219, 0.3) !important;
+}
+
+body.dark-theme .request-input {
+    background: #34495e !important;
+    color: #f8f9fa !important;
+    border: 1px solid #4a5f7a !important;
+}
+
+body.dark-theme .request-input::placeholder {
+    color: #bdc3c7 !important;
+}
+
+/* Dark theme styles for Apps sub-menu */
+body.dark-theme .apps-submenu {
+    background: rgba(44, 62, 80, 0.95) !important;
+    border: 1px solid rgba(52, 152, 219, 0.3) !important;
+}
+
+body.dark-theme .apps-submenu-title {
+    color: #ffffff !important;
+    border-bottom-color: rgba(52, 152, 219, 0.3) !important;
+}
+
+body.dark-theme .apps-submenu-item {
+    color: #f8f9fa !important;
+}
+
+body.dark-theme .apps-submenu-item:hover {
+    background: rgba(52, 152, 219, 0.2) !important;
+}
+
+/* Dark theme styles for icon elements */
+body.dark-theme .window-title {
+    color: #f8f9fa !important;
+}
+
+body.dark-theme .window-icon,
+body.dark-theme .taskbar-icon,
+body.dark-theme .submenu-app-icon {
+    opacity: 1;
+}
+
+body.dark-theme .app-icon:hover {
+    background: rgba(255, 255, 255, 0.4) !important;
+}
+
+body.light-theme {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+body.light-theme .taskbar {
+    background: rgba(255, 255, 255, 0.95);
+    color: #212529;
+}
+
+body.light-theme .start-menu {
+    background: rgba(255, 255, 255, 0.98);
+    color: #212529;
+    border: 1px solid #dee2e6;
+}
+
+body.light-theme .window {
+    background: white;
+    color: #212529;
+}
+
+body.light-theme .window-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    color: #333;
+}
+
+body.light-theme .window-content {
+    background: white;
+    color: #333;
+}
+
+body.light-theme .status-bar {
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+}
+
+body.light-theme .settings-container {
+    background: white;
+    color: #333;
+}
+
+body.light-theme .settings-nav {
+    background: #f8f9fa;
+    border-right: 1px solid #dee2e6;
+}
+
+body.light-theme .settings-nav-btn {
+    color: #495057;
+}
+
+body.light-theme .settings-nav-btn:hover {
+    background: #e9ecef;
+    color: #0078d4;
+}
+
+body.light-theme .settings-nav-btn.active {
+    background: #e3f2fd;
+    color: #0078d4;
+    border-left-color: #0078d4;
+}
+
+body.light-theme .setting-item {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+body.light-theme .setting-item label {
+    color: #212529;
+    font-weight: 500;
+}
+
+body.light-theme .setting-item input,
+body.light-theme .setting-item select {
+    background: white;
+    border: 1px solid #ced4da;
+    color: #212529;
+}
+
+body.light-theme .settings-footer {
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Enhanced Start Menu contrast for Light Theme */
+body.light-theme .menu-title {
+    color: #495057 !important;
+    font-weight: 600;
+}
+
+body.light-theme .menu-item {
+    color: #212529 !important;
+    font-weight: 500;
+}
+
+body.light-theme .menu-item:hover {
+    background: rgba(0, 123, 255, 0.1) !important;
+    color: #0056b3 !important;
+}
+
+body.light-theme .request-input {
+    color: #212529 !important;
+    border: 1px solid #ced4da !important;
+}
+
+body.light-theme .request-input::placeholder {
+    color: #6c757d !important;
+}
+
+body.light-theme .request-button {
+    background: #007bff !important;
+    color: white !important;
+    border: none !important;
+}
+
+body.light-theme .request-button:hover {
+    background: #0056b3 !important;
+}
+
+body.light-theme .start-button {
+    color: #212529 !important;
+    font-weight: 600;
+}
+
+body.light-theme .model-toggle-button {
+    color: #212529 !important;
+    border: 1px solid #ced4da !important;
+}
+
+/* Light theme styles for Apps sub-menu */
+body.light-theme .apps-submenu {
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+body.light-theme .apps-submenu-title {
+    color: #495057 !important;
+    border-bottom-color: #dee2e6 !important;
+}
+
+body.light-theme .apps-submenu-item {
+    color: #212529 !important;
+}
+
+body.light-theme .apps-submenu-item:hover {
+    background: rgba(0, 123, 255, 0.1) !important;
+    color: #0056b3 !important;
+}
+
+/* Light theme styles for icon elements */
+body.light-theme .window-title {
+    color: #333 !important;
+}
+
+body.light-theme .window-icon,
+body.light-theme .taskbar-icon,
+body.light-theme .submenu-app-icon {
+    opacity: 1;
+}
+
+body.light-theme .app-icon:hover {
+    background: rgba(0, 0, 0, 0.1) !important;
+}
