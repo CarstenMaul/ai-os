@@ -687,18 +687,15 @@
             
             // ===== BACKWARD COMPATIBILITY =====
             
-            // Register new data object (legacy method)
+            // Register new data object (legacy method - now with persistence support)
             registerData: function(name, data, description, structure) {
-                window.sharedData[name] = data;
-                window.sharedDataMeta[name] = {
+                // Use the new register method with persistence enabled by default
+                return this.register(name, data, {
+                    persistent: true,
                     description: description || 'No description provided',
                     structure: structure || this.analyzeDataStructure(data),
-                    registeredAt: new Date().toISOString()
-                };
-                console.log(`Data object '${name}' registered:`, description);
-                
-                // Notify subscribers of new data registration
-                this.notifySubscribers(name, data, 'registered');
+                    type: 'data'
+                });
             },
             
             // Update existing data object
@@ -1093,19 +1090,20 @@ COMPLETE EXAMPLE FOR APP DATA PERSISTENCE:
 // Initialize app data (in init function)
 let myAppData = window.dataRegistry.getData('myAppData') || [];
 
-// Save data function
+// Save data function (automatically persists to IndexedDB)
 function saveData() {
     window.dataRegistry.updateData('myAppData', myAppData);
 }
 
-// Load data function
+// Load data function (loads from persistent storage)
 function loadData() {
     myAppData = window.dataRegistry.getData('myAppData') || [];
 }
 
-// Register data if it doesn't exist
+// Register persistent data if it doesn't exist
 if (!window.dataRegistry.getData('myAppData')) {
     window.dataRegistry.registerData('myAppData', [], 'My app data', 'Array of objects');
+    // This creates a PERSISTENT data object that survives browser restarts
 }
 
 AVAILABLE DATA OBJECTS:
@@ -1114,9 +1112,11 @@ AVAILABLE DATA OBJECTS:
 PERSISTENT STORAGE PATTERNS:
 - For app-specific data: Create and register your own data objects using window.dataRegistry.registerData()
 - Example: window.dataRegistry.registerData('myAppData', [], 'My app data storage', 'Array of objects')
+- The registerData method now automatically creates PERSISTENT data objects that save to IndexedDB
 - To persist data: Use window.dataRegistry.updateData('myAppData', updatedData) to save changes
-- Data persists automatically across app sessions through the data registry system
+- Data persists automatically across app sessions and browser restarts through IndexedDB
 - NEVER use localStorage.getItem() or localStorage.setItem() directly - use the data registry instead
+- For advanced control: Use window.dataRegistry.register(name, data, {persistent: true, description: '...'})
 
 Use these data objects when relevant to your app's functionality!
 
