@@ -77,15 +77,240 @@
     </div>
 
     <script>
-        // ===== SHARED DATA REGISTRY SYSTEM =====
-        // Global shared data storage
+        // ===== SHARED DATA REGISTRY SYSTEM WITH PERSISTENCE =====
+        // Global shared data storage with LLM-optimized persistence
 
-        console.log('Initializing shared data registry system...');
+        console.log('Initializing shared data registry system with persistence...');
         window.sharedData = {};
         window.sharedDataMeta = {};
         window.dataSubscribers = {};
         
-        // Create the dataRegistry API object
+        // ===== PERSISTENCE MANAGER =====
+        window.persistenceManager = {
+            dbName: 'ai-os-storage',
+            dbVersion: 1,
+            db: null,
+            
+            // Initialize IndexedDB
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.dbVersion);
+                    
+                    request.onerror = () => {
+                        console.warn('IndexedDB failed, falling back to localStorage');
+                        resolve(false); // Fallback to localStorage
+                    };
+                    
+                    request.onsuccess = (event) => {
+                        this.db = event.target.result;
+                        console.log('IndexedDB initialized successfully');
+                        resolve(true);
+                    };
+                    
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        
+                        // Create object store for persistent data
+                        if (!db.objectStoreNames.contains('persistentData')) {
+                            const store = db.createObjectStore('persistentData', { keyPath: 'name' });
+                            store.createIndex('appId', 'config.appId', { unique: false });
+                            store.createIndex('type', 'config.type', { unique: false });
+                        }
+                    };
+                });
+            },
+            
+            // Save data to persistence (IndexedDB primary, localStorage fallback)
+            async save(name, data, config) {
+                const item = {
+                    name: name,
+                    data: data,
+                    config: config || {},
+                    timestamp: Date.now(),
+                    version: '1.0'
+                };
+                
+                try {
+                    if (this.db) {
+                        // Try IndexedDB first
+                        const transaction = this.db.transaction(['persistentData'], 'readwrite');
+                        const store = transaction.objectStore('persistentData');
+                        await new Promise((resolve, reject) => {
+                            const request = store.put(item);
+                            request.onsuccess = () => resolve();
+                            request.onerror = () => reject(request.error);
+                        });
+                        console.log(`Saved '${name}' to IndexedDB`);
+                        return { success: true, storage: 'indexeddb' };
+                    } else {
+                        throw new Error('IndexedDB not available');
+                    }
+                } catch (error) {
+                    // Fallback to localStorage
+                    try {
+                        localStorage.setItem(`ai-os-${name}`, JSON.stringify(item));
+                        console.log(`Saved '${name}' to localStorage (fallback)`);
+                        return { success: true, storage: 'localstorage' };
+                    } catch (fallbackError) {
+                        console.error(`Failed to save '${name}':`, fallbackError);
+                        return { success: false, error: fallbackError.message };
+                    }
+                }
+            },
+            
+            // Load data from persistence
+            async load(name) {
+                try {
+                    if (this.db) {
+                        // Try IndexedDB first
+                        const transaction = this.db.transaction(['persistentData'], 'readonly');
+                        const store = transaction.objectStore('persistentData');
+                        const item = await new Promise((resolve, reject) => {
+                            const request = store.get(name);
+                            request.onsuccess = () => resolve(request.result);
+                            request.onerror = () => reject(request.error);
+                        });
+                        if (item) {
+                            console.log(`Loaded '${name}' from IndexedDB`);
+                            return item;
+                        }
+                    }
+                    
+                    // Fallback to localStorage
+                    const localItem = localStorage.getItem(`ai-os-${name}`);
+                    if (localItem) {
+                        const item = JSON.parse(localItem);
+                        console.log(`Loaded '${name}' from localStorage`);
+                        return item;
+                    }
+                    
+                    return null;
+                } catch (error) {
+                    console.error(`Failed to load '${name}':`, error);
+                    return null;
+                }
+            },
+            
+            // Load all persistent data
+            async loadAll() {
+                const items = [];
+                
+                try {
+                    if (this.db) {
+                        // Load from IndexedDB
+                        const transaction = this.db.transaction(['persistentData'], 'readonly');
+                        const store = transaction.objectStore('persistentData');
+                        const allItems = await new Promise((resolve, reject) => {
+                            const request = store.getAll();
+                            request.onsuccess = () => resolve(request.result);
+                            request.onerror = () => reject(request.error);
+                        });
+                        items.push(...allItems);
+                    }
+                    
+                    // Also check localStorage for fallback items
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('ai-os-')) {
+                            try {
+                                const item = JSON.parse(localStorage.getItem(key));
+                                const name = key.replace('ai-os-', '');
+                                // Only add if not already loaded from IndexedDB
+                                if (!items.find(existing => existing.name === name)) {
+                                    items.push(item);
+                                }
+                            } catch (error) {
+                                console.warn(`Failed to parse localStorage item '${key}':`, error);
+                            }
+                        }
+                    }
+                    
+                    console.log(`Loaded ${items.length} persistent items`);
+                    return items;
+                } catch (error) {
+                    console.error('Failed to load persistent data:', error);
+                    return [];
+                }
+            },
+            
+            // Delete data from persistence
+            async delete(name) {
+                try {
+                    if (this.db) {
+                        const transaction = this.db.transaction(['persistentData'], 'readwrite');
+                        const store = transaction.objectStore('persistentData');
+                        await new Promise((resolve, reject) => {
+                            const request = store.delete(name);
+                            request.onsuccess = () => resolve();
+                            request.onerror = () => reject(request.error);
+                        });
+                    }
+                    
+                    // Also remove from localStorage
+                    localStorage.removeItem(`ai-os-${name}`);
+                    console.log(`Deleted '${name}' from persistence`);
+                    return { success: true };
+                } catch (error) {
+                    console.error(`Failed to delete '${name}':`, error);
+                    return { success: false, error: error.message };
+                }
+            },
+            
+            // Delete all data for a specific app
+            async deleteApp(appId) {
+                try {
+                    const deletedItems = [];
+                    
+                    if (this.db) {
+                        const transaction = this.db.transaction(['persistentData'], 'readwrite');
+                        const store = transaction.objectStore('persistentData');
+                        const index = store.index('appId');
+                        
+                        const appItems = await new Promise((resolve, reject) => {
+                            const request = index.getAll(appId);
+                            request.onsuccess = () => resolve(request.result);
+                            request.onerror = () => reject(request.error);
+                        });
+                        
+                        for (const item of appItems) {
+                            await new Promise((resolve, reject) => {
+                                const deleteRequest = store.delete(item.name);
+                                deleteRequest.onsuccess = () => resolve();
+                                deleteRequest.onerror = () => reject(deleteRequest.error);
+                            });
+                            deletedItems.push(item.name);
+                        }
+                    }
+                    
+                    // Also check localStorage
+                    const keysToDelete = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('ai-os-')) {
+                            try {
+                                const item = JSON.parse(localStorage.getItem(key));
+                                if (item.config && item.config.appId === appId) {
+                                    keysToDelete.push(key);
+                                    deletedItems.push(item.name);
+                                }
+                            } catch (error) {
+                                // Ignore parsing errors
+                            }
+                        }
+                    }
+                    
+                    keysToDelete.forEach(key => localStorage.removeItem(key));
+                    
+                    console.log(`Deleted ${deletedItems.length} items for app '${appId}':`, deletedItems);
+                    return { success: true, deleted: deletedItems.length, items: deletedItems };
+                } catch (error) {
+                    console.error(`Failed to delete app data for '${appId}':`, error);
+                    return { success: false, error: error.message };
+                }
+            }
+        };
+        
+        // Create the enhanced dataRegistry API object
         window.dataRegistry = {
             // Get specific data object
             getData: function(name) {
@@ -102,12 +327,262 @@
                 return window.sharedDataMeta[name] || {};
             },
             
-            // Register new data object
+            // ===== LLM-OPTIMIZED PERSISTENCE API =====
+            
+            // Unified register method with explicit options
+            register: function(name, data, options = {}) {
+                const config = {
+                    persistent: options.persistent || false,
+                    type: options.type || 'data',           // 'app' or 'data'
+                    appId: options.appId || null,           // explicit app association
+                    description: options.description || '',
+                    savePrompt: options.savePrompt !== false // default true for apps
+                };
+                
+                // Store in memory
+                window.sharedData[name] = data;
+                window.sharedDataMeta[name] = {
+                    description: config.description,
+                    structure: this.analyzeDataStructure(data),
+                    registeredAt: new Date().toISOString(),
+                    config: config
+                };
+                
+                console.log(`Data object '${name}' registered:`, config.description);
+                
+                // Handle persistence
+                let saveResult = { success: true, saved: false };
+                if (config.persistent) {
+                    if (config.type === 'app' && config.savePrompt) {
+                        // Show save dialog for apps and get result
+                        const userConfirmed = this.showSaveDialogSync(name, data, config);
+                        saveResult.saved = userConfirmed;
+                        if (!userConfirmed) {
+                            console.log(`User cancelled saving '${name}'`);
+                        }
+                    } else {
+                        // Auto-save for data objects
+                        this.saveToPersistence(name, data, config);
+                        saveResult.saved = true;
+                    }
+                }
+                
+                // Notify subscribers
+                this.notifySubscribers(name, data, 'registered');
+                
+                return { success: true, name: name, config: config, saved: saveResult.saved };
+            },
+            
+            // LLM-friendly helper: Register app with save dialog
+            registerApp: function(appId, appData, options = {}) {
+                return this.register(`${appId}_app`, appData, {
+                    persistent: true,
+                    type: 'app',
+                    appId: appId,
+                    description: options.description || `${appId} application`,
+                    savePrompt: options.savePrompt !== false,
+                    ...options
+                });
+            },
+            
+            // LLM-friendly helper: Register app data (auto-save)
+            registerAppData: function(appId, dataName, data, options = {}) {
+                return this.register(`${appId}_${dataName}`, data, {
+                    persistent: options.persistent !== false, // default true
+                    type: 'data',
+                    appId: appId,
+                    description: options.description || `${appId} ${dataName}`,
+                    savePrompt: false, // never prompt for data
+                    ...options
+                });
+            },
+            
+            // Show save dialog for apps
+            showSaveDialog: function(name, data, config) {
+                const appName = config.appId || name;
+                const confirmed = confirm(`Save changes to ${appName}?`);
+                
+                if (confirmed) {
+                    this.saveToPersistence(name, data, config);
+                } else {
+                    console.log(`User skipped saving '${name}'`);
+                }
+            },
+            
+            // Synchronous save dialog that returns user choice
+            showSaveDialogSync: function(name, data, config) {
+                const appName = config.appId || name;
+                const confirmed = confirm(`Save changes to ${appName}?`);
+                
+                if (confirmed) {
+                    this.saveToPersistence(name, data, config);
+                    return true;
+                } else {
+                    console.log(`User skipped saving '${name}'`);
+                    return false;
+                }
+            },
+            
+            // Save to persistence
+            saveToPersistence: async function(name, data, config) {
+                try {
+                    const result = await window.persistenceManager.save(name, data, config);
+                    if (result.success) {
+                        console.log(`Successfully saved '${name}' to ${result.storage}`);
+                        
+                        // Update metadata to indicate persistence
+                        if (window.sharedDataMeta[name]) {
+                            window.sharedDataMeta[name].persistent = true;
+                            window.sharedDataMeta[name].lastSaved = new Date().toISOString();
+                        }
+                    } else {
+                        console.error(`Failed to save '${name}':`, result.error);
+                    }
+                    return result;
+                } catch (error) {
+                    console.error(`Error saving '${name}':`, error);
+                    return { success: false, error: error.message };
+                }
+            },
+            
+            // Load from persistence
+            loadFromPersistence: async function(name) {
+                try {
+                    const item = await window.persistenceManager.load(name);
+                    if (item) {
+                        // Restore to memory
+                        window.sharedData[name] = item.data;
+                        window.sharedDataMeta[name] = {
+                            description: item.config.description || 'Restored from persistence',
+                            structure: this.analyzeDataStructure(item.data),
+                            registeredAt: new Date(item.timestamp).toISOString(),
+                            config: item.config,
+                            persistent: true,
+                            lastLoaded: new Date().toISOString()
+                        };
+                        
+                        console.log(`Restored '${name}' from persistence`);
+                        this.notifySubscribers(name, item.data, 'restored');
+                        return item.data;
+                    }
+                    return null;
+                } catch (error) {
+                    console.error(`Error loading '${name}':`, error);
+                    return null;
+                }
+            },
+            
+            // Load all persistent data on startup
+            loadAllPersistent: async function() {
+                try {
+                    const items = await window.persistenceManager.loadAll();
+                    let loadedCount = 0;
+                    
+                    for (const item of items) {
+                        // Restore to memory
+                        window.sharedData[item.name] = item.data;
+                        window.sharedDataMeta[item.name] = {
+                            description: item.config.description || 'Restored from persistence',
+                            structure: this.analyzeDataStructure(item.data),
+                            registeredAt: new Date(item.timestamp).toISOString(),
+                            config: item.config,
+                            persistent: true,
+                            lastLoaded: new Date().toISOString()
+                        };
+                        
+                        this.notifySubscribers(item.name, item.data, 'restored');
+                        loadedCount++;
+                    }
+                    
+                    console.log(`Restored ${loadedCount} persistent data objects`);
+                    return { success: true, loaded: loadedCount, items: items };
+                } catch (error) {
+                    console.error('Error loading persistent data:', error);
+                    return { success: false, error: error.message };
+                }
+            },
+            
+            // Delete app and all its data
+            deleteApp: async function(appId) {
+                try {
+                    // Delete from persistence
+                    const persistResult = await window.persistenceManager.deleteApp(appId);
+                    
+                    // Delete from memory
+                    const memoryKeys = Object.keys(window.sharedData).filter(key => {
+                        const meta = window.sharedDataMeta[key];
+                        return meta && meta.config && meta.config.appId === appId;
+                    });
+                    
+                    memoryKeys.forEach(key => {
+                        delete window.sharedData[key];
+                        delete window.sharedDataMeta[key];
+                        this.notifySubscribers(key, null, 'deleted');
+                    });
+                    
+                    console.log(`Deleted app '${appId}' and ${memoryKeys.length} associated data objects`);
+                    return {
+                        success: true,
+                        deletedFromPersistence: persistResult.deleted || 0,
+                        deletedFromMemory: memoryKeys.length,
+                        totalDeleted: (persistResult.deleted || 0) + memoryKeys.length
+                    };
+                } catch (error) {
+                    console.error(`Error deleting app '${appId}':`, error);
+                    return { success: false, error: error.message };
+                }
+            },
+            
+            // Delete individual data object
+            deleteData: function(name) {
+                try {
+                    // Check if data exists
+                    if (!window.sharedData.hasOwnProperty(name)) {
+                        return { success: false, error: `Data object '${name}' not found` };
+                    }
+                    
+                    const meta = window.sharedDataMeta[name];
+                    let deletedFromPersistence = 0;
+                    
+                    // Delete from persistence if it's a persistent object
+                    if (meta && meta.config && meta.config.persistent) {
+                        try {
+                            window.persistenceManager.delete(name);
+                            deletedFromPersistence = 1;
+                            console.log(`Deleted '${name}' from persistence`);
+                        } catch (error) {
+                            console.warn(`Failed to delete '${name}' from persistence:`, error);
+                        }
+                    }
+                    
+                    // Delete from memory
+                    delete window.sharedData[name];
+                    delete window.sharedDataMeta[name];
+                    
+                    // Notify subscribers
+                    this.notifySubscribers(name, null, 'deleted');
+                    
+                    console.log(`Deleted data object '${name}'`);
+                    return {
+                        success: true,
+                        deletedFromPersistence: deletedFromPersistence,
+                        deletedFromMemory: 1,
+                        totalDeleted: deletedFromPersistence + 1
+                    };
+                } catch (error) {
+                    console.error(`Error deleting data object '${name}':`, error);
+                    return { success: false, error: error.message };
+                }
+            },
+            
+            // ===== BACKWARD COMPATIBILITY =====
+            
+            // Register new data object (legacy method)
             registerData: function(name, data, description, structure) {
                 window.sharedData[name] = data;
                 window.sharedDataMeta[name] = {
                     description: description || 'No description provided',
-                    structure: structure || 'Unknown structure',
+                    structure: structure || this.analyzeDataStructure(data),
                     registeredAt: new Date().toISOString()
                 };
                 console.log(`Data object '${name}' registered:`, description);
@@ -121,6 +596,12 @@
                 if (window.sharedData.hasOwnProperty(name)) {
                     window.sharedData[name] = newData;
                     console.log(`Data object '${name}' updated`);
+                    
+                    // If this is a persistent object, save it
+                    const meta = window.sharedDataMeta[name];
+                    if (meta && meta.config && meta.config.persistent) {
+                        this.saveToPersistence(name, newData, meta.config);
+                    }
                     
                     // Notify subscribers of data change
                     this.notifySubscribers(name, newData, 'updated');
@@ -166,6 +647,11 @@
                     detail: { name: name, value: data, action: action }
                 });
                 document.dispatchEvent(event);
+            },
+            
+            // Analyze data structure for metadata
+            analyzeDataStructure: function(data) {
+                return analyzeDataStructure(data);
             }
         };
         
@@ -819,8 +1305,8 @@ window[appNamespace].init = function() {
 
 EXACT LAYOUT REQUIREMENTS:
 - Header section with title "Data Registry" and refresh button (🔄)
-- Main table with columns: Name, Description, Data Type, Current Value Preview, Actions
-- Each row must have a "Console Log" button in the Actions column
+- Main table with columns: Name, Description, Storage Type, Data Type, Current Value Preview, Actions
+- Each row must have a "Console Log" button and a "Delete" button in the Actions column
 - Footer section with action buttons: "Add Sample Data", "Clear Sample Data", "Export Registry"
 - Handle empty registry state with message "No shared data registered yet"
 
@@ -830,7 +1316,8 @@ VISUAL DESIGN DETAILS:
 - Data rows with light background (#f8f9fa) alternating with white
 - Buttons styled consistently: blue for actions, green for positive actions, red for destructive actions
 - Console Log buttons should be small, styled with gray background (#6c757d) and white text
-- Actions column should be narrow, just wide enough for the Console Log button
+- Delete buttons should be small, styled with red background (#dc3545) and white text
+- Actions column should be wide enough for both Console Log and Delete buttons
 - Responsive design that fits well within the window
 - Professional typography with clear, readable fonts
 - Proper spacing and padding throughout
@@ -840,15 +1327,127 @@ FUNCTIONALITY REQUIREMENTS:
 - CRITICAL: Show descriptions from window.dataRegistry.getDataInfo(key).description
 - CRITICAL: Show structure info from window.dataRegistry.getDataInfo(key).structure
 - CRITICAL: Use window.dataRegistry.getData(key) to get individual data objects
+- CRITICAL: Show storage type from window.dataRegistry.getDataInfo(key).config.type or detect automatically
 - Determine data type using typeof or Array.isArray() for arrays
 - Preview values: show first 50 characters for strings, full value for numbers/booleans
 - Each row must have a "Console Log" button that outputs the data object to console
 - Console Log button should use: console.log('Data Key:', key, 'Value:', window.dataRegistry.getData(key), 'Info:', window.dataRegistry.getDataInfo(key))
-- Refresh button updates the display by re-reading from data registry
+- Each row must have a "Delete" button that permanently removes the data object
+- Delete button should confirm deletion and use: window.dataRegistry.deleteData(key)
+- Refresh button updates the display by calling loadRegistryData() function
 - Add Sample Data button creates test entries using window.dataRegistry.registerData()
 - Clear Sample Data button removes test entries using window.dataRegistry.updateData()
 - Export Registry button shows JSON representation of all data
 - Subscribe to data changes for real-time updates using window.dataRegistry.subscribe()
+- CRITICAL: Create a main loadRegistryData() function that populates the table
+- CRITICAL: All refresh operations should call loadRegistryData(), not refreshDataTable()
+
+STORAGE TYPE DETECTION:
+- Check window.dataRegistry.getDataInfo(key).config.type for explicit type
+- If config.type exists, show it (e.g., "app", "data", "persistent")
+- If no config.type, detect automatically:
+  - "JS-Object" for regular JavaScript objects
+  - "IndexedDB" for persistent data objects
+  - "localStorage" for localStorage references
+  - "sessionStorage" for sessionStorage references
+  - "Array" for arrays
+  - "Primitive" for strings, numbers, booleans
+
+DELETE FUNCTIONALITY IMPLEMENTATION:
+- Add confirmation dialog before deletion: "Are you sure you want to permanently delete '[dataKey]'? This action cannot be undone."
+- Use window.dataRegistry.deleteData(key) to remove the data object
+- Handle deletion errors gracefully with user feedback
+- Refresh the table after successful deletion
+- Prevent deletion of critical system data (show warning for system-critical keys)
+
+EXAMPLE DELETE BUTTON IMPLEMENTATION:
+function deleteDataObject(key) {
+  if (confirm('Are you sure you want to permanently delete "' + key + '"? This action cannot be undone.')) {
+    try {
+      const result = window.dataRegistry.deleteData(key);
+      if (result.success) {
+        console.log('Successfully deleted data object:', key);
+        loadRegistryData(); // Refresh the display using the main load function
+      } else {
+        alert('Failed to delete data object: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting data object:', error);
+      alert('Error deleting data object: ' + error.message);
+    }
+  }
+}
+
+EXAMPLE MAIN LOAD FUNCTION:
+function loadRegistryData() {
+  try {
+    const allData = window.dataRegistry.getAllData();
+    const tableBody = document.getElementById('registry-table-body');
+    
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (Object.keys(allData).length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No shared data registered yet</td></tr>';
+      return;
+    }
+    
+    Object.keys(allData).forEach(key => {
+      const data = allData[key];
+      const info = window.dataRegistry.getDataInfo(key);
+      
+      // Detect storage type
+      let storageType = 'JS-Object';
+      if (info.config && info.config.type) {
+        storageType = info.config.type;
+      } else if (key === 'localStorage') {
+        storageType = 'localStorage';
+      } else if (key === 'sessionStorage') {
+        storageType = 'sessionStorage';
+      } else if (info.config && info.config.persistent) {
+        storageType = 'IndexedDB';
+      } else if (Array.isArray(data)) {
+        storageType = 'Array';
+      } else if (typeof data === 'string' || typeof data === 'number' || typeof data === 'boolean') {
+        storageType = 'Primitive';
+      }
+      
+      // Create table row
+      const row = tableBody.insertRow();
+      row.innerHTML =
+        '<td>' + key + '</td>' +
+        '<td>' + (info.description || 'No description') + '</td>' +
+        '<td><span style="background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 12px;">' + storageType + '</span></td>' +
+        '<td>' + typeof data + '</td>' +
+        '<td>' + getValuePreview(data) + '</td>' +
+        '<td>' +
+          '<button onclick="console.log(\'Data Key:\', \'' + key + '\', \'Value:\', window.dataRegistry.getData(\'' + key + '\'), \'Info:\', window.dataRegistry.getDataInfo(\'' + key + '\'))" style="background: #6c757d; color: white; border: none; padding: 4px 8px; margin-right: 4px; border-radius: 3px; font-size: 12px;">Console Log</button>' +
+          '<button onclick="deleteDataObject(\'' + key + '\')" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-size: 12px;">Delete</button>' +
+        '</td>';
+    });
+  } catch (error) {
+    console.error('Error loading registry data:', error);
+  }
+}
+
+function getValuePreview(data) {
+  if (data === null) return 'null';
+  if (data === undefined) return 'undefined';
+  if (typeof data === 'string') {
+    return data.length > 50 ? data.substring(0, 50) + '...' : data;
+  }
+  if (typeof data === 'number' || typeof data === 'boolean') {
+    return String(data);
+  }
+  if (Array.isArray(data)) {
+    return 'Array(' + data.length + ')';
+  }
+  if (typeof data === 'object') {
+    return 'Object(' + Object.keys(data).length + ' keys)';
+  }
+  return String(data);
+}
 
 TECHNICAL IMPLEMENTATION:
 - Use proper error handling for missing data or metadata
@@ -857,12 +1456,15 @@ TECHNICAL IMPLEMENTATION:
 - Maintain proper state management for sample data
 - Include proper null/undefined checks for safety
 - Subscribe to data registry changes for automatic updates
+- Implement proper confirmation dialogs for destructive actions
 
 MANDATORY FEATURES:
 - Must work with the new data registry API system
-- Must use window.dataRegistry.getAllData(), getData(), getDataInfo(), registerData(), updateData()
+- Must use window.dataRegistry.getAllData(), getData(), getDataInfo(), registerData(), updateData(), deleteData()
 - Must subscribe to data changes for real-time updates
 - Must handle empty registry gracefully
+- Must show storage type for each data object
+- Must provide safe deletion functionality with confirmation
 - Must be contained in a proper HTML structure that won't resize unexpectedly
 - MANDATORY: Create an init function for app initialization:
   window[appNamespace].init = function() {
@@ -873,6 +1475,7 @@ MANDATORY FEATURES:
     // const allData = window.dataRegistry.getAllData(); // CORRECT
     // const dataInfo = window.dataRegistry.getDataInfo('user-preferences'); // CORRECT
     // const specificData = window.dataRegistry.getData('user-preferences'); // CORRECT
+    // window.dataRegistry.deleteData('key-to-delete'); // For deletion
     
     // NEVER use: window.dataRegistry.getAllDataRegistry() - this method does not exist!
   };`
@@ -912,10 +1515,30 @@ MANDATORY FEATURES:
         }
 
         // Initialize the system
-        function init() {
+        async function init() {
             updateClock();
             setInterval(updateClock, 1000);
             updateAppCount();
+            
+            // Initialize persistence system
+            console.log('Initializing persistence system...');
+            try {
+                await window.persistenceManager.init();
+                console.log('Persistence system initialized');
+                
+                // Load all persistent data
+                const loadResult = await window.dataRegistry.loadAllPersistent();
+                if (loadResult.success) {
+                    console.log(`Loaded ${loadResult.loaded} persistent items on startup`);
+                    
+                    // Populate start menu with persistent apps
+                    updateAppsSubmenu();
+                } else {
+                    console.warn('Failed to load persistent data:', loadResult.error);
+                }
+            } catch (error) {
+                console.error('Failed to initialize persistence system:', error);
+            }
             
             // Load and apply saved settings on startup BEFORE voice initialization
             const savedSettings = loadSettingsFromCookie();
@@ -4610,8 +5233,13 @@ const app = {
         }
 
         function openCostTrackingApp() {
-            // Check if Cost Tracking app already exists
+            // Check if Cost Tracking app already exists in running apps
             const existingApp = apps.find(app => app.title === 'Cost Tracking' || app.title === '💰 Cost Tracking');
+            
+            // Also check if Cost Tracking app exists in persistence
+            const persistentApps = getPersistentApps();
+            const persistentCostTracking = persistentApps.find(app => app.title === 'Cost Tracking');
+            console.log('Found persistent Cost Tracking app:', persistentCostTracking);
             
             if (existingApp) {
                 // If app exists, show/focus the existing window
@@ -4651,6 +5279,10 @@ const app = {
                     
                     debugLog('Recreated Cost Tracking app window');
                 }
+            } else if (persistentCostTracking) {
+                console.log('Loading Cost Tracking app from persistence');
+                // Load the persistent app
+                loadPersistentApp(persistentCostTracking);
             } else {
                 // Create new AI-generated cost tracking app
                 const newAppId = createCostTrackingApp();
@@ -4668,8 +5300,13 @@ const app = {
             document.getElementById('start-menu').classList.remove('show');
         }
         function openDataRegistryApp() {
-            // Check if Data Registry app already exists
+            // Check if Data Registry app already exists in running apps
             const existingApp = apps.find(app => app.title === 'Data Registry' || app.title === '📊 Data Registry');
+            
+            // Also check if Data Registry app exists in persistence
+            const persistentApps = getPersistentApps();
+            const persistentDataRegistry = persistentApps.find(app => app.title === 'Data Registry');
+            console.log('Found persistent Data Registry app:', persistentDataRegistry);
             
             if (existingApp) {
                 // If app exists, show/focus the existing window
@@ -4709,6 +5346,10 @@ const app = {
                     
                     debugLog('Recreated Data Registry app window');
                 }
+            } else if (persistentDataRegistry) {
+                console.log('Loading Data Registry app from persistence');
+                // Load the persistent app
+                loadPersistentApp(persistentDataRegistry);
             } else {
                 // Create new AI-generated data registry app
                 generateSystemApp('Data Registry');
@@ -4903,6 +5544,32 @@ const app = {
             // Get all real apps (now normalized)
             const allApps = [...apps];
             
+            // Add persistent apps that are not currently running
+            const persistentApps = getPersistentApps();
+            persistentApps.forEach(persistentApp => {
+                const hasRunningApp = allApps.some(app =>
+                    app.id === persistentApp.appId ||
+                    app.title === persistentApp.title
+                );
+                
+                // Check if this is a system app that shouldn't be duplicated
+                const isSystemApp = Object.keys(SYSTEM_APPS_DEFINITIONS).includes(persistentApp.title);
+                
+                if (!hasRunningApp && !isSystemApp) {
+                    allApps.push({
+                        id: persistentApp.appId,
+                        title: persistentApp.title,
+                        icon: persistentApp.icon || '📱',
+                        isPersistentApp: true,
+                        type: 'persistent',
+                        persistentData: persistentApp
+                    });
+                    console.log(`Added persistent app: ${persistentApp.title}`);
+                } else if (isSystemApp) {
+                    console.log(`Skipped persistent system app: ${persistentApp.title} (system app placeholder will be used)`);
+                }
+            });
+            
             // Add system app placeholders from SYSTEM_APPS_DEFINITIONS for apps that don't exist yet
             console.log('All apps titles:', allApps.map(app => app.title));
             
@@ -4917,7 +5584,7 @@ const app = {
                 
                 if (!hasRealApp) {
                     allApps.push({
-                        id: `${appName.toLowerCase().replace(/\s+/g, '-')}-system`,
+                        id: `system-${appName.toLowerCase().replace(/\s+/g, '-')}`,
                         title: appName,
                         icon: appDefinition.icon,
                         isSystemApp: true,
@@ -4970,6 +5637,15 @@ const app = {
                 } else {
                     const appHandler = () => {
                         console.log('Regular app submenu item clicked for:', app.id);
+                        
+                        // Check if this is a persistent app that needs to be loaded
+                        if (app.isPersistentApp && app.persistentData) {
+                            console.log('Loading persistent app:', app.title);
+                            loadPersistentApp(app.persistentData);
+                            hideAppsSubmenu();
+                            return;
+                        }
+                        
                         // Focus existing app or show it if minimized/hidden
                         if (app.isHidden) {
                             // For hidden system apps, show them
@@ -5016,14 +5692,188 @@ const app = {
             }
         }
 
+        // Alias for updateAppsSubmenuContent to maintain compatibility
+        function updateAppsSubmenu() {
+            updateAppsSubmenuContent();
+        }
+
+        // ===== PERSISTENT APP MANAGEMENT =====
+        
+        // Get all persistent apps from the data registry
+        function getPersistentApps() {
+            const persistentApps = [];
+            const allData = window.dataRegistry.getAllData();
+            
+            Object.keys(allData).forEach(key => {
+                const meta = window.dataRegistry.getDataInfo(key);
+                if (meta.config && meta.config.type === 'app' && meta.config.persistent) {
+                    const appData = allData[key];
+                    persistentApps.push({
+                        appId: meta.config.appId,
+                        title: appData.title || appData.name || key,
+                        icon: appData.icon || '📱',
+                        dataKey: key,
+                        appData: appData,
+                        config: meta.config
+                    });
+                }
+            });
+            
+            console.log(`Found ${persistentApps.length} persistent apps:`, persistentApps);
+            return persistentApps;
+        }
+        
+        // Load a persistent app from storage
+        async function loadPersistentApp(persistentAppData) {
+            try {
+                console.log('Loading persistent app:', persistentAppData);
+                
+                // Check if app is already running
+                const existingApp = apps.find(app => app.id === persistentAppData.appId);
+                if (existingApp) {
+                    console.log('App already running, bringing to front');
+                    bringToFront(existingApp.id);
+                    return;
+                }
+                
+                // Load the app data
+                const appData = persistentAppData.appData;
+                if (!appData) {
+                    console.error('No app data found for persistent app');
+                    return;
+                }
+                
+                // Load associated data objects for this app
+                const appDataObjects = {};
+                const allData = window.dataRegistry.getAllData();
+                Object.keys(allData).forEach(key => {
+                    const meta = window.dataRegistry.getDataInfo(key);
+                    if (meta.config && meta.config.appId === persistentAppData.appId && meta.config.type === 'data') {
+                        appDataObjects[key] = allData[key];
+                    }
+                });
+                
+                console.log(`Loading ${Object.keys(appDataObjects).length} data objects for app ${persistentAppData.appId}`);
+                
+                // Create the app
+                const newApp = {
+                    id: persistentAppData.appId,
+                    title: appData.title || appData.name,
+                    icon: appData.icon || '📱',
+                    type: 'user',
+                    isMinimized: false,
+                    isMaximized: false,
+                    isHidden: false,
+                    customRequest: `Loaded from persistence: ${appData.title || appData.name}`,
+                    html: appData.html || '',
+                    css: appData.css || '',
+                    javascript: appData.javascript || '',
+                    timestamp: new Date().toISOString(),
+                    isPersistent: true
+                };
+                
+                // Add to apps array
+                apps.push(newApp);
+                updateSharedAppsRegistry();
+                
+                // Create the window and UI
+                const windowContent = appData.html || '<div>No content available</div>';
+                createWindow(newApp.id, newApp.title, windowContent, 400, 300, newApp.icon);
+                createTaskbarIcon(newApp.id, newApp.title);
+                updateAppCount();
+                
+                // Apply CSS and JavaScript
+                if (appData.css) {
+                    addAppCSS(appData.css, newApp.id);
+                }
+                
+                if (appData.javascript) {
+                    executeAppJavaScript(appData.javascript, newApp.id, newApp.title);
+                }
+                
+                // Auto-size and center the window based on content
+                setTimeout(() => {
+                    autoSizeAndCenterWindow(newApp.id);
+                }, 100);
+                
+                // Update apps submenu
+                updateAppsSubmenuContent();
+                
+                console.log(`Successfully loaded persistent app: ${newApp.title}`);
+                
+            } catch (error) {
+                console.error('Error loading persistent app:', error);
+                alert(`Failed to load app: ${error.message}`);
+            }
+        }
+        
+        // Save an app to persistence with LLM-friendly API
+        async function saveAppToPersistence(appId, appData, options = {}) {
+            try {
+                const result = await window.dataRegistry.registerApp(appId, appData, {
+                    description: options.description || `${appData.title || appData.name} application`,
+                    savePrompt: options.savePrompt !== false
+                });
+                
+                if (result.success) {
+                    if (result.saved) {
+                        console.log(`App ${appId} saved to persistence`);
+                        updateAppsSubmenuContent();
+                    } else {
+                        console.log(`App ${appId} registered but not saved (user cancelled)`);
+                    }
+                    return result;
+                } else {
+                    console.error(`Failed to save app ${appId}:`, result.error);
+                    return result;
+                }
+            } catch (error) {
+                console.error(`Error saving app ${appId}:`, error);
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // Delete a persistent app and all its data
+        async function deletePersistentApp(appId) {
+            try {
+                const result = await window.dataRegistry.deleteApp(appId);
+                
+                if (result.success) {
+                    console.log(`Deleted persistent app ${appId} and ${result.totalDeleted} associated items`);
+                    
+                    // Also close the app if it's currently running
+                    const runningApp = apps.find(app => app.id === appId);
+                    if (runningApp) {
+                        closeWindow(appId);
+                    }
+                    
+                    // Update the apps submenu
+                    updateAppsSubmenuContent();
+                    
+                    return result;
+                } else {
+                    console.error(`Failed to delete persistent app ${appId}:`, result.error);
+                    return result;
+                }
+            } catch (error) {
+                console.error(`Error deleting persistent app ${appId}:`, error);
+                return { success: false, error: error.message };
+            }
+        }
+
         // Calculator App Functions
         function openCalculatorApp() {
             console.log('=== openCalculatorApp called ===');
             console.log('Current apps array:', apps);
             
-            // Check if Calculator app already exists
+            // Check if Calculator app already exists in running apps
             const existingApp = apps.find(app => app.title === 'Calculator');
             console.log('Found existing Calculator app:', existingApp);
+            
+            // Also check if Calculator app exists in persistence
+            const persistentApps = getPersistentApps();
+            const persistentCalculator = persistentApps.find(app => app.title === 'Calculator');
+            console.log('Found persistent Calculator app:', persistentCalculator);
             
             if (existingApp) {
                 console.log('Found existing Calculator app with ID:', existingApp.id);
@@ -5074,6 +5924,10 @@ const app = {
                     console.log('Successfully recreated Calculator app window');
                     debugLog('Recreated Calculator app window');
                 }
+            } else if (persistentCalculator) {
+                console.log('Loading Calculator app from persistence');
+                // Load the persistent app
+                loadPersistentApp(persistentCalculator);
             } else {
                 console.log('No existing Calculator app found, creating new one');
                 // Create new AI-generated calculator app
@@ -5113,8 +5967,8 @@ const app = {
                 setModelMode(requiredMode);
             }
             
-            // Generate or use provided app ID
-            const finalAppId = appId || generateAppId();
+            // Generate or use provided app ID - use consistent ID for system apps
+            const finalAppId = appId || `system-${appName.toLowerCase().replace(/\s+/g, '-')}`;
             
             // Get app-specific settings
             const icon = getSystemAppIcon(appName);
@@ -5231,9 +6085,14 @@ const app = {
             console.log('=== openDigitalClockApp called ===');
             console.log('Current apps array:', apps);
             
-            // Check if Digital Clock app already exists
+            // Check if Digital Clock app already exists in running apps
             const existingApp = apps.find(app => app.title === 'Digital Clock');
             console.log('Found existing Digital Clock app:', existingApp);
+            
+            // Also check if Digital Clock app exists in persistence
+            const persistentApps = getPersistentApps();
+            const persistentDigitalClock = persistentApps.find(app => app.title === 'Digital Clock');
+            console.log('Found persistent Digital Clock app:', persistentDigitalClock);
             
             if (existingApp) {
                 console.log('Found existing Digital Clock app with ID:', existingApp.id);
@@ -5284,6 +6143,10 @@ const app = {
                     console.log('Successfully recreated Digital Clock app window');
                     debugLog('Recreated Digital Clock app window');
                 }
+            } else if (persistentDigitalClock) {
+                console.log('Loading Digital Clock app from persistence');
+                // Load the persistent app
+                loadPersistentApp(persistentDigitalClock);
             } else {
                 console.log('No existing Digital Clock app found, creating new one');
                 // Create new AI-generated digital clock app
@@ -5573,15 +6436,59 @@ const app = {
                             autoSizeAndCenterWindow(appId);
                         }, 100);
                         
-                        // Update app title if provided
-                        if (response.title) {
-                            updateAppTitle(appId, response.title);
+                        // For system apps, use predefined title and icon from SYSTEM_APPS_DEFINITIONS
+                        const app = apps.find(a => a.id === appId);
+                        const isSystemApp = app && app.isSystemApp;
+                        let finalTitle = response.title || 'Generated App';
+                        let finalIcon = response.icon || '📱';
+                        
+                        if (isSystemApp) {
+                            // Find the system app definition that matches this app
+                            const systemAppName = Object.keys(SYSTEM_APPS_DEFINITIONS).find(name => {
+                                const expectedId = `system-${name.toLowerCase().replace(/\s+/g, '-')}`;
+                                return expectedId === appId;
+                            });
+                            
+                            if (systemAppName) {
+                                finalTitle = systemAppName;
+                                finalIcon = SYSTEM_APPS_DEFINITIONS[systemAppName].icon;
+                                console.log(`🔧 Using predefined title '${finalTitle}' and icon '${finalIcon}' for system app ${appId}`);
+                            }
                         }
                         
-                        // Update app icon if provided
-                        if (response.icon) {
-                            updateAppIcon(appId, response.icon);
-                        }
+                        // Update app title
+                        updateAppTitle(appId, finalTitle);
+                        
+                        // Update app icon
+                        updateAppIcon(appId, finalIcon);
+                        
+                        // Save app to persistence
+                        setTimeout(async () => {
+                            try {
+                                const appData = {
+                                    title: finalTitle,
+                                    icon: finalIcon,
+                                    html: response.html,
+                                    css: response.css || '',
+                                    javascript: response.javascript || '',
+                                    customRequest: request,
+                                    timestamp: new Date().toISOString()
+                                };
+                                
+                                const saveResult = await saveAppToPersistence(appId, appData, {
+                                    description: `AI-generated app: ${appData.title}`,
+                                    savePrompt: true
+                                });
+                                
+                                if (saveResult.success) {
+                                    console.log(`✅ App ${appId} saved to persistence`);
+                                } else {
+                                    console.warn(`⚠️ Failed to save app ${appId} to persistence:`, saveResult.error);
+                                }
+                            } catch (error) {
+                                console.error(`❌ Error saving app ${appId} to persistence:`, error);
+                            }
+                        }, 500);
                     }
                 } else {
                     throw new Error('Invalid response from LLM - missing HTML content');
@@ -5673,15 +6580,61 @@ const app = {
                             autoSizeAndCenterWindow(appId);
                         }, 100);
                         
-                        // Update app title if provided
-                        if (response.title) {
-                            updateAppTitle(appId, response.title);
+                        // For system apps, use predefined title and icon from SYSTEM_APPS_DEFINITIONS
+                        const app = apps.find(a => a.id === appId);
+                        const isSystemApp = app && app.isSystemApp;
+                        let finalTitle = response.title || 'Generated App';
+                        let finalIcon = response.icon || '📱';
+                        
+                        if (isSystemApp) {
+                            // Find the system app definition that matches this app
+                            const systemAppName = Object.keys(SYSTEM_APPS_DEFINITIONS).find(name => {
+                                const expectedId = `system-${name.toLowerCase().replace(/\s+/g, '-')}`;
+                                return expectedId === appId;
+                            });
+                            
+                            if (systemAppName) {
+                                finalTitle = systemAppName;
+                                finalIcon = SYSTEM_APPS_DEFINITIONS[systemAppName].icon;
+                                console.log(`🔧 Using predefined title '${finalTitle}' and icon '${finalIcon}' for system app ${appId}`);
+                            }
                         }
                         
-                        // Update app icon if provided
-                        if (response.icon) {
-                            updateAppIcon(appId, response.icon);
-                        }
+                        // Update app title
+                        updateAppTitle(appId, finalTitle);
+                        
+                        // Update app icon
+                        updateAppIcon(appId, finalIcon);
+                        
+                        // Save app to persistence
+                        setTimeout(async () => {
+                            try {
+                                const appData = {
+                                    title: finalTitle,
+                                    icon: finalIcon,
+                                    html: response.html,
+                                    css: response.css || '',
+                                    javascript: response.javascript || '',
+                                    customRequest: request,
+                                    hasImages: true,
+                                    imageCount: images ? images.length : 0,
+                                    timestamp: new Date().toISOString()
+                                };
+                                
+                                const saveResult = await saveAppToPersistence(appId, appData, {
+                                    description: `AI-generated app with images: ${appData.title}`,
+                                    savePrompt: true
+                                });
+                                
+                                if (saveResult.success) {
+                                    console.log(`✅ App ${appId} (with images) saved to persistence`);
+                                } else {
+                                    console.warn(`⚠️ Failed to save app ${appId} to persistence:`, saveResult.error);
+                                }
+                            } catch (error) {
+                                console.error(`❌ Error saving app ${appId} to persistence:`, error);
+                            }
+                        }, 500);
                     }
                 } else {
                     throw new Error('Invalid response from LLM - missing HTML content');
@@ -6837,6 +7790,39 @@ ${containerSelector} {
                         // Note: App title and icon are preserved during editing
                         
                         console.log(`App ${appId} successfully modified`);
+                        
+                        // Save modified app to persistence
+                        setTimeout(async () => {
+                            try {
+                                const app = apps.find(a => a.id === appId);
+                                if (app) {
+                                    const appData = {
+                                        title: app.title || 'Modified App',
+                                        icon: app.icon || '📱',
+                                        html: response.html,
+                                        css: response.css || '',
+                                        javascript: response.javascript || '',
+                                        customRequest: app.customRequest || '',
+                                        modificationHistory: app.modificationHistory || [],
+                                        lastModification: modificationRequest,
+                                        timestamp: new Date().toISOString()
+                                    };
+                                    
+                                    const saveResult = await saveAppToPersistence(appId, appData, {
+                                        description: `Modified app: ${appData.title}`,
+                                        savePrompt: true
+                                    });
+                                    
+                                    if (saveResult.success) {
+                                        console.log(`✅ Modified app ${appId} saved to persistence`);
+                                    } else {
+                                        console.warn(`⚠️ Failed to save modified app ${appId} to persistence:`, saveResult.error);
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`❌ Error saving modified app ${appId} to persistence:`, error);
+                            }
+                        }, 500);
                     }
                 } else {
                     throw new Error('Invalid modification response - missing HTML content');
@@ -6935,6 +7921,41 @@ ${containerSelector} {
                         // Note: App title and icon are preserved during editing
                         
                         console.log(`App ${appId} successfully modified with ${images.length} images`);
+                        
+                        // Save modified app to persistence
+                        setTimeout(async () => {
+                            try {
+                                const app = apps.find(a => a.id === appId);
+                                if (app) {
+                                    const appData = {
+                                        title: app.title || 'Modified App',
+                                        icon: app.icon || '📱',
+                                        html: response.html,
+                                        css: response.css || '',
+                                        javascript: response.javascript || '',
+                                        customRequest: app.customRequest || '',
+                                        modificationHistory: app.modificationHistory || [],
+                                        lastModification: modificationRequest,
+                                        hasImages: true,
+                                        imageCount: images.length,
+                                        timestamp: new Date().toISOString()
+                                    };
+                                    
+                                    const saveResult = await saveAppToPersistence(appId, appData, {
+                                        description: `Modified app with images: ${appData.title}`,
+                                        savePrompt: true
+                                    });
+                                    
+                                    if (saveResult.success) {
+                                        console.log(`✅ Modified app ${appId} (with images) saved to persistence`);
+                                    } else {
+                                        console.warn(`⚠️ Failed to save modified app ${appId} to persistence:`, saveResult.error);
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`❌ Error saving modified app ${appId} to persistence:`, error);
+                            }
+                        }, 500);
                     }
                 } else {
                     throw new Error('Invalid modification response - missing HTML content');
