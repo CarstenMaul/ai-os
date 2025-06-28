@@ -1,5 +1,9 @@
 # AI-OS
 
+"Panta rhei" - "Everything is in flow"  
+Greek philosopher Herakles  
+
+
 A revolutionary web-based operating system interface powered by artificial intelligence that can create and modify applications on demand using natural language commands and voice input.
 
 You will find some demo-apps, that had been generated with ai-os, in the /demo-apps folder. You can load the demo apps via Start -> Load App
@@ -19,6 +23,14 @@ Have fun!
 - **Real-time App Modification**: Modify existing applications using voice or text commands with context-aware prompts
 - **App Export/Import**: Save and load applications as JSON files with versioning support
 - **Demo Apps**: Pre-built example apps included in `/demo-apps` folder for immediate use
+
+#### App & Data Persistence
+- **Persistent App Storage**: Apps automatically saved to IndexedDB when created or modified
+- **Session Restoration**: Apps and their data persist across browser sessions
+- **Lazy Loading**: Persistent apps only loaded when accessed from Start menu
+- **Data Object Persistence**: Shared data objects maintain state between sessions
+- **Smart Duplicate Prevention**: System apps don't create duplicate entries in persistence
+- **Automatic State Recovery**: Apps restore to their exact last state including data
 
 #### Advanced Voice Control
 - **Voice Commands**: Control the system and create apps using voice input (OpenAI Whisper or Web Speech API)
@@ -42,6 +54,12 @@ Have fun!
 - **App Manager**: Comprehensive application management interface
 - **Setup Assistant**: First-time setup wizard with progress tracking
 
+#### Enhanced User Interface
+- **Custom Dialog System**: Professional popup dialogs replace browser defaults
+- **Consistent UX**: Unified confirmation and alert dialogs across the system
+- **Accessible Design**: Screen reader friendly with proper ARIA support
+- **Theme Integration**: Popups automatically adapt to light/dark themes
+
 #### Theme & Customization
 - **Theme Support**: Light and Dark mode themes with automatic app theming
 - **Smart Icon Generation**: Automatic icon selection based on app content (100+ icon mappings)
@@ -58,8 +76,10 @@ Have fun!
 #### Shared Data Registry System
 - **Global Data Sharing**: Apps can share data through `window.dataRegistry` API
 - **Data Subscription**: Real-time notifications when shared data changes
-- **Persistent Storage Integration**: Access to localStorage, sessionStorage, and cookies
+- **Persistent Storage Integration**: Automatic persistence to IndexedDB
+- **Session Recovery**: Data objects restored on system startup
 - **Data Structure Analysis**: Automatic analysis and documentation of data types and structures
+- **Cross-Session Continuity**: Data maintains state between browser sessions
 
 #### Advanced AI Integration
 - **Multiple LLM Providers**: Support for OpenRouter, OpenAI API, and LMStudio
@@ -125,8 +145,9 @@ Recommended models for LMStudio:
 ### Installation
 1. Download the [`ai-os.html`](ai-os.html) file
 2. Open it in your web browser
-3. Complete the Setup Assistand or configure your API keys in Settings (⚙️)
-4. Start creating apps with voice or text commands!
+3. Complete the Setup Assistant or configure your API keys in Settings (⚙️)
+4. **Your apps and data will automatically persist between sessions**
+5. Start creating apps with voice or text commands!
 
 ## 🎯 Usage
 
@@ -154,6 +175,13 @@ Recommended models for LMStudio:
 - **Minimize**: Click the "−" button
 - **Maximize**: Click the "□" button
 - **Close**: Click the "×" button
+
+### App Persistence & Management
+- **Automatic Saving**: Apps are automatically saved when created or modified
+- **Session Recovery**: All apps and data restored when reopening AI-OS
+- **Start Menu Access**: Persistent apps appear in Start → All Apps submenu
+- **Lazy Loading**: Apps load only when clicked, improving performance
+- **Data Continuity**: Apps resume exactly where you left off
 
 ### Using System Apps
 - **Calculator**: Access via Start menu, includes keyboard support
@@ -201,9 +229,11 @@ Recommended models for LMStudio:
 - **AI Engine**: Processes natural language and generates applications
 - **Voice System**: Manages speech recognition and audio input with multi-modal support
 - **App Runtime**: Executes and manages generated applications with isolation
+- **Persistence Manager**: Handles app and data persistence using IndexedDB
 - **Settings Manager**: Handles configuration and persistence
-- **Data Registry**: Global data sharing system between apps
+- **Data Registry**: Global data sharing system between apps with persistence support
 - **Namespace Manager**: Ensures app isolation and prevents conflicts
+- **Custom Popup System**: Unified dialog system for user interactions
 
 ### Generated App Structure
 Each AI-generated app consists of:
@@ -237,8 +267,8 @@ Each AI-generated app consists of:
 - **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+)
 - **AI Models**: GPT-4, Claude, Gemini, and other LLM providers
 - **Voice**: OpenAI Whisper API, Web Speech API
-- **Storage**: LocalStorage, Cookies for persistence
-- **Data Sharing**: Custom data registry system
+- **Storage**: IndexedDB, LocalStorage, Cookies for persistence
+- **Data Sharing**: Custom data registry system with persistence
 
 ### Browser Compatibility
 - ✅ Chrome 80+
@@ -299,14 +329,17 @@ ai-os.html
 │   ├── Window Management
 │   ├── Theme System
 │   ├── Setup Assistant
+│   ├── Custom Popup System
 │   └── Component Styles
 └── JavaScript Logic
     ├── App Management
     ├── AI Integration
     ├── Voice System
+    ├── Persistence Manager
     ├── Settings Manager
     ├── Window Manager
     ├── Data Registry
+    ├── Custom Popup System
     ├── Keyboard Handler
     └── Cost Tracking
 ```
@@ -314,7 +347,9 @@ ai-os.html
 ## 🔒 Privacy & Security
 
 ### Data Handling
-- **Local Storage**: Settings and preferences stored locally
+- **Local Persistence**: Apps and data stored locally in IndexedDB
+- **No Cloud Storage**: All persistence handled locally, no external servers
+- **Session Privacy**: Data never leaves your browser
 - **API Communication**: Secure HTTPS connections to AI providers
 - **No Data Collection**: No personal data collected or transmitted
 - **Voice Privacy**: Audio processed by chosen provider only
@@ -362,30 +397,46 @@ ai-os.html
 3. Verify app version compatibility
 4. Try importing individual apps instead of bulk import
 
+#### Persistence & Data Issues
+1. **Apps not saving**: Check browser IndexedDB permissions
+2. **Data not restoring**: Verify browser storage isn't being cleared
+3. **Performance with many apps**: Use lazy loading (apps load on-demand)
+4. **Storage quota exceeded**: Clear unused persistent apps via Data Registry
+5. **Secure Storage**: IndexedDB provides encrypted local storage
+6. **Data Control**: Full user control over persistent data via Data Registry
+
 ### Debug Mode
 Enable debug mode in Settings → System for detailed logging and troubleshooting information. This provides comprehensive logging through `debugLog`, `debugWarn`, and `debugError` functions.
 
-## 🔄 Recent Updates (v2.0.1)
+## 🔄 Recent Updates (v2.1.0)
 
-### OpenAI API Compatibility Improvements
-Recent updates have significantly improved OpenAI API integration:
+### App & Data Persistence System
+Major new features for enhanced user experience and data continuity:
 
-#### Fixed Issues
-- **Model Selection Display**: Resolved issue where OpenAI model names weren't displayed correctly when OpenAI was selected as the LLM provider
-- **API Parameter Compatibility**: Updated API requests to use OpenAI-compatible parameters:
-  - Changed `max_tokens` to `max_completion_tokens` for OpenAI requests
-  - Set temperature to `1` (default) for OpenAI models that don't support custom temperature values
-  - Maintained backward compatibility with OpenRouter and LMStudio using original parameters
+#### New Features
+- **Complete Persistence**: Apps and data automatically saved to IndexedDB
+- **Session Recovery**: Full state restoration across browser sessions
+- **Lazy Loading**: Performance optimization with on-demand app loading
+- **Custom Popup System**: Professional dialogs replace browser defaults
+- **Enhanced UX**: Consistent, accessible user interface improvements
 
-#### Technical Changes
-- Enhanced provider-specific parameter handling in API requests
-- Improved settings application logic to correctly update model configurations
-- Added conditional parameter setting based on the selected LLM provider
+#### Technical Improvements
+- **IndexedDB Integration**: Robust local storage for apps and data
+- **Smart Duplicate Prevention**: System apps don't create duplicate entries
+- **Cross-Session Continuity**: Data maintains state between browser sessions
+- **Performance Optimization**: Apps load only when needed from Start menu
+- **Unified Dialog System**: Custom popups with theme integration and accessibility
 
 #### Benefits
-- **Seamless OpenAI Integration**: OpenAI API now works without parameter errors
-- **Better Model Display**: Correct model names (e.g., `gpt-4o-mini`, `gpt-4o`) shown in the interface
-- **Improved Reliability**: More stable API communication across all supported providers
+- **Seamless Experience**: Apps and data persist automatically without user intervention
+- **Improved Performance**: Lazy loading reduces initial load time and memory usage
+- **Better UX**: Professional, consistent dialogs throughout the system
+- **Data Security**: All persistence handled locally with no external dependencies
+
+### Previous Updates (v2.0.1)
+- OpenAI API compatibility improvements
+- Model selection display fixes
+- Enhanced provider-specific parameter handling
 
 ## 📈 Roadmap
 
@@ -398,7 +449,13 @@ Recent updates have significantly improved OpenAI API integration:
 - **Enhanced Data Registry**: More data types and persistence options
 
 ### Version History
-- **v2.0.1**: Latest version with improved OpenAI API compatibility
+- **v2.1.0**: Latest version with comprehensive persistence system
+  - Complete app and data persistence using IndexedDB
+  - Session recovery and lazy loading for improved performance
+  - Custom popup system replacing browser defaults
+  - Enhanced UX with professional, accessible dialogs
+  - Cross-session data continuity and automatic state recovery
+- **v2.0.1**: Improved OpenAI API compatibility
   - Fixed model selection display for OpenAI provider
   - Updated API parameters for OpenAI compatibility (`max_completion_tokens`, temperature handling)
   - Enhanced provider-specific parameter handling
