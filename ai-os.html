@@ -5311,8 +5311,7 @@ const app = {
                         setSharedData('cost-tracking-enabled', costTrackingEnabled);
                     }
                     
-                    // Show/hide cost tracking app in start menu based on setting
-                    updateCostTrackingAppVisibility();
+                    // Cost tracking app is now handled in the unified "All Apps" submenu
                 }
                 
                 // Apply API timeout and max retries to CONFIG
@@ -5387,33 +5386,6 @@ const app = {
             }
         }
 
-        function updateCostTrackingAppVisibility() {
-            const startMenu = document.getElementById('start-menu');
-            let costTrackingItem = document.getElementById('cost-tracking-item');
-            
-            if (costTrackingEnabled) {
-                // Add cost tracking app to System section if not exists
-                if (!costTrackingItem) {
-                    // Find the System section
-                    const systemSection = Array.from(startMenu.querySelectorAll('.menu-section')).find(section =>
-                        section.querySelector('.menu-title')?.textContent === 'System'
-                    );
-                    
-                    // Cost Tracking is now handled in the "All Apps" submenu
-                }
-            } else {
-                // Remove cost tracking app from System section
-                if (costTrackingItem) {
-                    costTrackingItem.remove();
-                }
-            }
-            
-            // Remove old cost tracking section if it exists (for backward compatibility)
-            const oldCostTrackingSection = document.getElementById('cost-tracking-section');
-            if (oldCostTrackingSection) {
-                oldCostTrackingSection.remove();
-            }
-        }
 
 
 
@@ -5427,11 +5399,6 @@ const app = {
                 }
             });
             return highest;
-        }
-
-        function createCostTrackingPrompt() {
-            // This function is kept for backward compatibility but now uses the definition dictionary
-            return SYSTEM_APPS_DEFINITIONS['Cost Tracking'].prompt;
         }
 
 
@@ -6120,17 +6087,7 @@ const app = {
         }
 
 
-        function createCalculatorPrompt() {
-            // This function is kept for backward compatibility but now uses the definition dictionary
-            return SYSTEM_APPS_DEFINITIONS['Calculator'].prompt;
-        }
 
-
-
-        function createDigitalClockPrompt() {
-            // This function is kept for backward compatibility but now uses the definition dictionary
-            return SYSTEM_APPS_DEFINITIONS['Digital Clock'].prompt;
-        }
 
         // Microphone test function
         async function testMicrophone() {
@@ -8821,7 +8778,6 @@ ${containerSelector} {
             
             // Initialize cost tracking
             loadCostHistory();
-            updateCostTrackingAppVisibility();
             
             // Initialize LLM provider switching
             initializeLLMProviderSwitching();
