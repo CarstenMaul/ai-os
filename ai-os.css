@@ -219,7 +219,6 @@ body {
     font-size: 16px;
     cursor: pointer;
     border-radius: 6px;
-    margin-right: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -244,7 +243,6 @@ body {
     font-size: 16px;
     cursor: pointer;
     border-radius: 6px;
-    margin-right: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -264,7 +262,6 @@ body {
     font-size: 16px;
     cursor: pointer;
     border-radius: 6px;
-    margin-right: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -287,7 +284,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 8px;
     transition: background 0.2s;
 }
 
@@ -297,8 +293,28 @@ body {
 
 .window-content {
     padding: 20px;
-    height: calc(100% - 81px);
+    height: calc(100% - 131px); /* Adjusted for header (81px) + toolbar (50px) */
     overflow: auto;
+}
+
+.window-system-toolbar {
+    background: #f0f0f0;
+    padding: 10px 20px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    min-height: 50px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.toolbar-button {
+    /* Base styles for toolbar buttons - specific button styles will override */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .resize-handle {
@@ -589,6 +605,11 @@ body.dark-theme .window-content {
     color: #f8f9fa;
 }
 
+body.dark-theme .window-system-toolbar {
+    background: #34495e;
+    border-top: 1px solid #4a5f7a;
+}
+
 body.dark-theme .status-bar {
     background: rgba(0, 0, 0, 0.9);
     color: #f8f9fa;
@@ -798,6 +819,11 @@ body.light-theme .window-header {
 body.light-theme .window-content {
     background: white;
     color: #333;
+}
+
+body.light-theme .window-system-toolbar {
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
 }
 
 body.light-theme .status-bar {

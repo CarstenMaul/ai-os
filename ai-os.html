@@ -1939,10 +1939,6 @@ const app = {
                         <span class="window-title-text">${title}</span>
                     </div>
                     <div class="window-controls">
-                        <button class="window-voice-button" id="voice-button-${appId}" title="Hold to talk - Modify this app with voice">🎤</button>
-                        <button class="window-text-button" id="text-button-${appId}" title="Edit this app with text prompt">✏️</button>
-                        <button class="window-history-button" id="history-button-${appId}" title="View prompt history" onclick="showPromptHistory('${appId}')">📜</button>
-                        <button class="window-download-button" id="download-button-${appId}" title="Download this app">💾</button>
                         <button class="window-control minimize" onclick="minimizeWindow('${appId}')">−</button>
                         <button class="window-control maximize" onclick="toggleMaximize('${appId}')">□</button>
                         <button class="window-control close" onclick="closeWindow('${appId}')">×</button>
@@ -1950,6 +1946,12 @@ const app = {
                 </div>
                 <div class="window-content" id="content_${appId}">
                     ${content}
+                </div>
+                <div class="window-system-toolbar">
+                    <button class="toolbar-button window-voice-button" id="voice-button-${appId}" title="Hold to talk - Modify this app with voice">🎤</button>
+                    <button class="toolbar-button window-text-button" id="text-button-${appId}" title="Edit this app with text prompt">✏️</button>
+                    <button class="toolbar-button window-history-button" id="history-button-${appId}" title="View prompt history" onclick="showPromptHistory('${appId}')">📜</button>
+                    <button class="toolbar-button window-download-button" id="download-button-${appId}" title="Download this app">💾</button>
                 </div>
                 <div class="resize-handle" onmousedown="startResize(event, '${appId}')"></div>
             `;
@@ -2002,23 +2004,30 @@ const app = {
                 });
             }
             
-            // Add event listener to the app text button
-            const appTextButton = document.getElementById(`text-button-${appId}`);
-            if (appTextButton) {
-                appTextButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    showTextPromptDialog(appId);
-                });
-            }
-            
-            // Add event listener to the app download button
-            const appDownloadButton = document.getElementById(`download-button-${appId}`);
-            if (appDownloadButton) {
-                appDownloadButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    downloadApp(appId);
-                });
-            }
+            // Add event listeners to toolbar buttons with a small delay to ensure DOM is ready
+            setTimeout(() => {
+                // Add event listener to the app text button
+                const appTextButton = document.getElementById(`text-button-${appId}`);
+                if (appTextButton) {
+                    appTextButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showTextPromptDialog(appId);
+                    });
+                } else {
+                    console.warn(`Text button not found for app ${appId}`);
+                }
+                
+                // Add event listener to the app download button
+                const appDownloadButton = document.getElementById(`download-button-${appId}`);
+                if (appDownloadButton) {
+                    appDownloadButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        downloadApp(appId);
+                    });
+                } else {
+                    console.warn(`Download button not found for app ${appId}`);
+                }
+            }, 50);
             
             // Add click handler to window content to bring window to focus
             const windowContent = document.getElementById(`content_${appId}`);
@@ -7695,9 +7704,11 @@ ${containerSelector} {
             console.log(`⚙️ Current JavaScript length: ${currentJavaScript.length}`);
             
             let thisAppPromptHistory = ''
-            app.promptHistory.slice(1).forEach((entry, index) => {
-                thisAppPromptHistory += `\n\nPrompt #${index + 1} (${entry.type}):\n${entry.userRequest}`;
-            });
+            if (app.promptHistory && app.promptHistory.length > 1) {
+                app.promptHistory.slice(1).forEach((entry, index) => {
+                    thisAppPromptHistory += `\n\nPrompt #${index + 1} (${entry.type}):\n${entry.userRequest}`;
+                });
+            }
 
             // Get available data objects from registry
             let availableDataObjects = 'None currently registered';
