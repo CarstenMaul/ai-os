@@ -89,6 +89,13 @@ Have fun!
 - **Smart Prompting**: Optimized prompts for generating functional web applications
 - **Cost Tracking**: Real-time API usage monitoring with detailed cost breakdown
 
+#### 3D Graphics & Visualization Support
+- **Three.js Integration**: Pre-loaded Three.js v0.177.0 for 3D graphics, WebGL, and immersive animations
+- **Chart.js Integration**: Pre-loaded Chart.js v4.4.1 for data visualization and charts
+- **Responsive 3D Rendering**: Automatic window sizing and resize handling for 3D scenes
+- **High-Quality Graphics**: Anti-aliasing and high-DPI display support for crisp visuals
+- **Dynamic Layout Support**: ResizeObserver integration for adaptive 3D containers
+
 #### Keyboard Event Management
 - **Focus-Aware Key Handling**: Keyboard events only sent to active/focused apps
 - **App-Specific Shortcuts**: Apps can register custom keyboard handlers using `app.onKey()` API
@@ -169,6 +176,27 @@ Recommended models for LMStudio:
 2. Speak your modification request
 3. Or click the text button (✏️) to type modifications
 
+### 3D Graphics & Visualization Apps
+AI-OS now supports creating sophisticated 3D graphics and data visualization applications:
+
+#### 3D Graphics Examples
+- "Create a 3D rotating cube viewer"
+- "Make a 3D solar system simulation"
+- "Build a WebGL particle system"
+- "Create an immersive 3D scene"
+- "Make a 3D game with physics"
+
+#### Data Visualization Examples
+- "Create a sales dashboard with charts"
+- "Make an interactive pie chart for budget tracking"
+- "Build a real-time analytics dashboard"
+- "Create a data visualization tool for CSV files"
+
+#### Advanced Features
+- **Responsive Design**: 3D scenes automatically adapt to window resizing
+- **High-Quality Rendering**: Anti-aliasing and high-DPI support for crisp graphics
+- **Performance Optimized**: Efficient rendering with proper resource management
+
 ### Window Management
 - **Drag**: Click and drag the title bar to move windows
 - **Resize**: Drag the resize handle in the bottom-right corner
@@ -227,6 +255,8 @@ Recommended models for LMStudio:
 ### Core Components
 - **Window Manager**: Handles application windows and UI with focus management
 - **AI Engine**: Processes natural language and generates applications
+- **3D Graphics Engine**: Three.js integration for WebGL and 3D rendering
+- **Visualization Engine**: Chart.js integration for data visualization
 - **Voice System**: Manages speech recognition and audio input with multi-modal support
 - **App Runtime**: Executes and manages generated applications with isolation
 - **Persistence Manager**: Handles app and data persistence using IndexedDB
@@ -265,6 +295,8 @@ Each AI-generated app consists of:
 
 ### Supported Technologies
 - **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+)
+- **3D Graphics**: Three.js v0.177.0 (WebGL, 3D scenes, animations)
+- **Data Visualization**: Chart.js v4.4.1 (charts, graphs, dashboards)
 - **AI Models**: GPT-4, Claude, Gemini, and other LLM providers
 - **Voice**: OpenAI Whisper API, Web Speech API
 - **Storage**: IndexedDB, LocalStorage, Cookies for persistence
@@ -281,6 +313,29 @@ Each AI-generated app consists of:
 - **Responsive**: Optimized for desktop and tablet use
 - **Efficient**: Minimal resource usage, smart caching
 - **Isolated Execution**: Apps run in separate namespaces for stability
+
+### 3D Graphics & Visualization Capabilities
+
+#### Three.js Features
+- **WebGL Rendering**: Hardware-accelerated 3D graphics
+- **Responsive Viewports**: Automatic sizing and aspect ratio handling
+- **High-DPI Support**: Crisp rendering on retina displays
+- **Anti-aliasing**: Smooth graphics with reduced jagged edges
+- **Dynamic Resizing**: Real-time adaptation to window size changes
+- **Performance Optimization**: Efficient rendering loops and resource management
+
+#### Chart.js Features
+- **Multiple Chart Types**: Bar, line, pie, doughnut, and more
+- **Responsive Design**: Charts adapt to container size changes
+- **Interactive Elements**: Hover effects and click handlers
+- **Theme Integration**: Automatic adaptation to light/dark themes
+- **Data Binding**: Integration with AI-OS data registry system
+
+#### Technical Implementation
+- **Pre-loaded Libraries**: No dynamic loading, immediate availability
+- **Namespace Isolation**: 3D scenes and charts isolated per app
+- **Memory Management**: Proper cleanup when apps are closed
+- **Cross-browser Compatibility**: Consistent behavior across modern browsers
 
 ### Security Features
 - **API Key Protection**: Keys stored locally, never transmitted unnecessarily
@@ -408,26 +463,51 @@ ai-os.html
 ### Debug Mode
 Enable debug mode in Settings → System for detailed logging and troubleshooting information. This provides comprehensive logging through `debugLog`, `debugWarn`, and `debugError` functions.
 
-## 🔄 Recent Updates (v2.1.0)
+## 🔄 Recent Updates (v2.2.0)
 
-### App & Data Persistence System
-Major new features for enhanced user experience and data continuity:
+### Enhanced 3D Graphics & Visualization Support
+Major improvements for creating immersive and responsive 3D applications:
 
 #### New Features
+- **Three.js v0.177.0 Integration**: Full 3D graphics and WebGL support
+- **Chart.js v4.4.1 Integration**: Comprehensive data visualization capabilities
+- **Responsive 3D Rendering**: Automatic window sizing and resize handling
+- **High-Quality Graphics**: Anti-aliasing and high-DPI display support
+- **Dynamic Layout Support**: ResizeObserver integration for adaptive containers
+
+#### Technical Improvements
+- **Pre-loaded Libraries**: Three.js and Chart.js available immediately
+- **Enhanced Guidelines**: LLM-optimized patterns for consistent 3D app generation
+- **Window-Filling Animations**: 3D scenes automatically fill available space
+- **Performance Optimization**: Efficient rendering with proper resource cleanup
+- **Cross-Session Persistence**: 3D app state maintained between browser sessions
+
+#### Benefits
+- **Immersive Experiences**: Create sophisticated 3D applications and visualizations
+- **Professional Quality**: High-DPI rendering with anti-aliasing for crisp graphics
+- **Responsive Design**: 3D content adapts seamlessly to window resizing
+- **Easy Development**: LLM generates properly configured 3D applications automatically
+
+### Previous Updates (v2.1.0)
+
+#### App & Data Persistence System
+Major new features for enhanced user experience and data continuity:
+
+##### New Features
 - **Complete Persistence**: Apps and data automatically saved to IndexedDB
 - **Session Recovery**: Full state restoration across browser sessions
 - **Lazy Loading**: Performance optimization with on-demand app loading
 - **Custom Popup System**: Professional dialogs replace browser defaults
 - **Enhanced UX**: Consistent, accessible user interface improvements
 
-#### Technical Improvements
+##### Technical Improvements
 - **IndexedDB Integration**: Robust local storage for apps and data
 - **Smart Duplicate Prevention**: System apps don't create duplicate entries
 - **Cross-Session Continuity**: Data maintains state between browser sessions
 - **Performance Optimization**: Apps load only when needed from Start menu
 - **Unified Dialog System**: Custom popups with theme integration and accessibility
 
-#### Benefits
+##### Benefits
 - **Seamless Experience**: Apps and data persist automatically without user intervention
 - **Improved Performance**: Lazy loading reduces initial load time and memory usage
 - **Better UX**: Professional, consistent dialogs throughout the system
@@ -437,30 +517,6 @@ Major new features for enhanced user experience and data continuity:
 - OpenAI API compatibility improvements
 - Model selection display fixes
 - Enhanced provider-specific parameter handling
-
-## 📈 Roadmap
-
-### Planned Features
-- **Mobile Support**: Touch-optimized interface for smartphones
-- **Plugin System**: Third-party extensions and integrations
-- **Collaboration**: Multi-user app development
-- **App Store**: Share and discover community-created apps
-- **Advanced AI**: More sophisticated app generation capabilities
-- **Enhanced Data Registry**: More data types and persistence options
-
-### Version History
-- **v2.1.0**: Latest version with comprehensive persistence system
-  - Complete app and data persistence using IndexedDB
-  - Session recovery and lazy loading for improved performance
-  - Custom popup system replacing browser defaults
-  - Enhanced UX with professional, accessible dialogs
-  - Cross-session data continuity and automatic state recovery
-- **v2.0.1**: Improved OpenAI API compatibility
-  - Fixed model selection display for OpenAI provider
-  - Updated API parameters for OpenAI compatibility (`max_completion_tokens`, temperature handling)
-  - Enhanced provider-specific parameter handling
-- **v2.0.0**: Voice commands and multi-provider support
-- **v1.0.0**: Initial release with basic app generation
 
 ## 🤝 Contributing
 

@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-OS</title>
     <link rel="stylesheet" href="ai-os.css">
+    
+    <!-- Pre-loaded Libraries for App Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.1/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 </head>
 <body>
     <div class="desktop" id="desktop">
@@ -962,6 +966,12 @@ IMPLEMENTATION:
 - Include hover/focus states for all interactive elements
 - Ensure 44px minimum touch targets
 - Keep responsive design (300-600px window width)
+
+LIBRARY STYLING REQUIREMENTS:
+- Three.js containers: Set width: 100%, height: 100%, position: relative, min-height: 400px
+- Chart.js canvas: Set max-width: 100%, height: auto for responsiveness
+- Library containers must follow theme color schemes
+- Three.js containers should fill available space: use flex-grow: 1 or explicit dimensions
 `;
 
         // Global CSS Guidelines for App Creation
@@ -1010,6 +1020,214 @@ CRITICAL REQUIREMENT - INIT FUNCTION:
 - Do NOT put any event listeners or initialization code outside the init function
 - The init function will be automatically called after the app is created
 - FAILURE TO INCLUDE THE INIT FUNCTION WILL RESULT IN BROKEN FUNCTIONALITY
+
+LIBRARY INTEGRATION REQUIREMENTS:
+- LIBRARY INTEGRATION: If using THREE.js or Chart.js, follow the exact patterns in LIBRARIES_GUIDELINES
+- LIBRARY CONTAINERS: Always create proper container elements with {appId} prefixes for libraries
+- LIBRARY LIFECYCLE: Initialize libraries only in the init function, never in global scope
+        `;
+
+        const LIBRARIES_GUIDELINES = `
+
+AVAILABLE LIBRARIES (Pre-loaded and Ready):
+- THREE.js v0.177.0 (namespace: THREE) - For 3D graphics, WebGL, animations
+- Chart.js v4.4.1 (namespace: Chart) - For data visualization, charts, graphs
+
+MANDATORY LIBRARY USAGE PATTERN:
+1. ALWAYS check availability in init function using this exact pattern:
+   window[appNamespace].init = function() {
+     // Library availability check
+     const hasThreeJS = typeof THREE !== 'undefined';
+     const hasChartJS = typeof Chart !== 'undefined';
+     
+     // Initialize based on availability
+     if (hasThreeJS && needsThreeJS) {
+       init3DFeatures();
+     }
+     if (hasChartJS && needsCharts) {
+       initChartFeatures();
+     }
+   };
+
+2. CRITICAL: Use {appId} prefixed IDs for all library containers:
+   - Three.js: <div id="{appId}_threejs_container"></div>
+   - Chart.js: <canvas id="{appId}_chart_canvas"></canvas>
+
+THREE.JS ESSENTIAL PATTERN (Copy exactly when needed):
+function init3DFeatures() {
+  const container = document.getElementById('{appId}_threejs_container');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, container.clientWidth/container.clientHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  
+  // CRITICAL: Set renderer size to fill container completely
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  container.appendChild(renderer.domElement);
+  
+  // Add your 3D objects here
+  
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+  animate();
+  
+  // MANDATORY: Handle window resize for responsive behavior
+  function handleResize() {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+  }
+  
+  window.addEventListener('resize', handleResize);
+  
+  // Optional: Handle container size changes (for dynamic layouts)
+  if (window.ResizeObserver) {
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(container);
+  }
+}
+
+THREE.JS ROTATING CUBE EXAMPLE (Complete working example):
+function init3DFeatures() {
+  const container = document.getElementById('{appId}_threejs_container');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, container.clientWidth/container.clientHeight, 0.1, 1000);
+  
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  // CRITICAL: Set renderer size to fill container completely
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  container.appendChild(renderer.domElement);
+  
+  // Create a green rotating cube
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+  
+  camera.position.z = 5;
+  
+  function animate() {
+    requestAnimationFrame(animate);
+    
+    cube.rotation.x += 0.01;
+    cube.rotation.y += 0.01;
+    
+    renderer.render(scene, camera);
+  }
+  animate();
+  
+  // MANDATORY: Comprehensive resize handling for responsive behavior
+  function handleResize() {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    // Update camera aspect ratio
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    
+    // Update renderer size and pixel ratio
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+  }
+  
+  // Handle window resize
+  window.addEventListener('resize', handleResize);
+  
+  // Handle container size changes (for dynamic layouts)
+  if (window.ResizeObserver) {
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(container);
+  }
+}
+
+CHART.JS ESSENTIAL PATTERN (Copy exactly when needed):
+function initChartFeatures() {
+  const canvas = document.getElementById('{appId}_chart_canvas');
+  const ctx = canvas.getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'bar', // or 'line', 'pie', 'doughnut', etc.
+    data: {
+      labels: ['Label 1', 'Label 2', 'Label 3'],
+      datasets: [{
+        label: 'Dataset 1',
+        data: [12, 19, 3],
+        backgroundColor: ['#ff6384', '#36a2eb', '#ffce56']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+}
+
+THREE.JS WINDOW SIZING & RESPONSIVENESS (MANDATORY PATTERNS):
+
+1. CONTAINER SIZING - Use this exact CSS pattern for three.js containers:
+   #{appId}_threejs_container {
+     width: 100%;
+     height: 100%;
+     min-height: 400px;
+     position: relative;
+     flex-grow: 1;
+   }
+
+2. RENDERER INITIALIZATION - Always include these exact lines:
+   renderer.setSize(container.clientWidth, container.clientHeight);
+   renderer.setPixelRatio(window.devicePixelRatio);
+
+3. RESIZE HANDLING - MANDATORY for all three.js apps:
+   function handleResize() {
+     const width = container.clientWidth;
+     const height = container.clientHeight;
+     camera.aspect = width / height;
+     camera.updateProjectionMatrix();
+     renderer.setSize(width, height);
+     renderer.setPixelRatio(window.devicePixelRatio);
+   }
+   window.addEventListener('resize', handleResize);
+
+4. CONTAINER OBSERVER - Include for dynamic layouts:
+   if (window.ResizeObserver) {
+     const resizeObserver = new ResizeObserver(handleResize);
+     resizeObserver.observe(container);
+   }
+
+5. RENDERER OPTIONS - Always use antialias for better quality:
+   const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+LIBRARY DECISION MATRIX:
+- Use THREE.js for: 3D models, WebGL graphics, 3D games, VR/AR, 3D data visualization, immersive animations
+- Use Chart.js for: Bar charts, line graphs, pie charts, data dashboards, analytics
+- Use both for: 3D data visualization with traditional chart overlays
+- Use neither for: Simple 2D apps, text-based apps, basic calculators
+
+QUICK LIBRARY DECISION MATRIX:
+User Request Contains → Use Library → Required Elements + CSS
+"3D" / "WebGL" / "mesh" / "scene" / "immersive" → THREE.js → <div id="{appId}_threejs_container"> + full-window CSS
+"chart" / "graph" / "data viz" / "plot" → Chart.js → <canvas id="{appId}_chart_canvas"> + responsive CSS
+"simple animation" / "2D graphics" → Vanilla JS → Standard HTML elements
+
+WINDOW-FILLING ANIMATION REQUIREMENTS:
+- For "fullscreen", "immersive", or "fill window" requests: Set container height to 100vh or 100%
+- For "responsive" or "adaptive" requests: Always include ResizeObserver pattern
+- For "high quality" requests: Always include antialias: true and setPixelRatio
+
+CRITICAL REQUIREMENTS:
+- ALWAYS check library availability before use
+- ALWAYS use {appId} prefixed container IDs
+- ALWAYS implement responsive sizing
+- ALWAYS handle window resize events for 3D scenes
+- ALWAYS implement resize handling for three.js animations
+- ALWAYS set container CSS to fill available space (width: 100%, height: 100%)
+- NEVER assume libraries are loaded - always check typeof
         `;
 
         const APPCREATION_PROMPT = `
@@ -1019,7 +1237,7 @@ You are creating a functional app for a windowed operating system interface.
 CRITICAL REQUIREMENTS:
 1. Create a COMPLETE, FUNCTIONAL app that works in a window
 2. The app will be placed inside a window with ID "content_{appId}"
-3. Use ONLY vanilla HTML, CSS, and JavaScript - no external libraries
+3. Use vanilla HTML, CSS, and JavaScript - pre-loaded libraries (Three.js, Chart.js) are available if needed
 4. Make the app responsive and fit well in a window (300-600px wide)
 5. Include ALL necessary functionality for the requested app
 6. Use modern, clean UI design
@@ -1178,7 +1396,7 @@ CRITICAL REQUIREMENTS
 1. MODIFY the existing app according to the user request
 2. Keep the same basic app structure but implement the requested changes
 3. The app will be placed inside a window with ID content_ + appId +
-4. Use ONLY vanilla HTML, CSS, and JavaScript - no external libraries
+4. Use vanilla HTML, CSS, and JavaScript - pre-loaded libraries (Three.js, Chart.js) are available if needed
 5. Make the app responsive and fit well in a window (300-600px wide)
 6. Include ALL necessary functionality for the modified app
 7. Use modern, clean UI design
@@ -1886,7 +2104,34 @@ MANDATORY FEATURES:
 
         function updateClock() {
             const now = new Date();
-            document.getElementById('clock').textContent = now.toLocaleTimeString();
+            const clockElement = document.getElementById('clock');
+            
+            // Get clock format preference from settings
+            const clockFormatSelect = document.getElementById('clock-format');
+            const clockFormat = clockFormatSelect ? clockFormatSelect.value : '24';
+            
+            let timeString;
+            if (clockFormat === '12') {
+                // 12-hour format with AM/PM
+                timeString = now.toLocaleTimeString('en-US', {
+                    hour12: true,
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            } else {
+                // 24-hour format
+                timeString = now.toLocaleTimeString('en-GB', {
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            }
+            
+            if (clockElement) {
+                clockElement.textContent = timeString;
+            }
         }
 
         function updateAppCount() {
@@ -1898,7 +2143,10 @@ MANDATORY FEATURES:
             if (providerElement) {
                 // Capitalize the provider name for display
                 const displayName = CONFIG.CURRENT_LLM_PROVIDER.charAt(0).toUpperCase() + CONFIG.CURRENT_LLM_PROVIDER.slice(1);
-                providerElement.textContent = displayName;
+                
+                // Add current model in brackets
+                const currentModel = CONFIG.MODEL || 'Unknown';
+                providerElement.textContent = `${displayName} (${currentModel})`;
             }
         }
 
@@ -1926,6 +2174,9 @@ MANDATORY FEATURES:
             }
             
             console.log(`Model mode switched to: ${currentModelMode} (${CONFIG.MODEL})`);
+            
+            // Update provider display to show new model
+            updateProviderDisplay();
         }
 
         function generateAppId() {
@@ -5101,6 +5352,10 @@ const app = {
                 const theme = document.getElementById('theme');
                 if (theme) theme.value = settings.theme ?? 'light';
                 
+                // General Settings
+                const clockFormat = document.getElementById('clock-format');
+                if (clockFormat) clockFormat.value = settings.clockFormat ?? '24';
+                
                 // Voice & Audio Settings
                 const voiceRecognitionTypeEl = document.getElementById('voice-recognition-type');
                 if (voiceRecognitionTypeEl) {
@@ -6047,6 +6302,9 @@ const app = {
             }
             
             console.log(`Model mode set to: ${currentModelMode} (${CONFIG.MODEL})`);
+            
+            // Update provider display to show new model
+            updateProviderDisplay();
         }
 
         // Helper function to get system app icon
@@ -6630,6 +6888,7 @@ const app = {
                          NAMESPACEISOLATION_GUIDELINES.replace(/{appId}/g, appId) +
                          CSS_GUIDELINES.replace(/{currentTheme}/g, currentTheme) +
                          JAVASCRIPT_GUIDELINES.replace(/{appId}/g, appId) +
+                         LIBRARIES_GUIDELINES.replace(/{appId}/g, appId) +
                          "Now create a functional app for: " + request;
   
             return prompt;
@@ -7571,7 +7830,8 @@ ${containerSelector} {
                     .replace(/{availableDataObjects}/g, availableDataObjects)
                     .replace(/{currentHTML}/g, currentHTML)
                     .replace(/{currentCSS}/g, currentCSS)
-                    .replace(/{currentJavaScript}/g, currentJavaScript);
+                    .replace(/{currentJavaScript}/g, currentJavaScript) +
+                LIBRARIES_GUIDELINES.replace(/{appId}/g, appId);
 
             // Show loading state
             const contentElement = document.getElementById(`content_${appId}`);
@@ -7645,7 +7905,8 @@ ${containerSelector} {
                     .replace(/{availableDataObjects}/g, availableDataObjects)
                     .replace(/{currentHTML}/g, currentHTML)
                     .replace(/{currentCSS}/g, currentCSS)
-                    .replace(/{currentJavaScript}/g, currentJavaScript);
+                    .replace(/{currentJavaScript}/g, currentJavaScript) +
+                LIBRARIES_GUIDELINES.replace(/{appId}/g, appId);
 
             // Add image context if images are provided
             if (modificationData.images && modificationData.images.length > 0) {
@@ -7972,9 +8233,13 @@ ${containerSelector} {
                             <!-- General Settings -->
                             <div class="settings-panel active" id="general-panel">
                                 <h3>General Settings</h3>
-                                <p style="color: #666; font-style: italic; text-align: center; padding: 40px 20px;">
-                                    No general settings available at this time.
-                                </p>
+                                <div class="setting-item">
+                                    <label for="clock-format">Clock Format</label>
+                                    <select id="clock-format">
+                                        <option value="24" selected>24-hour (HH:MM:SS)</option>
+                                        <option value="12">12-hour (h:MM:SS AM/PM)</option>
+                                    </select>
+                                </div>
                             </div>
                             
                             <!-- Appearance Settings -->
@@ -8684,6 +8949,15 @@ ${containerSelector} {
                 themeSelect.addEventListener('change', (e) => {
                     const newTheme = e.target.value;
                     applyTheme(newTheme);
+                });
+            }
+            
+            // Clock format change handler for immediate application
+            const clockFormatSelect = document.getElementById('clock-format');
+            if (clockFormatSelect) {
+                clockFormatSelect.addEventListener('change', (e) => {
+                    // Immediately update the clock display when format changes
+                    updateClock();
                     console.log(`Theme changed to: ${newTheme}`);
                 });
             }
@@ -8756,6 +9030,9 @@ ${containerSelector} {
                     // Apply settings immediately to CONFIG object
                     applySettingsToSystem(settings);
                     
+                    // Update provider display to show new provider and current model
+                    updateCurrentProviderDisplay(selectedProvider);
+                    
                     debugLog(`LLM Provider changed to: ${selectedProvider}`);
                 });
                 
@@ -8772,7 +9049,11 @@ ${containerSelector} {
                         'openai': 'OpenAI',
                         'lmstudio': 'LMStudio'
                     };
-                    providerDisplay.textContent = providerNames[provider] || provider;
+                    const displayName = providerNames[provider] || provider;
+                    
+                    // Add current model in brackets
+                    const currentModel = CONFIG.MODEL || 'Unknown';
+                    providerDisplay.textContent = `${displayName} (${currentModel})`;
                 }
             }
             
