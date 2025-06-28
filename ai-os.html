@@ -310,6 +310,116 @@
             }
         };
         
+        // ===== CUSTOM POPUP SYSTEM =====
+        
+        function showCustomAlert(message, title = 'Alert', appId = null) {
+            const popupId = 'popup_' + Date.now();
+            const isAppRelated = appId !== null;
+            
+            // Create popup HTML
+            const popupHTML = `
+                <div class="custom-popup-overlay" id="${popupId}_overlay">
+                    <div class="custom-popup ${isAppRelated ? 'app-popup' : 'system-popup'}">
+                        <div class="custom-popup-header">
+                            <span class="custom-popup-title">${title}</span>
+                            <button class="custom-popup-close" onclick="closeCustomPopup('${popupId}')">&times;</button>
+                        </div>
+                        <div class="custom-popup-content">
+                            <p>${message}</p>
+                        </div>
+                        <div class="custom-popup-buttons">
+                            <button class="custom-popup-btn custom-popup-btn-primary" onclick="closeCustomPopup('${popupId}')">OK</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add to DOM
+            document.body.insertAdjacentHTML('beforeend', popupHTML);
+            
+            // Position popup
+            const popup = document.getElementById(popupId + '_overlay');
+            if (isAppRelated && appId) {
+                // Position over the app window
+                const appWindow = document.getElementById(`window_${appId}`);
+                if (appWindow) {
+                    const rect = appWindow.getBoundingClientRect();
+                    popup.style.position = 'fixed';
+                    popup.style.top = rect.top + 'px';
+                    popup.style.left = rect.left + 'px';
+                    popup.style.width = rect.width + 'px';
+                    popup.style.height = rect.height + 'px';
+                    popup.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                }
+            }
+            
+            return popupId;
+        }
+        
+        function showCustomConfirm(message, title = 'Confirm', appId = null) {
+            return new Promise((resolve) => {
+                const popupId = 'popup_' + Date.now();
+                const isAppRelated = appId !== null;
+                
+                // Create popup HTML
+                const popupHTML = `
+                    <div class="custom-popup-overlay" id="${popupId}_overlay">
+                        <div class="custom-popup ${isAppRelated ? 'app-popup' : 'system-popup'}">
+                            <div class="custom-popup-header">
+                                <span class="custom-popup-title">${title}</span>
+                                <button class="custom-popup-close" onclick="resolveCustomConfirm('${popupId}', false)">&times;</button>
+                            </div>
+                            <div class="custom-popup-content">
+                                <p>${message}</p>
+                            </div>
+                            <div class="custom-popup-buttons">
+                                <button class="custom-popup-btn custom-popup-btn-secondary" onclick="resolveCustomConfirm('${popupId}', false)">Cancel</button>
+                                <button class="custom-popup-btn custom-popup-btn-primary" onclick="resolveCustomConfirm('${popupId}', true)">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add to DOM
+                document.body.insertAdjacentHTML('beforeend', popupHTML);
+                
+                // Position popup
+                const popup = document.getElementById(popupId + '_overlay');
+                if (isAppRelated && appId) {
+                    // Position over the app window
+                    const appWindow = document.getElementById(`window_${appId}`);
+                    if (appWindow) {
+                        const rect = appWindow.getBoundingClientRect();
+                        popup.style.position = 'fixed';
+                        popup.style.top = rect.top + 'px';
+                        popup.style.left = rect.left + 'px';
+                        popup.style.width = rect.width + 'px';
+                        popup.style.height = rect.height + 'px';
+                        popup.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                    }
+                }
+                
+                // Store resolver
+                window[`confirmResolver_${popupId}`] = resolve;
+            });
+        }
+        
+        function closeCustomPopup(popupId) {
+            const popup = document.getElementById(popupId + '_overlay');
+            if (popup) {
+                popup.remove();
+            }
+        }
+        
+        function resolveCustomConfirm(popupId, result) {
+            const resolver = window[`confirmResolver_${popupId}`];
+            if (resolver) {
+                resolver(result);
+                delete window[`confirmResolver_${popupId}`];
+            }
+            closeCustomPopup(popupId);
+        }
+
         // Create the enhanced dataRegistry API object
         window.dataRegistry = {
             // Get specific data object
@@ -398,9 +508,9 @@
             },
             
             // Show save dialog for apps
-            showSaveDialog: function(name, data, config) {
+            showSaveDialog: async function(name, data, config) {
                 const appName = config.appId || name;
-                const confirmed = confirm(`Save changes to ${appName}?`);
+                const confirmed = await showCustomConfirm(`Save changes to ${appName}?`, 'Save Changes');
                 
                 if (confirmed) {
                     this.saveToPersistence(name, data, config);
@@ -410,9 +520,9 @@
             },
             
             // Synchronous save dialog that returns user choice
-            showSaveDialogSync: function(name, data, config) {
+            showSaveDialogSync: async function(name, data, config) {
                 const appName = config.appId || name;
-                const confirmed = confirm(`Save changes to ${appName}?`);
+                const confirmed = await showCustomConfirm(`Save changes to ${appName}?`, 'Save Changes');
                 
                 if (confirmed) {
                     this.saveToPersistence(name, data, config);
@@ -878,6 +988,8 @@ ESSENTIAL JAVASCRIPT CODE GENERATION GUIDELINES:
 - Keep Javascript scripts simple and avoid complex string operations that could break JSON
 - All declared variables must be prefixed with "{appId}_" to avoid conflicts
 - CRITICAL: never use window.prompt() or window.alert() in the JavaScript code, always implement custom UI for user interactions
+- CRITICAL: For user notifications, create custom modal dialogs or inline messages within your app
+- CRITICAL: For user input, create custom input forms or dialogs within your app
 - CRITICAL: NEVER add global key event listeners (document.addEventListener('keydown'/'keyup'/'keypress') or window.addEventListener('keydown'/'keyup'/'keypress'))
 - CRITICAL: Use the provided app.onKey() method instead for key handling that respects app focus
 - CRITICAL: Key events will only be delivered to the currently focused/active app
@@ -1414,20 +1526,22 @@ DELETE FUNCTIONALITY IMPLEMENTATION:
 
 EXAMPLE DELETE BUTTON IMPLEMENTATION:
 function deleteDataObject(key) {
-  if (confirm('Are you sure you want to permanently delete "' + key + '"? This action cannot be undone.')) {
+  showCustomConfirm('Are you sure you want to permanently delete "' + key + '"? This action cannot be undone.', 'Confirm Delete').then(confirmed => {
+    if (confirmed) {
     try {
       const result = window.dataRegistry.deleteData(key);
       if (result.success) {
         console.log('Successfully deleted data object:', key);
         loadRegistryData(); // Refresh the display using the main load function
       } else {
-        alert('Failed to delete data object: ' + result.error);
+        showCustomAlert('Failed to delete data object: ' + result.error, 'Error');
       }
     } catch (error) {
       console.error('Error deleting data object:', error);
-      alert('Error deleting data object: ' + error.message);
+      showCustomAlert('Error deleting data object: ' + error.message, 'Error');
     }
-  }
+    }
+  });
 }
 
 EXAMPLE MAIN LOAD FUNCTION:
@@ -1663,7 +1777,7 @@ MANDATORY FEATURES:
                                 console.log('Image pasted successfully for new app:', imageData.name);
                             } catch (error) {
                                 console.error('Error processing pasted image for new app:', error);
-                                alert('Error processing pasted image. Please try again.');
+                                showCustomAlert('Error processing pasted image. Please try again.', 'Error');
                             }
                         }
                     }
@@ -2787,14 +2901,14 @@ const app = {
         function showTextPromptDialog(appId) {
             const app = apps.find(a => a.id === appId);
             if (!app) {
-                alert('App not found!');
+                showCustomAlert('App not found!', 'Error');
                 return;
             }
 
             // Get the app window element to position the dialog relative to it
             const appWindow = document.getElementById(`window_${appId}`);
             if (!appWindow) {
-                alert('App window not found!');
+                showCustomAlert('App window not found!', 'Error');
                 return;
             }
 
@@ -2940,7 +3054,7 @@ const app = {
                                 console.log('Image pasted successfully:', imageData.name);
                             } catch (error) {
                                 console.error('Error processing pasted image:', error);
-                                alert('Error processing pasted image. Please try again.');
+                                showCustomAlert('Error processing pasted image. Please try again.', 'Error');
                             }
                         }
                     }
@@ -3375,16 +3489,18 @@ const app = {
         }
 
         function closeAllApps() {
-            if (confirm('Close all applications?')) {
-                [...apps].forEach(app => closeWindow(app.id));
-            }
+            showCustomConfirm('Close all applications?', 'Confirm Close All').then(confirmed => {
+                if (confirmed) {
+                    [...apps].forEach(app => closeWindow(app.id));
+                }
+            });
             document.getElementById('start-menu').classList.remove('show');
         }
 
         function downloadApp(appId) {
             const app = apps.find(a => a.id === appId);
             if (!app) {
-                alert('App not found!');
+                showCustomAlert('App not found!', 'Error');
                 return;
             }
 
@@ -3514,7 +3630,7 @@ const app = {
                 
             } catch (error) {
                 console.error('Error downloading app:', error);
-                alert(`Failed to download app: ${error.message}`);
+                showCustomAlert(`Failed to download app: ${error.message}`, 'Error');
             }
         }
 
@@ -3719,12 +3835,12 @@ const app = {
                     
                 } catch (error) {
                     console.error('Failed to load app:', error);
-                    alert(`Failed to load app: ${error.message}`);
+                    showCustomAlert(`Failed to load app: ${error.message}`, 'Error');
                 }
             };
             
             reader.onerror = function() {
-                alert('Failed to read the file');
+                showCustomAlert('Failed to read the file', 'Error');
             };
             
             reader.readAsText(file);
@@ -4397,9 +4513,11 @@ const app = {
             
             if (skipBtn) {
                 skipBtn.addEventListener('click', () => {
-                    if (confirm('Skip setup? You can configure these settings later in the Settings app.')) {
-                        finishSetup(setupId);
-                    }
+                    showCustomConfirm('Skip setup? You can configure these settings later in the Settings app.', 'Skip Setup').then(confirmed => {
+                        if (confirmed) {
+                            finishSetup(setupId);
+                        }
+                    });
                 });
             }
             
@@ -4727,7 +4845,7 @@ const app = {
                 // Validate AI Model step
                 const selectedProvider = document.querySelector('.setup-option-card[data-provider].selected');
                 if (!selectedProvider) {
-                    alert('Please select an AI provider.');
+                    showCustomAlert('Please select an AI provider.', 'Setup Required');
                     return false;
                 }
                 
@@ -4735,13 +4853,13 @@ const app = {
                 if (provider === 'openrouter') {
                     const apiKey = document.getElementById('setup-openrouter-key')?.value;
                     if (!apiKey) {
-                        alert('Please enter your OpenRouter API key.');
+                        showCustomAlert('Please enter your OpenRouter API key.', 'Setup Required');
                         return false;
                     }
                 } else if (provider === 'openai') {
                     const apiKey = document.getElementById('setup-openai-key')?.value;
                     if (!apiKey) {
-                        alert('Please enter your OpenAI API key.');
+                        showCustomAlert('Please enter your OpenAI API key.', 'Setup Required');
                         return false;
                     }
                 }
@@ -4749,7 +4867,7 @@ const app = {
                 // Validate Voice & Audio step
                 const selectedVoice = document.querySelector('.setup-option-card[data-voice].selected');
                 if (!selectedVoice) {
-                    alert('Please select a voice recognition method.');
+                    showCustomAlert('Please select a voice recognition method.', 'Setup Required');
                     return false;
                 }
                 
@@ -4757,7 +4875,7 @@ const app = {
                 if (voiceType === 'whisper') {
                     const apiKey = document.getElementById('setup-whisper-key')?.value;
                     if (!apiKey) {
-                        alert('Please enter your OpenAI API key for Whisper.');
+                        showCustomAlert('Please enter your OpenAI API key for Whisper.', 'Setup Required');
                         return false;
                     }
                 }
@@ -4890,7 +5008,7 @@ const app = {
             
             // Show completion message and close setup after delay
             setTimeout(() => {
-                alert('🎉 Setup completed! Your Self-Evolving OS is ready to use. Try saying "Create a calculator app" or use the Start menu.');
+                showCustomAlert('🎉 Setup completed! Your Self-Evolving OS is ready to use. Try saying "Create a calculator app" or use the Start menu.', 'Setup Complete');
                 closeWindow(setupId);
             }, 2000);
         }
@@ -5452,8 +5570,9 @@ const app = {
 
 
         function clearCostHistory() {
-            if (confirm('Are you sure you want to clear all cost history? This action cannot be undone.')) {
-                const costHistory = [];
+            showCustomConfirm('Are you sure you want to clear all cost history? This action cannot be undone.', 'Clear History').then(confirmed => {
+                if (confirmed) {
+                    const costHistory = [];
                 
                 // Update data registry (this will notify all subscribers)
                 window.dataRegistry.updateData('cost-history', costHistory);
@@ -5471,8 +5590,9 @@ const app = {
                 // Reset total cost
                 totalCost = 0;
                 
-                alert('Cost history cleared successfully! Cost Tracking apps will automatically refresh.');
-            }
+                showCustomAlert('Cost history cleared successfully! Cost Tracking apps will automatically refresh.', 'Success');
+                }
+            });
         }
         
         // Make clearCostHistory globally accessible for generated apps
@@ -5864,7 +5984,7 @@ const app = {
                 
             } catch (error) {
                 console.error('Error loading persistent app:', error);
-                alert(`Failed to load app: ${error.message}`);
+                showCustomAlert(`Failed to load app: ${error.message}`, 'Error');
             }
         }
         
@@ -6420,7 +6540,7 @@ const app = {
                 
             } catch (error) {
                 console.error('Failed to create microphone test dialog:', error);
-                alert('Failed to start microphone test. Please try again.');
+                showCustomAlert('Failed to start microphone test. Please try again.', 'Error');
             }
         }
 
@@ -6785,7 +6905,7 @@ const app = {
         function showPromptHistory(appId) {
             const app = apps.find(a => a.id === appId);
             if (!app || !app.promptHistory || app.promptHistory.length === 0) {
-                alert('No prompt history available for this app.');
+                showCustomAlert('No prompt history available for this app.', 'Information');
                 return;
             }
 
@@ -8594,11 +8714,13 @@ ${containerSelector} {
             const resetCostBtn = document.getElementById('reset-cost');
             if (resetCostBtn) {
                 resetCostBtn.addEventListener('click', () => {
-                    if (confirm('Reset the API cost counter to $0.00?')) {
-                        totalCost = 0;
-                        document.getElementById('api-cost').textContent = '0.00';
-                        alert('Cost counter reset successfully!');
-                    }
+                    showCustomConfirm('Reset the API cost counter to $0.00?', 'Reset Counter').then(confirmed => {
+                        if (confirmed) {
+                            totalCost = 0;
+                            document.getElementById('api-cost').textContent = '0.00';
+                            showCustomAlert('Cost counter reset successfully!', 'Success');
+                        }
+                    });
                 });
             }
             
@@ -8606,10 +8728,12 @@ ${containerSelector} {
             const clearCacheBtn = document.getElementById('clear-cache');
             if (clearCacheBtn) {
                 clearCacheBtn.addEventListener('click', () => {
-                    if (confirm('Clear all cached data? This will not affect your current apps.')) {
-                        // Could implement cache clearing here
-                        alert('Cache cleared successfully!');
-                    }
+                    showCustomConfirm('Clear all cached data? This will not affect your current apps.', 'Clear Cache').then(confirmed => {
+                        if (confirmed) {
+                            // Could implement cache clearing here
+                            showCustomAlert('Cache cleared successfully!', 'Success');
+                        }
+                    });
                 });
             }
             
@@ -8672,10 +8796,10 @@ ${containerSelector} {
                                             }
                                         }
                                     });
-                                    alert('Settings imported successfully!');
+                                    showCustomAlert('Settings imported successfully!', 'Success');
                                 }
                             } catch (error) {
-                                alert('Failed to import settings: Invalid file format');
+                                showCustomAlert('Failed to import settings: Invalid file format', 'Error');
                             }
                         };
                         reader.readAsText(file);
@@ -8687,7 +8811,8 @@ ${containerSelector} {
             const resetBtn = document.getElementById('reset-settings');
             if (resetBtn) {
                 resetBtn.addEventListener('click', () => {
-                    if (confirm('Reset all settings and restart the setup assistant? This will delete all your current configuration and close all apps.')) {
+                    showCustomConfirm('Reset all settings and restart the setup assistant? This will delete all your current configuration and close all apps.', 'Reset Settings').then(confirmed => {
+                        if (confirmed) {
                         // Delete the settings cookie
                         document.cookie = 'selfEvolvingOS_settings=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
                         
@@ -8713,11 +8838,12 @@ ${containerSelector} {
                         [...apps].forEach(app => closeWindow(app.id));
                         
                         // Show confirmation and reload
-                        alert('Settings reset successfully! The page will reload and the setup assistant will start.');
+                        showCustomAlert('Settings reset successfully! The page will reload and the setup assistant will start.', 'Success');
                         
                         // Reload the page to restart with fresh state
                         window.location.reload();
-                    }
+                        }
+                    });
                 });
             }
             
