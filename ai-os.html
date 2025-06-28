@@ -942,8 +942,14 @@ IMPORTANT:
 DATA REGISTRY SYSTEM:
 Apps can access and register shared data objects through the global data registry system:
 
-ACCESSING REGISTERED DATA:
-- Use: window.dataRegistry.getData('dataName') to get data
+ACCESSING REGISTERED DATA (ALWAYS USE SAFE ACCESS):
+- CORRECT: const data = window.dataRegistry.getData('dataName') || []; // Safe with fallback
+- CORRECT: const data = window.dataRegistry.getData('dataName') || {}; // Safe with fallback
+- WRONG: window.dataRegistry.getData('localData').getItem() // This will cause errors!
+- WRONG: window.dataRegistry.hasData('dataName') // This method does not exist!
+- WRONG: window.dataRegistry.unregisterData('dataName') // This method does not exist!
+- To check if data exists: window.dataRegistry.getData('dataName') !== undefined
+- To delete data: window.dataRegistry.deleteData('dataName') // CORRECT method for deletion
 - Use: window.dataRegistry.getAllData() to get all registered data objects
 - Use: window.dataRegistry.subscribe('dataName', callbackFunction) to listen for changes
 
@@ -955,16 +961,60 @@ UPDATING DATA:
 - Use: window.dataRegistry.updateData('dataName', newDataObject) to update existing data
 - This will notify all subscribers of the change
 
+DELETING DATA:
+- Use: window.dataRegistry.deleteData('dataName') to delete a data object
+- Returns: {success: boolean, error?: string, deletedFromPersistence: number, deletedFromMemory: number}
+- Example: const result = window.dataRegistry.deleteData('myData'); if (result.success) { console.log('Deleted!'); }
+
+COMPLETE LIST OF AVAILABLE METHODS:
+- window.dataRegistry.getData(name) - Get data object
+- window.dataRegistry.getAllData() - Get all data objects
+- window.dataRegistry.getDataInfo(name) - Get metadata about data object
+- window.dataRegistry.registerData(name, data, description, structure) - Register new data
+- window.dataRegistry.updateData(name, newData) - Update existing data
+- window.dataRegistry.deleteData(name) - Delete data object
+- window.dataRegistry.subscribe(name, callback) - Listen for data changes
+- window.dataRegistry.registerApp(appId, appData, options) - Register app with save dialog
+- window.dataRegistry.registerAppData(appId, dataName, data, options) - Register app data
+
+COMPLETE EXAMPLE FOR APP DATA PERSISTENCE:
+// Initialize app data (in init function)
+let myAppData = window.dataRegistry.getData('myAppData') || [];
+
+// Save data function
+function saveData() {
+    window.dataRegistry.updateData('myAppData', myAppData);
+}
+
+// Load data function
+function loadData() {
+    myAppData = window.dataRegistry.getData('myAppData') || [];
+}
+
+// Register data if it doesn't exist
+if (!window.dataRegistry.getData('myAppData')) {
+    window.dataRegistry.registerData('myAppData', [], 'My app data', 'Array of objects');
+}
+
 AVAILABLE DATA OBJECTS:
 {availableDataObjects}
 
-PERSISTENT STORAGE ACCESS:
-- localStorage: window.dataRegistry.registerData('localData', localStorage, 'Browser local storage', 'Web Storage API')
-- sessionStorage: window.dataRegistry.registerData('sessionData', sessionStorage, 'Browser session storage', 'Web Storage API')
-- cookies: Use document.cookie and register as data object if needed
-- IndexedDB: Can be registered as data object for complex data storage
+PERSISTENT STORAGE PATTERNS:
+- For app-specific data: Create and register your own data objects using window.dataRegistry.registerData()
+- Example: window.dataRegistry.registerData('myAppData', [], 'My app data storage', 'Array of objects')
+- To persist data: Use window.dataRegistry.updateData('myAppData', updatedData) to save changes
+- Data persists automatically across app sessions through the data registry system
+- NEVER use localStorage.getItem() or localStorage.setItem() directly - use the data registry instead
 
 Use these data objects when relevant to your app's functionality!
+
+ERROR HANDLING AND ROBUSTNESS:
+- ALWAYS check if data exists before using it: const data = window.dataRegistry.getData('name') || defaultValue;
+- ALWAYS wrap data operations in try-catch blocks for production apps
+- ALWAYS validate user input before processing
+- ALWAYS provide fallback values for missing data
+- NEVER assume data structures exist - check for undefined/null values
+- Example: if (app.promptHistory && app.promptHistory.length > 0) { /* safe to use */ }
 
 KEY EVENT HANDLING:
 - Apps can register keyboard event handlers using app.onKey(eventType, handlerFunction)
@@ -1334,6 +1384,8 @@ FUNCTIONALITY REQUIREMENTS:
 - Console Log button should use: console.log('Data Key:', key, 'Value:', window.dataRegistry.getData(key), 'Info:', window.dataRegistry.getDataInfo(key))
 - Each row must have a "Delete" button that permanently removes the data object
 - Delete button should confirm deletion and use: window.dataRegistry.deleteData(key)
+- NEVER use window.dataRegistry.hasData() - this method does not exist
+- To check if data exists, use: window.dataRegistry.getData(key) !== undefined
 - Refresh button updates the display by calling loadRegistryData() function
 - Add Sample Data button creates test entries using window.dataRegistry.registerData()
 - Clear Sample Data button removes test entries using window.dataRegistry.updateData()
