@@ -125,7 +125,7 @@ Recommended models for LMStudio:
 ### Installation
 1. Download the [`ai-os.html`](ai-os.html) file
 2. Open it in your web browser
-3. Configure your API keys in Settings (⚙️)
+3. Complete the Setup Assistand or configure your API keys in Settings (⚙️)
 4. Start creating apps with voice or text commands!
 
 ## 🎯 Usage
