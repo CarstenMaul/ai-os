@@ -11,30 +11,82 @@ Have fun!
 
 ## 🌟 Features
 
-### Core Functionality
-- **AI-Powered App Generation**: Create fully functional applications using natural language descriptions
-- **Voice Commands**: Control the system and create apps using voice input (OpenAI Whisper or Web Speech API)
-- **Dynamic Window Management**: Drag, resize, minimize, maximize, and manage multiple application windows
-- **Real-time App Modification**: Modify existing applications using voice or text commands
-- **Theme Support**: Light and Dark mode themes with automatic app theming
+### User Features
 
-### AI Integration
+#### Core App Creation & Management
+- **AI-Powered App Generation**: Create fully functional applications using natural language descriptions
+- **Image-Based App Creation**: Paste screenshots with Ctrl+V when creating apps for visual app generation
+- **Real-time App Modification**: Modify existing applications using voice or text commands with context-aware prompts
+- **App Export/Import**: Save and load applications as JSON files with versioning support
+- **Demo Apps**: Pre-built example apps included in `/demo-apps` folder for immediate use
+
+#### Advanced Voice Control
+- **Voice Commands**: Control the system and create apps using voice input (OpenAI Whisper or Web Speech API)
+- **Push-to-Talk**: Hold-to-speak functionality for precise voice control (mouse button or touch)
+- **Multi-language Support**: 40+ languages supported for Web Speech API
+- **Voice Command Popup**: Visual feedback showing recognized voice commands
+- **Touch Support**: Mobile-friendly touch events for voice activation
+
+#### Window & Interface Management
+- **Dynamic Window Management**: Drag, resize, minimize, maximize, and manage multiple application windows
+- **Auto-sizing**: Intelligent window sizing and centering based on content
+- **Taskbar Integration**: Quick access to all running applications with hover tooltips
+- **Apps Submenu**: Quick access menu in Start menu for all created apps
+- **Focus Management**: Visual indicators for active windows with proper focus handling
+
+#### Built-in System Apps
+- **Calculator**: Professional calculator with keyboard support and specific color scheme
+- **Digital Clock**: Real-time clock with 12/24-hour format toggle and date display
+- **Cost Tracking**: Detailed API usage monitoring with history and export functionality
+- **Data Registry Browser**: View and manage shared data objects across apps
+- **App Manager**: Comprehensive application management interface
+- **Setup Assistant**: First-time setup wizard with progress tracking
+
+#### Theme & Customization
+- **Theme Support**: Light and Dark mode themes with automatic app theming
+- **Smart Icon Generation**: Automatic icon selection based on app content (100+ icon mappings)
+- **Consistent Styling**: Unified design language across system and user-generated apps
+
+### Technical Features
+
+#### App Isolation & Security
+- **Sandboxed Execution**: Generated apps run in isolated contexts with unique namespaces (`app_${appId}`)
+- **Safe App Import**: Automatic app ID reference replacement during import to prevent conflicts
+- **Resource Cleanup**: Automatic cleanup of app resources, event handlers, and namespaces on close
+- **Input Validation**: All user inputs sanitized and validated for security
+
+#### Shared Data Registry System
+- **Global Data Sharing**: Apps can share data through `window.dataRegistry` API
+- **Data Subscription**: Real-time notifications when shared data changes
+- **Persistent Storage Integration**: Access to localStorage, sessionStorage, and cookies
+- **Data Structure Analysis**: Automatic analysis and documentation of data types and structures
+
+#### Advanced AI Integration
 - **Multiple LLM Providers**: Support for OpenRouter, OpenAI API, and LMStudio
 - **Model Selection**: Choose between "Simple" and "Tough" models for different complexity needs
-- **Cost Tracking**: Monitor API usage costs with detailed history
+- **Context-Aware Modification**: Prompt history tracking for intelligent app modifications
+- **Image Analysis**: Process pasted images for enhanced app generation
 - **Smart Prompting**: Optimized prompts for generating functional web applications
+- **Cost Tracking**: Real-time API usage monitoring with detailed cost breakdown
 
-### Voice Recognition
-- **OpenAI Whisper**: High-accuracy cloud-based speech recognition
-- **Web Speech API**: Browser-based speech recognition (offline capable)
-- **Multi-language Support**: 40+ languages supported for Web Speech API
-- **Push-to-Talk**: Hold-to-speak functionality for precise voice control
+#### Keyboard Event Management
+- **Focus-Aware Key Handling**: Keyboard events only sent to active/focused apps
+- **App-Specific Shortcuts**: Apps can register custom keyboard handlers using `app.onKey()` API
+- **Global Event Distribution**: Centralized keyboard event management system
+- **Automatic Cleanup**: Key handlers automatically removed when apps close
 
-### Application Management
-- **App Export/Import**: Save and load applications as JSON files
-- **System Apps**: Built-in settings, app manager, and cost tracking applications
-- **Auto-sizing**: Intelligent window sizing based on content
-- **Taskbar Integration**: Quick access to all running applications
+#### Performance & Architecture
+- **Efficient DOM Manipulation**: Minimal reflows and optimized rendering
+- **Smart Caching**: Intelligent caching of app data and settings
+- **Single File Architecture**: Lightweight, no external dependencies
+- **Responsive Design**: Optimized for desktop and tablet use
+- **Error Handling**: Graceful degradation with user-friendly error messages
+
+#### Development & Extensibility
+- **Debug Mode**: Comprehensive logging system with `debugLog`, `debugWarn`, `debugError`
+- **Settings Persistence**: Cookie-based settings storage with export/import functionality
+- **Theme Inheritance**: Automatic theme application to imported and generated apps
+- **Namespace Management**: Isolated JavaScript contexts prevent app conflicts
 
 ## 🚀 Getting Started
 
@@ -81,7 +133,8 @@ Recommended models for LMStudio:
 ### Creating Apps
 1. **Voice Command**: Click the microphone button and say "Create a calculator app"
 2. **Text Input**: Click the Start button and type your app description
-3. **Start Menu**: Use the built-in app creation interface
+3. **Image-Based**: Paste screenshots with Ctrl+V in the app request field
+4. **Start Menu**: Use the built-in app creation interface
 
 ### Voice Commands Examples
 - "Create a todo list app"
@@ -101,6 +154,13 @@ Recommended models for LMStudio:
 - **Minimize**: Click the "−" button
 - **Maximize**: Click the "□" button
 - **Close**: Click the "×" button
+
+### Using System Apps
+- **Calculator**: Access via Start menu, includes keyboard support
+- **Digital Clock**: Real-time clock with format toggle
+- **Cost Tracking**: Monitor API usage and costs
+- **Data Registry**: View shared data between apps
+- **App Manager**: Manage all created applications
 
 ## ⚙️ Configuration
 
@@ -137,23 +197,39 @@ Recommended models for LMStudio:
 ## 🏗️ Architecture
 
 ### Core Components
-- **Window Manager**: Handles application windows and UI
+- **Window Manager**: Handles application windows and UI with focus management
 - **AI Engine**: Processes natural language and generates applications
-- **Voice System**: Manages speech recognition and audio input
-- **App Runtime**: Executes and manages generated applications
+- **Voice System**: Manages speech recognition and audio input with multi-modal support
+- **App Runtime**: Executes and manages generated applications with isolation
 - **Settings Manager**: Handles configuration and persistence
+- **Data Registry**: Global data sharing system between apps
+- **Namespace Manager**: Ensures app isolation and prevents conflicts
 
 ### Generated App Structure
 Each AI-generated app consists of:
 - **HTML**: User interface markup
 - **CSS**: Styling with theme support
-- **JavaScript**: Interactive functionality
+- **JavaScript**: Interactive functionality with isolated namespace
 - **Metadata**: Title, description, and configuration
+- **Init Function**: Proper initialization with `window[appNamespace].init`
 
 ### Theme System
 - Apps automatically inherit system theme
 - CSS classes: `.app-light-theme` and `.app-dark-theme`
 - Consistent color schemes and accessibility
+- Dynamic theme application to imported apps
+
+### Data Registry System
+- **Global Access**: `window.dataRegistry.getData(name)`
+- **Data Registration**: `window.dataRegistry.registerData(name, data, description, structure)`
+- **Change Notifications**: `window.dataRegistry.subscribe(name, callback)`
+- **Persistent Storage**: Integration with localStorage and sessionStorage
+
+### Keyboard Event System
+- **Focus-Aware**: Events only sent to active apps
+- **App Registration**: `app.onKey(eventType, handler)`
+- **Automatic Cleanup**: Handlers removed when apps close
+- **Global Management**: Centralized event distribution
 
 ## 🔧 Technical Details
 
@@ -162,6 +238,7 @@ Each AI-generated app consists of:
 - **AI Models**: GPT-4, Claude, Gemini, and other LLM providers
 - **Voice**: OpenAI Whisper API, Web Speech API
 - **Storage**: LocalStorage, Cookies for persistence
+- **Data Sharing**: Custom data registry system
 
 ### Browser Compatibility
 - ✅ Chrome 80+
@@ -173,14 +250,22 @@ Each AI-generated app consists of:
 - **Lightweight**: Single HTML file, no external dependencies
 - **Responsive**: Optimized for desktop and tablet use
 - **Efficient**: Minimal resource usage, smart caching
+- **Isolated Execution**: Apps run in separate namespaces for stability
+
+### Security Features
+- **API Key Protection**: Keys stored locally, never transmitted unnecessarily
+- **Sandboxed Execution**: Generated apps run in isolated contexts
+- **Input Validation**: All user inputs sanitized and validated
+- **Safe Import**: App ID references safely replaced during import
 
 ## 📊 Cost Management
 
 ### Cost Tracking Features
-- **Real-time Monitoring**: Track API costs as you use the system
-- **Detailed History**: View cost breakdown by request type
+- **Real-time Monitoring**: Track API costs as you use the system through data registry
+- **Detailed History**: View cost breakdown by request type with timestamps
 - **Export Data**: Download cost reports for analysis
 - **Budget Awareness**: Monitor spending across different AI providers
+- **Cost Tracking App**: Built-in system app for comprehensive cost analysis
 
 ### Typical Costs (Approximate)
 - **Simple App Creation**: $0.001 - $0.01 per app
@@ -197,6 +282,14 @@ The AI-OS is designed to be extensible:
 2. **New Providers**: Add support for additional LLM providers
 3. **System Apps**: Create built-in applications
 4. **Themes**: Develop custom theme systems
+5. **Data Registry**: Create shared data objects for app communication
+
+### App Development Guidelines
+- **Use Data Registry**: Access shared data with `window.dataRegistry.getData()`
+- **Implement Init Function**: Use `window[appNamespace].init` for setup
+- **Handle Keyboard Events**: Register with `app.onKey()` for keyboard support
+- **Theme Support**: Use `.app-light-theme` and `.app-dark-theme` classes
+- **Namespace Isolation**: All app code should be namespaced properly
 
 ### Code Structure
 ```
@@ -205,13 +298,17 @@ ai-os.html
 ├── CSS Styling
 │   ├── Window Management
 │   ├── Theme System
+│   ├── Setup Assistant
 │   └── Component Styles
 └── JavaScript Logic
     ├── App Management
     ├── AI Integration
     ├── Voice System
     ├── Settings Manager
-    └── Window Manager
+    ├── Window Manager
+    ├── Data Registry
+    ├── Keyboard Handler
+    └── Cost Tracking
 ```
 
 ## 🔒 Privacy & Security
@@ -221,11 +318,14 @@ ai-os.html
 - **API Communication**: Secure HTTPS connections to AI providers
 - **No Data Collection**: No personal data collected or transmitted
 - **Voice Privacy**: Audio processed by chosen provider only
+- **Data Registry**: Shared data stored locally, not transmitted
 
 ### Security Features
 - **API Key Protection**: Keys stored locally, never transmitted unnecessarily
 - **Sandboxed Execution**: Generated apps run in isolated contexts
 - **Input Validation**: All user inputs sanitized and validated
+- **Safe App Loading**: App ID references safely replaced during import
+- **Namespace Isolation**: Apps cannot interfere with each other
 
 ## 🐛 Troubleshooting
 
@@ -256,8 +356,14 @@ ai-os.html
 3. Disable debug mode
 4. Check available system memory
 
+#### App Import/Export Issues
+1. Ensure JSON file is valid
+2. Check for app ID conflicts
+3. Verify app version compatibility
+4. Try importing individual apps instead of bulk import
+
 ### Debug Mode
-Enable debug mode in Settings → System for detailed logging and troubleshooting information.
+Enable debug mode in Settings → System for detailed logging and troubleshooting information. This provides comprehensive logging through `debugLog`, `debugWarn`, and `debugError` functions.
 
 ## 🔄 Recent Updates (v2.0.1)
 
@@ -289,6 +395,7 @@ Recent updates have significantly improved OpenAI API integration:
 - **Collaboration**: Multi-user app development
 - **App Store**: Share and discover community-created apps
 - **Advanced AI**: More sophisticated app generation capabilities
+- **Enhanced Data Registry**: More data types and persistence options
 
 ### Version History
 - **v2.0.1**: Latest version with improved OpenAI API compatibility
@@ -308,6 +415,8 @@ This is an experimental project exploring AI-powered interfaces. Contributions, 
 - Improve documentation
 - Share interesting use cases
 - Develop custom themes or extensions
+- Create system apps
+- Enhance the data registry system
 
 ## 📄 License
 
@@ -327,6 +436,7 @@ For questions, issues, or suggestions:
 - Open an issue in the repository
 - Check the troubleshooting section
 - Review the settings configuration guide
+- Use the built-in debug mode for detailed logging
 
 ---
 
