@@ -3964,11 +3964,26 @@ const app = {
                     // Use the original app ID from the saved app, or generate one if missing
                     const appId = appData.id || generateAppId();
                     
-                    // Check if an app with this ID already exists
+                    // IMPROVEMENT: Three-step validation process before loading
+                    
+                    // Step 1: Check if app is in persistence by comparing appIds
+                    const persistentApps = window.dataRegistry.getAllData();
+                    const persistentAppExists = Object.keys(persistentApps).some(key => {
+                        const data = persistentApps[key];
+                        const meta = window.dataRegistry.getDataInfo(key);
+                        return meta.config && meta.config.type === 'app' && meta.config.appId === appId;
+                    });
+                    
+                    if (persistentAppExists) {
+                        showCustomAlert(`App "${appData.title}" is already saved in persistence. Cannot load duplicate.`, 'App Already in Persistence');
+                        return;
+                    }
+                    
+                    // Step 2: Check if app is currently running/active
                     const existingApp = apps.find(app => app.id === appId);
                     if (existingApp) {
-                        // If app already exists, close it first
-                        closeApp(appId);
+                        showCustomAlert(`App "${appData.title}" is already running. Cannot load duplicate.`, 'App Already Running');
+                        return;
                     }
                     
                     // Create the app object with all modern features
@@ -4084,6 +4099,52 @@ const app = {
                     }, 500); // Increased timeout to ensure DOM is ready
                     
                     console.log(`Loaded app: ${appData.title} as ${appId} (version: ${appVersion})`);
+                    
+                    // Step 3: Ask user if they want to save to persistence
+                    setTimeout(async () => {
+                        try {
+                            const shouldSave = await showCustomConfirm(
+                                `Would you like to save "${appData.title}" to persistence? This will allow the app to be automatically restored in future sessions.`,
+                                'Save to Persistence'
+                            );
+                            
+                            if (shouldSave) {
+                                // Save the app to persistence using the data registry
+                                const saveResult = window.dataRegistry.registerApp(appId, {
+                                    id: appId,
+                                    title: appData.title,
+                                    icon: appData.icon || '📱',
+                                    html: appData.html,
+                                    css: appData.css || '',
+                                    javascript: appData.javascript || '',
+                                    type: appData.type || 'imported',
+                                    version: appVersion,
+                                    customRequest: appData.customRequest || 'Imported app',
+                                    promptHistory: appData.promptHistory || [],
+                                    modificationHistory: appData.modificationHistory || [],
+                                    lastModification: appData.lastModification || null,
+                                    isSystemApp: appData.isSystemApp || false,
+                                    generationMode: appData.generationMode || 'SIMPLE',
+                                    hasImages: appData.hasImages || false,
+                                    imageCount: appData.imageCount || 0,
+                                    windowState: appData.windowState || null
+                                }, {
+                                    description: `Persistent app: ${appData.title}`,
+                                    savePrompt: false // Don't show another prompt since we already asked
+                                });
+                                
+                                if (saveResult.saved) {
+                                    showCustomAlert(`App "${appData.title}" has been saved to persistence and will be available in future sessions.`, 'Saved to Persistence');
+                                } else {
+                                    console.log(`User chose not to save "${appData.title}" to persistence`);
+                                }
+                            } else {
+                                console.log(`User chose not to save "${appData.title}" to persistence`);
+                            }
+                        } catch (error) {
+                            console.error('Error during persistence save prompt:', error);
+                        }
+                    }, 1000); // Wait a bit longer to ensure app is fully loaded
                     
                     // Show success notification
                     showImportNotification(appData.title, appVersion, isLegacyFormat);
