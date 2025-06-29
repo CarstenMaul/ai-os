@@ -3716,7 +3716,7 @@ const app = {
             apps.push(managerApp);
             updateSharedAppsRegistry();
             createWindow(managerId, 'App Manager', appListContent);
-            createTaskbarIcon(managerId, 'App Manager');
+            createTaskbarIcon(managerId, 'App Manager', '📋');
             updateAppCount();
             
             const contentElement = document.getElementById(`content_${managerId}`);
@@ -4465,7 +4465,7 @@ const app = {
             apps.push(setupApp);
             updateSharedAppsRegistry();
             createWindow(setupId, 'Setup Assistant', setupContent, 600, 500);
-            createTaskbarIcon(setupId, 'Setup Assistant');
+            createTaskbarIcon(setupId, 'Setup Assistant', '🛠️');
             updateAppCount();
             
             // Add setup-specific CSS
@@ -6109,7 +6109,7 @@ const app = {
                 // Create the window and UI
                 const windowContent = appData.html || '<div>No content available</div>';
                 createWindow(newApp.id, newApp.title, windowContent, 400, 300, newApp.icon);
-                createTaskbarIcon(newApp.id, newApp.title);
+                createTaskbarIcon(newApp.id, newApp.title, newApp.icon);
                 updateAppCount();
                 
                 // Apply CSS and JavaScript
@@ -8561,7 +8561,7 @@ ${containerSelector} {
             apps.push(settingsApp);
             updateSharedAppsRegistry();
             createWindow(settingsId, 'Settings', settingsContent, 700, 500);
-            createTaskbarIcon(settingsId, 'Settings');
+            createTaskbarIcon(settingsId, 'Settings', '⚙️');
             updateAppCount();
             
             // Add settings-specific CSS
