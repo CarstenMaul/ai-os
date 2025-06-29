@@ -908,6 +908,9 @@
             modal.appendChild(dialog);
             document.body.appendChild(modal);
             
+            // Set flag to prevent app key handlers from interfering
+            window.customDialogOpen = true;
+            
             const input = document.getElementById('prompt-input');
             const cancelBtn = document.getElementById('prompt-cancel');
             const okBtn = document.getElementById('prompt-ok');
@@ -920,6 +923,8 @@
             
             function cleanup() {
                 document.body.removeChild(modal);
+                // Clear flag to re-enable app key handlers
+                window.customDialogOpen = false;
             }
             
             // Cancel button
@@ -1006,11 +1011,16 @@
             modal.appendChild(dialog);
             document.body.appendChild(modal);
             
+            // Set flag to prevent app key handlers from interfering
+            window.customDialogOpen = true;
+            
             const cancelBtn = document.getElementById('confirm-cancel');
             const okBtn = document.getElementById('confirm-ok');
             
             function cleanup() {
                 document.body.removeChild(modal);
+                // Clear flag to re-enable app key handlers
+                window.customDialogOpen = false;
             }
             
             // Cancel button
@@ -1641,6 +1651,11 @@
 
         // Global key event listener that only forwards events to the active app
         function handleGlobalKeyEvent(event) {
+            // Don't forward key events to apps when a custom dialog is open
+            if (window.customDialogOpen) {
+                return;
+            }
+            
             // Only forward key events to the currently active/focused app
             if (activeWindow && window.appKeyHandlers && window.appKeyHandlers[activeWindow]) {
                 const handlers = window.appKeyHandlers[activeWindow][event.type];
@@ -1713,6 +1728,7 @@
             
             // Initialize global key event management system
             window.appKeyHandlers = {};
+            window.customDialogOpen = false;
             
             // Register global key event listeners
             document.addEventListener('keydown', handleGlobalKeyEvent);
@@ -3086,6 +3102,9 @@ const app = {
             overlay.appendChild(dialog);
             appWindow.appendChild(overlay);
 
+            // Set flag to prevent app key handlers from interfering
+            window.customDialogOpen = true;
+
             // Focus the textarea
             const textarea = document.getElementById(`text-prompt-input-${appId}`);
             setTimeout(() => {
@@ -3215,6 +3234,8 @@ const app = {
 
             function closeDialog() {
                 overlay.remove();
+                // Clear flag to re-enable app key handlers
+                window.customDialogOpen = false;
             }
 
             cancelBtn.addEventListener('click', closeDialog);
