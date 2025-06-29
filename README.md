@@ -21,8 +21,19 @@ Have fun!
 - **AI-Powered App Generation**: Create fully functional applications using natural language descriptions
 - **Image-Based App Creation**: Paste screenshots with Ctrl+V when creating apps for visual app generation
 - **Real-time App Modification**: Modify existing applications using voice or text commands with context-aware prompts
+- **Advanced Version Control**: Complete snapshot management with smart save states and version history
 - **App Export/Import**: Save and load applications as JSON files with versioning support
 - **Demo Apps**: Pre-built example apps included in `/demo-apps` folder for immediate use
+
+#### Advanced Version Control System
+- **Smart Save Management**: Save button only enabled when apps have unsaved changes
+- **Snapshot Creation**: Create named snapshots of app states with custom descriptions
+- **Version History**: Complete timeline of all app modifications with timestamps
+- **Active State Tracking**: Visual indicators show which snapshot is currently active
+- **Safe Snapshot Deletion**: Remove unwanted versions with protection for active snapshots
+- **Unified Management Interface**: Single dialog for viewing, reverting, and managing all snapshots
+- **Non-Blocking Dialogs**: Custom prompts and confirmations that don't freeze the interface
+- **Automatic State Detection**: System intelligently tracks when apps are modified or saved
 
 #### App & Data Persistence
 - **Persistent App Storage**: Apps automatically saved to IndexedDB when created or modified
@@ -55,10 +66,12 @@ Have fun!
 - **Setup Assistant**: First-time setup wizard with progress tracking
 
 #### Enhanced User Interface
-- **Custom Dialog System**: Professional popup dialogs replace browser defaults
-- **Consistent UX**: Unified confirmation and alert dialogs across the system
-- **Accessible Design**: Screen reader friendly with proper ARIA support
-- **Theme Integration**: Popups automatically adapt to light/dark themes
+- **Non-Blocking Dialog System**: Custom prompts and confirmations that maintain interface responsiveness
+- **Professional Popups**: Styled dialogs replace browser defaults with consistent design
+- **Smart Save Controls**: Visual feedback for save states with intelligent button management
+- **Version Management UI**: Comprehensive interface for snapshot creation, deletion, and restoration
+- **Accessible Design**: Screen reader friendly with proper ARIA support and keyboard navigation
+- **Theme Integration**: All dialogs automatically adapt to light/dark themes
 
 #### Theme & Customization
 - **Theme Support**: Light and Dark mode themes with automatic app theming
@@ -176,6 +189,14 @@ Recommended models for LMStudio:
 2. Speak your modification request
 3. Or click the text button (✏️) to type modifications
 
+### Version Control & Snapshots
+1. **Creating Snapshots**: Click the save button (💾) when you want to save the current app state
+2. **Smart Save Indication**: Save button is only enabled when there are unsaved changes
+3. **Managing Versions**: Click the revert button (🔄) to view, restore, or delete snapshots
+4. **Active State Tracking**: Current active snapshot is clearly marked with green border and "(ACTIVE)" label
+5. **Safe Deletion**: Delete unwanted snapshots while protecting the currently active version
+6. **Custom Descriptions**: Add meaningful descriptions when creating snapshots for easy identification
+
 ### 3D Graphics & Visualization Apps
 AI-OS now supports creating sophisticated 3D graphics and data visualization applications:
 
@@ -255,6 +276,7 @@ AI-OS now supports creating sophisticated 3D graphics and data visualization app
 ### Core Components
 - **Window Manager**: Handles application windows and UI with focus management
 - **AI Engine**: Processes natural language and generates applications
+- **Version Control System**: Advanced snapshot management with smart save states and history tracking
 - **3D Graphics Engine**: Three.js integration for WebGL and 3D rendering
 - **Visualization Engine**: Chart.js integration for data visualization
 - **Voice System**: Manages speech recognition and audio input with multi-modal support
@@ -263,7 +285,7 @@ AI-OS now supports creating sophisticated 3D graphics and data visualization app
 - **Settings Manager**: Handles configuration and persistence
 - **Data Registry**: Global data sharing system between apps with persistence support
 - **Namespace Manager**: Ensures app isolation and prevents conflicts
-- **Custom Popup System**: Unified dialog system for user interactions
+- **Non-Blocking Dialog System**: Custom prompts and confirmations for responsive user interactions
 
 ### Generated App Structure
 Each AI-generated app consists of:
@@ -463,26 +485,59 @@ ai-os.html
 ### Debug Mode
 Enable debug mode in Settings → System for detailed logging and troubleshooting information. This provides comprehensive logging through `debugLog`, `debugWarn`, and `debugError` functions.
 
-## 🔄 Recent Updates (v2.2.0)
+## 🔄 Recent Updates (v2.3.0)
 
-### Enhanced 3D Graphics & Visualization Support
+### Advanced Version Control & Snapshot Management
+Revolutionary improvements to app version control with comprehensive snapshot management:
+
+#### New Version Control Features
+- **Smart Save Button**: Only enabled when apps have unsaved changes, disabled after saving
+- **Active Snapshot Tracking**: Visual indicators show which snapshot is currently active
+- **Snapshot Deletion**: Remove unwanted snapshots with protection for active versions
+- **Enhanced Version Dialog**: Unified interface for reverting and managing all snapshots
+- **Non-Blocking Dialogs**: Custom prompt and confirmation dialogs replace browser defaults
+
+#### Technical Improvements
+- **Dirty State Tracking**: Intelligent detection of app modifications for save button management
+- **Active Snapshot Management**: System tracks and protects currently active app states
+- **Safe Deletion Logic**: Prevents accidental deletion of active snapshots with clear warnings
+- **Consistent UX**: Unified snapshot selection interface for single or multiple versions
+- **Automatic Cleanup**: Proper cleanup of version control state when apps are closed
+
+#### User Experience Enhancements
+- **Visual Feedback**: Clear indication of save state, active snapshots, and available actions
+- **Intuitive Controls**: Save button provides immediate feedback about unsaved changes
+- **Safe Operations**: Confirmation dialogs prevent accidental data loss
+- **Streamlined Workflow**: Consistent interface for all version management operations
+- **Professional Dialogs**: Custom styled dialogs match application theme and design
+
+#### Benefits
+- **Intelligent Saving**: No more unnecessary saves - button only available when needed
+- **Complete Control**: Full management of app version history with safe deletion
+- **Clear State Awareness**: Always know which version is active and what changes are unsaved
+- **Professional UX**: Non-blocking dialogs maintain responsive user experience
+- **Data Safety**: Multiple layers of protection against accidental version loss
+
+### Previous Updates (v2.2.0)
+
+#### Enhanced 3D Graphics & Visualization Support
 Major improvements for creating immersive and responsive 3D applications:
 
-#### New Features
+##### New Features
 - **Three.js v0.177.0 Integration**: Full 3D graphics and WebGL support
 - **Chart.js v4.4.1 Integration**: Comprehensive data visualization capabilities
 - **Responsive 3D Rendering**: Automatic window sizing and resize handling
 - **High-Quality Graphics**: Anti-aliasing and high-DPI display support
 - **Dynamic Layout Support**: ResizeObserver integration for adaptive containers
 
-#### Technical Improvements
+##### Technical Improvements
 - **Pre-loaded Libraries**: Three.js and Chart.js available immediately
 - **Enhanced Guidelines**: LLM-optimized patterns for consistent 3D app generation
 - **Window-Filling Animations**: 3D scenes automatically fill available space
 - **Performance Optimization**: Efficient rendering with proper resource cleanup
 - **Cross-Session Persistence**: 3D app state maintained between browser sessions
 
-#### Benefits
+##### Benefits
 - **Immersive Experiences**: Create sophisticated 3D applications and visualizations
 - **Professional Quality**: High-DPI rendering with anti-aliasing for crisp graphics
 - **Responsive Design**: 3D content adapts seamlessly to window resizing
