@@ -52,24 +52,91 @@ TECHNICAL IMPLEMENTATION:
 - Maintain proper calculator state between operations
 - Handle edge cases like multiple operators, leading zeros, decimal points
 - Ensure calculator behaves exactly like a standard calculator
-- MANDATORY: Create an init function for app initialization:
-  window[appNamespace].init = function() {
-    // Put all event listeners and initialization code here
-    // This function will be called after the app is loaded into the DOM
-    
-    // Example keyboard support using the focus-aware key handling API:
-    // app.onKey('keydown', function(event) {
-    //   if (event.key >= '0' && event.key <= '9') {
-    //     // Handle number keys
-    //   } else if (event.key === '+' || event.key === '-' || event.key === '*' || event.key === '/') {
-    //     // Handle operator keys
-    //   } else if (event.key === 'Enter' || event.key === '=') {
-    //     // Handle equals
-    //   }
-    // });
-  };
 
-The calculator must be immediately functional with the exact color scheme and layout specified.`
+CRITICAL INITIALIZATION REQUIREMENTS:
+- MANDATORY: You MUST create an init function exactly as shown below
+- MANDATORY: The init function MUST be created in the JavaScript section
+- MANDATORY: Use the exact function signature and structure provided
+- MANDATORY: Include keyboard event handling using the app.onKey() API
+- MANDATORY: The init function will be automatically called after the app loads
+
+REQUIRED INIT FUNCTION TEMPLATE (COPY EXACTLY):
+
+// MANDATORY: App initialization function - DO NOT MODIFY THIS SIGNATURE
+window[appNamespace].init = function() {
+    console.log('Calculator app initialized');
+    
+    // Add keyboard support using the focus-aware key handling API
+    if (typeof app !== 'undefined' && app.onKey) {
+        app.onKey('keydown', function(event) {
+            // Prevent default behavior for calculator keys
+            const calculatorKeys = ['0','1','2','3','4','5','6','7','8','9','+','-','*','/','=','Enter','Escape','Backspace','.','%'];
+            if (calculatorKeys.includes(event.key)) {
+                event.preventDefault();
+            }
+            
+            // Handle number keys
+            if (event.key >= '0' && event.key <= '9') {
+                handleNumberInput(event.key);
+            }
+            // Handle operator keys
+            else if (event.key === '+') {
+                handleOperatorInput('+');
+            }
+            else if (event.key === '-') {
+                handleOperatorInput('-');
+            }
+            else if (event.key === '*') {
+                handleOperatorInput('×');
+            }
+            else if (event.key === '/') {
+                handleOperatorInput('÷');
+            }
+            // Handle equals
+            else if (event.key === 'Enter' || event.key === '=') {
+                handleEqualsInput();
+            }
+            // Handle clear
+            else if (event.key === 'Escape') {
+                handleClearInput();
+            }
+            // Handle backspace
+            else if (event.key === 'Backspace') {
+                handleBackspaceInput();
+            }
+            // Handle decimal point
+            else if (event.key === '.') {
+                handleDecimalInput();
+            }
+            // Handle percentage
+            else if (event.key === '%') {
+                handlePercentageInput();
+            }
+        });
+    }
+    
+    // Initialize calculator state
+    initializeCalculatorState();
+};
+
+IMPLEMENTATION NOTES:
+- You MUST implement the helper functions referenced in the init function (handleNumberInput, handleOperatorInput, etc.)
+- Each helper function should correspond to the button click handlers for the calculator
+- The init function MUST be placed at the end of your JavaScript code
+- Do NOT modify the function signature or structure of the init function
+- The app.onKey() API handles focus-aware keyboard events automatically
+- Test that keyboard input works the same as button clicks
+
+KEYBOARD MAPPING REQUIREMENTS:
+- Number keys 0-9: Input corresponding numbers
+- +, -, *, / keys: Input corresponding operators (convert * to ×, / to ÷)
+- Enter or = key: Execute calculation (equals function)
+- Escape key: Clear calculator
+- Backspace key: Delete last entered digit
+- . key: Input decimal point
+- % key: Apply percentage function
+
+The calculator must be immediately functional with both mouse clicks and keyboard input, using the exact color scheme and layout specified.`
 },
 
 'Digital Clock': {
@@ -110,109 +177,170 @@ window[appNamespace].init = function() {
     generationMode: 'SIMPLE',
     icon: '💰',
     dimensions: { width: 600, height: 500 },
-    prompt: `Create a Cost Tracking app that displays API usage costs using the Data Registry system. The app must access cost data through the data registry which contains cost entries with the following structure:
+    prompt: `Create a comprehensive Cost Tracking app that displays API usage costs with real-time data access and proper error handling.
 
-costHistory = [
-    {
-        timestamp: "2024-01-01T12:00:00.000Z",
-        cost: 0.0025,
-        description: "App Creation Request",
-        prompt: "Create a calculator app..."
-    }
-]
+CRITICAL DATA ACCESS REQUIREMENTS:
+- MANDATORY: Access cost data using window.dataRegistry.getData('cost-history') || []
+- MANDATORY: The cost history contains objects with this exact structure:
+  {
+    timestamp: "2024-01-01T12:00:00.000Z",  // ISO date string
+    cost: 0.0025,                           // Number (decimal cost)
+    description: "App Creation Request",     // String description
+    prompt: "Create a calculator app..."     // String (user's request)
+  }
+- CRITICAL: Always use safe access: const costs = window.dataRegistry.getData('cost-history') || [];
+- CRITICAL: Handle undefined/null data gracefully with fallback to empty array
 
-SPECIFIC REQUIREMENTS:
-1. Title: "💰 Cost Tracking"
-2. Display total cost at the top in a highlighted summary box
-3. Show number of API calls made
-4. Display cost history in a table with columns: Date/Time, Cost, Description, Prompt
-5. Sort entries by newest first (reverse chronological order)
-6. Include a "Clear History" button that clears the cost history data
-7. Include a "Load Costs" button that refreshes the data from the data registry
-8. Handle empty history with a "No cost entries recorded yet" message
-9. Use proper currency formatting ($X.XXXX)
-10. Make the table scrollable if there are many entries
-11. Truncate long prompts to fit in the table (max 100 characters)
+SPECIFIC UI REQUIREMENTS:
+1. App title: "💰 Cost Tracking" prominently displayed
+2. Summary section at top with:
+   - Total cost in large, highlighted text: "Total Cost: $X.XXXX"
+   - API call count: "Total API Calls: X"
+   - Both in a styled summary box with proper contrast
+3. Action buttons row:
+   - "🔄 Refresh Data" button (calls loadCostData())
+   - "🗑️ Clear History" button (clears all cost data with confirmation)
+4. Data table with columns: Date/Time | Cost | Description | Request
+5. Table features:
+   - Scrollable if many entries (max-height with overflow)
+   - Sort by newest first (reverse chronological)
+   - Proper styling with alternating row colors
+   - Responsive design that fits in window
+6. Empty state: "No cost entries recorded yet" message when no data
+
+MANDATORY FUNCTIONALITY:
+- loadCostData() function that:
+  * Safely accesses window.dataRegistry.getData('cost-history') || []
+  * Updates summary (total cost and count)
+  * Populates table with formatted data
+  * Handles empty data gracefully
+  * Includes console.log for debugging
+- clearCostHistory() function that:
+  * Shows confirmation dialog
+  * Calls window.dataRegistry.updateData('cost-history', [])
+  * Refreshes display after clearing
+- Proper date formatting using toLocaleDateString() and toLocaleTimeString()
+- Currency formatting to 4 decimal places: $X.XXXX
+- Truncate long prompts to 80 characters with "..." suffix
 
 DATA REGISTRY INTEGRATION:
-- CRITICAL: Access cost data using window.dataRegistry.getData('cost-history')
-- ALWAYS use: const costs = window.dataRegistry.getData('cost-history') || []; to safely access the data
-- Calculate total cost: const total = costs.reduce((sum, entry) => sum + entry.cost, 0);
-- Format dates using new Date(entry.timestamp).toLocaleDateString() and toLocaleTimeString()
-- Clear History button MUST call: window.dataRegistry.updateData('cost-history', [])
-- Load Costs button MUST call your local loadCostData() function
-- MANDATORY: Create loadCostData() function that refreshes display from data registry
-- MANDATORY: Call loadCostData() immediately when app loads AND when 'appShown' event fires
-- MANDATORY: Listen for 'appShown' event: document.addEventListener('appShown', loadCostData);
-- Handle empty data gracefully with "No cost entries recorded yet" message
-- DEBUGGING: Add console.log('Loading cost data:', window.dataRegistry.getData('cost-history')); in loadCostData()
-- SUBSCRIBE TO CHANGES: Use window.dataRegistry.subscribe('cost-history', loadCostData) to auto-refresh when data changes
-- add proper css styles for any buttons
-- add proper css styles for the table and summary section
+- CRITICAL: Subscribe to data changes: window.dataRegistry.subscribe('cost-history', loadCostData)
+- CRITICAL: This enables automatic refresh when cost data is updated by the system
+- CRITICAL: Handle the case where cost-history doesn't exist yet
+- DEBUGGING: Add console.log('Cost data loaded:', costs.length, 'entries') in loadCostData()
 
-APP VISIBILITY EVENT:
-- The system will dispatch a custom 'appShown' event when the app becomes visible
-- Listen for this event: document.addEventListener('appShown', function(event) { if(event.detail.appId === 'your-app-id') loadCostData(); });
-- This allows the app to refresh its data when reopened from hidden state
-- Always refresh cost data when this event is received
+STYLING REQUIREMENTS:
+- Professional, clean design with proper spacing
+- Summary box with background color and border
+- Styled buttons with hover effects
+- Table with header styling and alternating row colors
+- Responsive layout that works in 600px width window
+- Proper color contrast for light/dark themes
+- Use theme-aware CSS classes (.app-light-theme and .app-dark-theme)
 
-EXAMPLE STRUCTURE:
-- Summary section with total cost and call count
-- Button row with "Load Costs" and "Clear History" buttons
-- Scrollable table with cost entries
-- Proper error handling for missing or invalid data
+ERROR HANDLING:
+- Handle missing or corrupted cost data
+- Graceful fallback for invalid date formats
+- Safe number formatting for cost values
+- Proper error messages for user feedback
 
-EXAMPLE CODE SNIPPET:
+EXAMPLE IMPLEMENTATION STRUCTURE:
+
 function loadCostData() {
     console.log('Loading cost data from data registry...');
     const costs = window.dataRegistry.getData('cost-history') || [];
-    const total = costs.reduce((sum, entry) => sum + entry.cost, 0);
+    console.log('Cost data loaded:', costs.length, 'entries');
     
-    console.log('Found', costs.length, 'cost entries, total:', total);
+    // Calculate totals
+    const totalCost = costs.reduce((sum, entry) => sum + (entry.cost || 0), 0);
+    const totalCalls = costs.length;
     
-    // Update summary
-    const totalElement = document.getElementById('total-cost');
-    const countElement = document.getElementById('call-count');
-    if (totalElement) totalElement.textContent = '$' + total.toFixed(4);
-    if (countElement) countElement.textContent = costs.length;
+    // Update summary display
+    updateSummaryDisplay(totalCost, totalCalls);
     
     // Update table
-    const tbody = document.getElementById('cost-table-body');
-    if (tbody) {
-        tbody.innerHTML = '';
-        if (costs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No cost entries recorded yet.</td></tr>';
-        } else {
-            costs.slice().reverse().forEach(entry => {
-                const row = tbody.insertRow();
-                const date = new Date(entry.timestamp);
-                row.innerHTML = '<td>' + date.toLocaleDateString() + ' ' + date.toLocaleTimeString() + '</td><td style="color: #dc3545; font-weight: bold;">$' + entry.cost.toFixed(4) + '</td><td>' + entry.description + '</td><td>' + (entry.prompt || 'N/A').substring(0, 100) + '</td>';
-            });
-        }
+    updateCostTable(costs);
+}
+
+function updateSummaryDisplay(totalCost, totalCalls) {
+    const totalElement = document.getElementById('{appId}_total-cost');
+    const countElement = document.getElementById('{appId}_call-count');
+    
+    if (totalElement) totalElement.textContent = '$' + totalCost.toFixed(4);
+    if (countElement) countElement.textContent = totalCalls.toString();
+}
+
+function updateCostTable(costs) {
+    const tbody = document.getElementById('{appId}_cost-table-body');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (costs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #666;">No cost entries recorded yet.</td></tr>';
+        return;
+    }
+    
+    // Sort by newest first
+    const sortedCosts = costs.slice().reverse();
+    
+    sortedCosts.forEach(entry => {
+        const row = tbody.insertRow();
+        const date = new Date(entry.timestamp);
+        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        const truncatedPrompt = (entry.prompt || 'N/A').length > 80 ?
+            (entry.prompt || 'N/A').substring(0, 80) + '...' :
+            (entry.prompt || 'N/A');
+        
+        row.innerHTML =
+            '<td>' + formattedDate + '</td>' +
+            '<td style="color: #dc3545; font-weight: bold;">$' + (entry.cost || 0).toFixed(4) + '</td>' +
+            '<td>' + (entry.description || 'Unknown') + '</td>' +
+            '<td>' + truncatedPrompt + '</td>';
+    });
+}
+
+function clearCostHistory() {
+    if (confirm('Are you sure you want to clear all cost history? This action cannot be undone.')) {
+        window.dataRegistry.updateData('cost-history', []);
+        console.log('Cost history cleared');
+        loadCostData(); // Refresh display
     }
 }
 
-// MANDATORY: Call loadCostData when app loads and on appShown event
-loadCostData();
-// Subscribe to data changes for auto-refresh
-window.dataRegistry.subscribe('cost-history', loadCostData);
-document.addEventListener('appShown', function(event) {
-    console.log('App shown event received for:', event.detail.appId);
-    loadCostData();
-});
-
-MANDATORY: Create an init function for app initialization:
+MANDATORY INIT FUNCTION:
 window[appNamespace].init = function() {
-  // Put all event listeners and initialization code here
-  // This function will be called after the app is loaded into the DOM
-  loadCostData(); // Load initial data
-  // Subscribe to data changes for auto-refresh
-  window.dataRegistry.subscribe('cost-history', loadCostData);
-  document.addEventListener('appShown', function(event) {
-    console.log('App shown event received for:', event.detail.appId);
+    console.log('Cost Tracking app initialized');
+    
+    // Load initial data
     loadCostData();
-  });
-};`
+    
+    // Subscribe to data changes for real-time updates
+    window.dataRegistry.subscribe('cost-history', loadCostData);
+    
+    // Set up button event listeners
+    const refreshBtn = document.getElementById('{appId}_refresh-btn');
+    const clearBtn = document.getElementById('{appId}_clear-btn');
+    
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadCostData);
+    }
+    
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearCostHistory);
+    }
+    
+    console.log('Cost tracking app fully initialized with data subscription');
+};
+
+CRITICAL SUCCESS FACTORS:
+1. ALWAYS use window.dataRegistry.getData('cost-history') || [] for safe data access
+2. ALWAYS subscribe to data changes for automatic updates
+3. ALWAYS handle empty/missing data gracefully
+4. ALWAYS include proper error handling and logging
+5. ALWAYS use the mandatory init function pattern
+6. ALWAYS format currency to 4 decimal places
+7. ALWAYS sort entries by newest first`
 },
 
 'Data Registry': {

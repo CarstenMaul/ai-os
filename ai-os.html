@@ -1794,6 +1794,7 @@
             if (activeWindow && window.appKeyHandlers && window.appKeyHandlers[activeWindow]) {
                 const handlers = window.appKeyHandlers[activeWindow][event.type];
                 if (handlers && handlers.length > 0) {
+                    console.log(`Forwarding ${event.type} event (key: ${event.key}) to app ${activeWindow}. Handlers: ${handlers.length}`);
                     // Call all registered handlers for this event type
                     handlers.forEach(handler => {
                         try {
@@ -1802,6 +1803,16 @@
                             console.error(`Error in key handler for app ${activeWindow}:`, error);
                         }
                     });
+                } else {
+                    console.log(`No ${event.type} handlers found for active app ${activeWindow}`);
+                }
+            } else {
+                if (!activeWindow) {
+                    console.log(`No active window for ${event.type} event (key: ${event.key})`);
+                } else if (!window.appKeyHandlers) {
+                    console.log(`appKeyHandlers not initialized for ${event.type} event`);
+                } else if (!window.appKeyHandlers[activeWindow]) {
+                    console.log(`No key handlers registered for app ${activeWindow}`);
                 }
             }
         }
@@ -2171,10 +2182,15 @@ const app = {
     
     // Key event handling (only receives events when app has focus)
     onKey: (eventType, handler) => {
-        if (!window.appKeyHandlers) window.appKeyHandlers = {};
+        // Ensure global key handling system is initialized
+        if (!window.appKeyHandlers) {
+            console.warn('Global key handling system not initialized, initializing now...');
+            window.appKeyHandlers = {};
+        }
         if (!window.appKeyHandlers['${appId}']) window.appKeyHandlers['${appId}'] = {};
         if (!window.appKeyHandlers['${appId}'][eventType]) window.appKeyHandlers['${appId}'][eventType] = [];
         window.appKeyHandlers['${appId}'][eventType].push(handler);
+        console.log(\`Registered \${eventType} key handler for app ${appId}. Total handlers: \${window.appKeyHandlers['${appId}'][eventType].length}\`);
     },
     
     // Remove key event handler
@@ -2198,6 +2214,13 @@ const app = {
         if (el) el.classList.remove('${appId}__' + className);
     }
 };
+
+// Expose key functions on the app namespace for backward compatibility
+// Note: appNamespace is already declared in the outer scope
+window[appNamespace] = window[appNamespace] || {};
+window[appNamespace].onKey = app.onKey;
+window[appNamespace].offKey = app.offKey;
+window[appNamespace].app = app;
             `;
         }
 
@@ -2411,9 +2434,11 @@ const app = {
                 // Add event listeners for version control buttons
                 addVersionControlEventListeners(appId);
                 
-                // Create initial snapshot for new apps
+                // Create initial snapshot for new apps (only for non-AI generated content)
+                // AI-generated apps will have their snapshots created after LLM processing completes
                 if (content !== SPINNER_ANIMATION && window.versionManager) {
-                    window.versionManager.createSnapshot(appId, 'Initial state');
+                    window.versionManager.createSnapshot(appId, 'Initial snapshot');
+                    console.log(`✅ Created initial snapshot for static content app: ${appId}`);
                 }
                 // Update version controls after snapshot creation
                 if (window.versionManager) {
@@ -6666,6 +6691,13 @@ const app = {
                         // Auto-size and center the window based on content
                         setTimeout(() => {
                             autoSizeAndCenterWindow(appId);
+                            
+                            // Create initial snapshot for newly generated app
+                            if (window.versionManager) {
+                                window.versionManager.createSnapshot(appId, 'Initial snapshot');
+                                window.versionManager.updateVersionControls(appId);
+                                console.log(`✅ Created initial snapshot for newly generated app: ${appId}`);
+                            }
                         }, 100);
                         
                         // For system apps, use predefined title and icon from SYSTEM_APPS_DEFINITIONS
@@ -6810,6 +6842,13 @@ const app = {
                         // Auto-size and center the window based on content
                         setTimeout(() => {
                             autoSizeAndCenterWindow(appId);
+                            
+                            // Create initial snapshot for newly generated app with images
+                            if (window.versionManager) {
+                                window.versionManager.createSnapshot(appId, 'Initial snapshot');
+                                window.versionManager.updateVersionControls(appId);
+                                console.log(`✅ Created initial snapshot for newly generated app with images: ${appId}`);
+                            }
                         }, 100);
                         
                         // For system apps, use predefined title and icon from SYSTEM_APPS_DEFINITIONS
