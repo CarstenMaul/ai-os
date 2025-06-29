@@ -143,204 +143,226 @@ The calculator must be immediately functional with both mouse clicks and keyboar
     generationMode: 'SIMPLE',
     icon: '🕐',
     dimensions: { width: 400, height: 300 },
-    prompt: `Create a simple but functional Digital Clock that displays the current time and updates every second.
+    prompt: `Create a reliable Digital Clock app that displays the current time with automatic updates and format switching.
 
-ESSENTIAL REQUIREMENTS:
-- Create a working digital clock that shows the current time
-- Update the display every second automatically
-- Show hours, minutes, and seconds in HH:MM:SS format
-- Use 12-hour format with AM/PM indicator
-- add a switch to switch between 12-hour (hh:mm:ss AM/PM) and 24-hour formats (HH:mm:ss)
-- the 12/24h switch must move when clicked not just toggle the format
-- Center the clock display in the window
-- Use a large, readable font for the time display
-- Include the current date below the time
-- Make it visually appealing with proper theme support
+CRITICAL IMPLEMENTATION REQUIREMENTS:
+- MANDATORY: Use new Date() to get current time - NEVER hardcode time values
+- MANDATORY: Use setInterval() to update every 1000ms (1 second)
+- MANDATORY: Store timer reference for cleanup: let clockTimer = setInterval(updateClock, 1000);
+- MANDATORY: Call updateClock() immediately on init to show time instantly
+- MANDATORY: Use proper time formatting with padStart() for leading zeros
+- MANDATORY: Include error handling for date/time operations
 
-FUNCTIONALITY:
-- Automatically start when the app opens
-- Update every second without user interaction
-- Show accurate current time
-- Display current date in a readable format
-- Handle time changes correctly (including midnight transitions)
+SPECIFIC UI ELEMENTS REQUIRED:
+1. Main time display: Large, centered text showing HH:MM:SS
+2. AM/PM indicator (in 12-hour mode)
+3. Date display below time
+4. Toggle switch for 12/24 hour format with visual movement
+5. All elements must have unique IDs with {appId} prefix
 
-The clock should be immediately functional and start displaying the current time as soon as the app loads.
+EXACT IMPLEMENTATION STRUCTURE:
+- Time display element: <div id="{appId}_time-display">00:00:00</div>
+- Date display element: <div id="{appId}_date-display">Loading...</div>
+- Format toggle: <div id="{appId}_format-toggle" class="toggle-switch">
+- Toggle must visually slide when clicked, not just change text
 
-MANDATORY: Create an init function for app initialization:
+MANDATORY JAVASCRIPT FUNCTIONS:
+function updateClock() {
+    try {
+        const now = new Date();
+        console.log('Updating clock:', now.toLocaleTimeString());
+        
+        // Get time elements
+        const timeDisplay = document.getElementById('{appId}_time-display');
+        const dateDisplay = document.getElementById('{appId}_date-display');
+        
+        if (!timeDisplay || !dateDisplay) {
+            console.error('Clock elements not found');
+            return;
+        }
+        
+        // Format time based on current mode
+        let timeString;
+        if (is24HourFormat) {
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            timeString = hours + ':' + minutes + ':' + seconds;
+        } else {
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // 0 should be 12
+            timeString = hours.toString().padStart(2, '0') + ':' + minutes + ':' + seconds + ' ' + ampm;
+        }
+        
+        // Update displays
+        timeDisplay.textContent = timeString;
+        dateDisplay.textContent = now.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+    } catch (error) {
+        console.error('Error updating clock:', error);
+        // Fallback display
+        const timeDisplay = document.getElementById('{appId}_time-display');
+        if (timeDisplay) {
+            timeDisplay.textContent = 'Clock Error';
+        }
+    }
+}
+
+function toggleTimeFormat() {
+    is24HourFormat = !is24HourFormat;
+    console.log('Time format toggled to:', is24HourFormat ? '24-hour' : '12-hour');
+    
+    // Update toggle switch visual state
+    const toggle = document.getElementById('{appId}_format-toggle');
+    if (toggle) {
+        toggle.classList.toggle('active', is24HourFormat);
+    }
+    
+    // Update clock immediately
+    updateClock();
+}
+
+STYLING REQUIREMENTS:
+- Large, readable font for time (minimum 24px)
+- Centered layout with proper spacing
+- Toggle switch with smooth animation
+- Theme-aware colors (light/dark mode support)
+- Professional appearance with good contrast
+
+ERROR HANDLING:
+- Wrap all time operations in try-catch blocks
+- Provide fallback displays for errors
+- Log errors to console for debugging
+- Handle missing DOM elements gracefully
+
+TIMER MANAGEMENT:
+- Store timer reference: let clockTimer;
+- Clear existing timer before creating new one
+- Start timer in init function
+- Update immediately on init (don't wait 1 second)
+
+DEBUGGING FEATURES:
+- Console.log current time on each update
+- Console.log format changes
+- Console.log any errors encountered
+- Verify DOM elements exist before using
+
+MANDATORY INIT FUNCTION:
 window[appNamespace].init = function() {
-  // Put all event listeners, timer setup, and initialization code here
-  // This function will be called after the app is loaded into the DOM
-};`
+    console.log('Digital Clock app initializing...');
+    
+    // Initialize format state
+    let is24HourFormat = false;
+    let clockTimer;
+    
+    // Clear any existing timer
+    if (clockTimer) {
+        clearInterval(clockTimer);
+    }
+    
+    // Set up format toggle event listener
+    const formatToggle = document.getElementById('{appId}_format-toggle');
+    if (formatToggle) {
+        formatToggle.addEventListener('click', toggleTimeFormat);
+    } else {
+        console.error('Format toggle element not found');
+    }
+    
+    // Start clock immediately
+    updateClock();
+    
+    // Set up timer for continuous updates
+    clockTimer = setInterval(updateClock, 1000);
+    
+    console.log('Digital Clock initialized with timer ID:', clockTimer);
+};
+
+CRITICAL SUCCESS FACTORS:
+1. ALWAYS use new Date() for current time
+2. ALWAYS call updateClock() immediately in init
+3. ALWAYS use setInterval for automatic updates
+4. ALWAYS include error handling and logging
+5. ALWAYS use padStart() for proper time formatting
+6. ALWAYS make toggle switch visually move when clicked
+7. NEVER hardcode time values or use static displays`
 },
 
 'Cost Tracking': {
     generationMode: 'SIMPLE',
     icon: '💰',
     dimensions: { width: 600, height: 500 },
-    prompt: `Create a comprehensive Cost Tracking app that displays API usage costs with real-time data access and proper error handling.
-
-CRITICAL DATA ACCESS REQUIREMENTS:
-- MANDATORY: Access cost data using window.dataRegistry.getData('cost-history') || []
-- MANDATORY: The cost history contains objects with this exact structure:
-  {
-    timestamp: "2024-01-01T12:00:00.000Z",  // ISO date string
-    cost: 0.0025,                           // Number (decimal cost)
-    description: "App Creation Request",     // String description
-    prompt: "Create a calculator app..."     // String (user's request)
-  }
-- CRITICAL: Always use safe access: const costs = window.dataRegistry.getData('cost-history') || [];
-- CRITICAL: Handle undefined/null data gracefully with fallback to empty array
-
-SPECIFIC UI REQUIREMENTS:
-1. App title: "💰 Cost Tracking" prominently displayed
-2. Summary section at top with:
-   - Total cost in large, highlighted text: "Total Cost: $X.XXXX"
-   - API call count: "Total API Calls: X"
-   - Both in a styled summary box with proper contrast
-3. Action buttons row:
-   - "🔄 Refresh Data" button (calls loadCostData())
-   - "🗑️ Clear History" button (clears all cost data with confirmation)
-4. Data table with columns: Date/Time | Cost | Description | Request
-5. Table features:
-   - Scrollable if many entries (max-height with overflow)
-   - Sort by newest first (reverse chronological)
-   - Proper styling with alternating row colors
-   - Responsive design that fits in window
-6. Empty state: "No cost entries recorded yet" message when no data
-
-MANDATORY FUNCTIONALITY:
-- loadCostData() function that:
-  * Safely accesses window.dataRegistry.getData('cost-history') || []
-  * Updates summary (total cost and count)
-  * Populates table with formatted data
-  * Handles empty data gracefully
-  * Includes console.log for debugging
-- clearCostHistory() function that:
-  * Shows confirmation dialog
-  * Calls window.dataRegistry.updateData('cost-history', [])
-  * Refreshes display after clearing
-- Proper date formatting using toLocaleDateString() and toLocaleTimeString()
-- Currency formatting to 4 decimal places: $X.XXXX
-- Truncate long prompts to 80 characters with "..." suffix
-
-DATA REGISTRY INTEGRATION:
-- CRITICAL: Subscribe to data changes: window.dataRegistry.subscribe('cost-history', loadCostData)
-- CRITICAL: This enables automatic refresh when cost data is updated by the system
-- CRITICAL: Handle the case where cost-history doesn't exist yet
-- DEBUGGING: Add console.log('Cost data loaded:', costs.length, 'entries') in loadCostData()
-
-STYLING REQUIREMENTS:
-- Professional, clean design with proper spacing
-- Summary box with background color and border
-- Styled buttons with hover effects
-- Table with header styling and alternating row colors
-- Responsive layout that works in 600px width window
-- Proper color contrast for light/dark themes
-- Use theme-aware CSS classes (.app-light-theme and .app-dark-theme)
-
-ERROR HANDLING:
-- Handle missing or corrupted cost data
-- Graceful fallback for invalid date formats
-- Safe number formatting for cost values
-- Proper error messages for user feedback
-
-EXAMPLE IMPLEMENTATION STRUCTURE:
-
-function loadCostData() {
-    console.log('Loading cost data from data registry...');
-    const costs = window.dataRegistry.getData('cost-history') || [];
-    console.log('Cost data loaded:', costs.length, 'entries');
+    prompt: `Create a comprehensive Cost Tracking app that displays API usage costs with real-time data access and robust error handling.
     
-    // Calculate totals
-    const totalCost = costs.reduce((sum, entry) => sum + (entry.cost || 0), 0);
-    const totalCalls = costs.length;
+    CRITICAL: This app MUST work with the AI-OS system. The cost data is stored in window.dataRegistry.getData('cost-history') and also available as window.costHistory for backward compatibility.
     
-    // Update summary display
-    updateSummaryDisplay(totalCost, totalCalls);
-    
-    // Update table
-    updateCostTable(costs);
-}
-
-function updateSummaryDisplay(totalCost, totalCalls) {
-    const totalElement = document.getElementById('{appId}_total-cost');
-    const countElement = document.getElementById('{appId}_call-count');
-    
-    if (totalElement) totalElement.textContent = '$' + totalCost.toFixed(4);
-    if (countElement) countElement.textContent = totalCalls.toString();
-}
-
-function updateCostTable(costs) {
-    const tbody = document.getElementById('{appId}_cost-table-body');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
-    if (costs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #666;">No cost entries recorded yet.</td></tr>';
-        return;
-    }
-    
-    // Sort by newest first
-    const sortedCosts = costs.slice().reverse();
-    
-    sortedCosts.forEach(entry => {
-        const row = tbody.insertRow();
-        const date = new Date(entry.timestamp);
-        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        const truncatedPrompt = (entry.prompt || 'N/A').length > 80 ?
-            (entry.prompt || 'N/A').substring(0, 80) + '...' :
-            (entry.prompt || 'N/A');
+    HTML STRUCTURE (replace {appId} with actual app ID):
+    <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h1>💰 Cost Tracking</h1>
         
-        row.innerHTML =
-            '<td>' + formattedDate + '</td>' +
-            '<td style="color: #dc3545; font-weight: bold;">$' + (entry.cost || 0).toFixed(4) + '</td>' +
-            '<td>' + (entry.description || 'Unknown') + '</td>' +
-            '<td>' + truncatedPrompt + '</td>';
-    });
-}
-
-function clearCostHistory() {
-    if (confirm('Are you sure you want to clear all cost history? This action cannot be undone.')) {
-        window.dataRegistry.updateData('cost-history', []);
-        console.log('Cost history cleared');
-        loadCostData(); // Refresh display
-    }
-}
-
-MANDATORY INIT FUNCTION:
-window[appNamespace].init = function() {
-    console.log('Cost Tracking app initialized');
+        <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div>
+                    <strong>Total Cost:</strong>
+                    <span id="{appId}_total-cost" style="color: #dc3545; font-size: 18px; font-weight: bold;">$0.0000</span>
+                </div>
+                <div>
+                    <strong>Total API Calls:</strong>
+                    <span id="{appId}_call-count" style="font-size: 16px;">0</span>
+                </div>
+            </div>
+            <div>
+                <strong>Data Registry:</strong>
+                <span id="{appId}_registry-status" style="font-weight: bold;">Checking...</span>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px; text-align: center;">
+            <button id="{appId}_refresh-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">🔄 Refresh Data</button>
+            <button id="{appId}_clear-btn" style="background: #dc3545; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">🗑️ Clear History</button>
+            <button id="{appId}_debug-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">🔍 Debug Info</button>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #dee2e6;">
+            <thead>
+                <tr style="background: #343a40; color: white;">
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Date/Time</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Cost</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Description</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Request</th>
+                </tr>
+            </thead>
+            <tbody id="{appId}_cost-table-body">
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 20px; color: #666;">Loading data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
     
-    // Load initial data
-    loadCostData();
+ 
     
-    // Subscribe to data changes for real-time updates
-    window.dataRegistry.subscribe('cost-history', loadCostData);
+    CRITICAL REQUIREMENTS:
+    1. Use app.getElementById() helper function (provided by AI-OS system)
+    2. Functions are NOT prefixed with appId - they exist within the app namespace
+    3. The init function MUST be window[appNamespace].init
+    4. HTML element IDs MUST be prefixed with {appId}_
+    5. Use multiple data sources with fallbacks: dataRegistry -> window.costHistory -> localStorage
+    6. The cost data structure is: [{timestamp: string, cost: number, description: string, prompt: string}]
+    7. Subscribe to 'cost-history' changes for real-time updates
+    8. MANDATORY Access and subscribe the global cost-history data object
+    9. Please add a usefull graph that shows the costs, switchable between costs within tha last 24 hours by hour and costs within the last week by day. the graph should be 1/3 of the height of the app window.
+    10. the costs table should be 1/3 of the height of the window and scrollable
     
-    // Set up button event listeners
-    const refreshBtn = document.getElementById('{appId}_refresh-btn');
-    const clearBtn = document.getElementById('{appId}_clear-btn');
-    
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', loadCostData);
-    }
-    
-    if (clearBtn) {
-        clearBtn.addEventListener('click', clearCostHistory);
-    }
-    
-    console.log('Cost tracking app fully initialized with data subscription');
-};
-
-CRITICAL SUCCESS FACTORS:
-1. ALWAYS use window.dataRegistry.getData('cost-history') || [] for safe data access
-2. ALWAYS subscribe to data changes for automatic updates
-3. ALWAYS handle empty/missing data gracefully
-4. ALWAYS include proper error handling and logging
-5. ALWAYS use the mandatory init function pattern
-6. ALWAYS format currency to 4 decimal places
-7. ALWAYS sort entries by newest first`
+    The app will work with the AI-OS system's data registry and provide multiple fallback data sources.`
 },
 
 'Data Registry': {

@@ -4399,8 +4399,7 @@ window[appNamespace].app = app;
             // Get existing cost history from data registry or create empty array
             let costHistory = window.dataRegistry.getData('cost-history') || [];
             
-            // Make costHistory globally accessible for backward compatibility
-            window.costHistory = costHistory;
+            
             
             // Update data registry if it was empty
             if (!window.dataRegistry.getData('cost-history')) {
