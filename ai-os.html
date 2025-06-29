@@ -154,11 +154,29 @@
                 } catch (error) {
                     // Fallback to localStorage
                     try {
-                        localStorage.setItem(`ai-os-${name}`, JSON.stringify(item));
-                        console.log(`Saved '${name}' to localStorage (fallback)`);
+                        const serializedItem = JSON.stringify(item);
+                        const sizeInBytes = new Blob([serializedItem]).size;
+                        const sizeInMB = (sizeInBytes / (1024 * 1024)).toFixed(2);
+                        
+                        // Check if the item is too large (warn if > 1MB, reject if > 4MB)
+                        if (sizeInBytes > 4 * 1024 * 1024) {
+                            throw new Error(`Data too large (${sizeInMB}MB). Cannot save to localStorage.`);
+                        } else if (sizeInBytes > 1024 * 1024) {
+                            console.warn(`Large data object '${name}' (${sizeInMB}MB) being saved to localStorage`);
+                        }
+                        
+                        localStorage.setItem(`ai-os-${name}`, serializedItem);
+                        console.log(`Saved '${name}' to localStorage (fallback) - Size: ${sizeInMB}MB`);
                         return { success: true, storage: 'localstorage' };
                     } catch (fallbackError) {
                         console.error(`Failed to save '${name}':`, fallbackError);
+                        
+                        // If it's a quota error, try to clean up old data
+                        if (fallbackError.name === 'QuotaExceededError') {
+                            console.warn('localStorage quota exceeded. Consider cleaning up old data.');
+                            // You could implement cleanup logic here if needed
+                        }
+                        
                         return { success: false, error: fallbackError.message };
                     }
                 }
@@ -870,9 +888,19 @@
             totalAppsCreated: 0
         }, 'System information, version details, and runtime statistics', 'Object: {os: string ("AI-OS"), version: string (semver), startTime: string (ISO date), totalAppsCreated: number (counter)}');
         
-        // Initialize persistent storage references
-        registerSharedData('localStorage', localStorage, 'Browser local storage for persistent data across sessions', 'Web Storage API object: {getItem(key): string|null, setItem(key, value): void, removeItem(key): void, clear(): void, length: number, key(index): string|null}');
-        registerSharedData('sessionStorage', sessionStorage, 'Browser session storage for temporary data within current session', 'Web Storage API object: {getItem(key): string|null, setItem(key, value): void, removeItem(key): void, clear(): void, length: number, key(index): string|null}');
+        // Initialize storage references (non-persistent to avoid quota issues)
+        window.dataRegistry.register('localStorage', localStorage, {
+            persistent: false,
+            description: 'Browser local storage for persistent data across sessions',
+            structure: 'Web Storage API object: {getItem(key): string|null, setItem(key, value): void, removeItem(key): void, clear(): void, length: number, key(index): string|null}',
+            type: 'data'
+        });
+        window.dataRegistry.register('sessionStorage', sessionStorage, {
+            persistent: false,
+            description: 'Browser session storage for temporary data within current session',
+            structure: 'Web Storage API object: {getItem(key): string|null, setItem(key, value): void, removeItem(key): void, clear(): void, length: number, key(index): string|null}',
+            type: 'data'
+        });
         
 
         // Function to update the shared apps registry
