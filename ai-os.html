@@ -372,7 +372,7 @@
                         if (description !== null) {
                             window.versionManager.createSnapshot(appId, description || 'Manual save');
                         }
-                    });
+                    }, appId);
                 });
             }
             
@@ -682,18 +682,38 @@
         function showVersionSelectionDialog(appId, history) {
             const modal = document.createElement('div');
             modal.className = 'custom-modal';
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 10000;
-            `;
+            
+            // Position relative to app window
+            const appWindow = document.getElementById(`window_${appId}`);
+            if (appWindow) {
+                modal.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                    backdrop-filter: blur(2px);
+                `;
+            } else {
+                // Fallback to fixed positioning if app window not found
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                `;
+            }
             
             const dialog = document.createElement('div');
             dialog.style.cssText = `
@@ -773,7 +793,13 @@
             `;
             
             modal.appendChild(dialog);
-            document.body.appendChild(modal);
+            
+            // Append to app window if available, otherwise to document body
+            if (appWindow) {
+                appWindow.appendChild(modal);
+            } else {
+                document.body.appendChild(modal);
+            }
             
             let selectedSnapshotId = null;
             
@@ -814,20 +840,24 @@
                         if (confirmed) {
                             if (window.versionManager.deleteSnapshot(appId, snapshotId)) {
                                 // Refresh the dialog with updated history
-                                document.body.removeChild(modal);
+                                if (modal.parentNode) {
+                                    modal.parentNode.removeChild(modal);
+                                }
                                 const updatedHistory = window.versionManager.getHistory(appId);
                                 if (updatedHistory.length > 0) {
                                     showVersionSelectionDialog(appId, updatedHistory);
                                 }
                             }
                         }
-                    });
+                    }, appId);
                 });
             });
             
             // Cancel button
             document.getElementById('cancel-revert').addEventListener('click', () => {
-                document.body.removeChild(modal);
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
             });
             
             // Confirm button
@@ -835,13 +865,17 @@
                 if (selectedSnapshotId) {
                     window.versionManager.restoreSnapshot(appId, selectedSnapshotId);
                 }
-                document.body.removeChild(modal);
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
             });
             
             // Click outside to close
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
-                    document.body.removeChild(modal);
+                    if (modal.parentNode) {
+                        modal.parentNode.removeChild(modal);
+                    }
                 }
             });
         }
@@ -849,21 +883,57 @@
         // ===== CUSTOM NON-BLOCKING DIALOGS =====
         
         // Custom prompt dialog
-        function showCustomPrompt(message, defaultValue = '', callback) {
+        function showCustomPrompt(message, defaultValue = '', callback, appId = null) {
             const modal = document.createElement('div');
             modal.className = 'custom-modal';
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 10000;
-            `;
+            
+            // If appId is provided, position relative to app window
+            if (appId) {
+                const appWindow = document.getElementById(`window_${appId}`);
+                if (appWindow) {
+                    modal.style.cssText = `
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.5);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 10000;
+                        backdrop-filter: blur(2px);
+                    `;
+                } else {
+                    // Fallback to fixed positioning if app window not found
+                    modal.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.5);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 10000;
+                    `;
+                }
+            } else {
+                // Default fixed positioning for system-wide dialogs
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                `;
+            }
             
             const dialog = document.createElement('div');
             dialog.style.cssText = `
@@ -906,7 +976,18 @@
             `;
             
             modal.appendChild(dialog);
-            document.body.appendChild(modal);
+            
+            // Append to app window if appId provided, otherwise to document body
+            if (appId) {
+                const appWindow = document.getElementById(`window_${appId}`);
+                if (appWindow) {
+                    appWindow.appendChild(modal);
+                } else {
+                    document.body.appendChild(modal);
+                }
+            } else {
+                document.body.appendChild(modal);
+            }
             
             // Set flag to prevent app key handlers from interfering
             window.customDialogOpen = true;
@@ -922,7 +1003,10 @@
             }, 100);
             
             function cleanup() {
-                document.body.removeChild(modal);
+                // Remove modal from its parent (either app window or document body)
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
                 // Clear flag to re-enable app key handlers
                 window.customDialogOpen = false;
             }
@@ -960,21 +1044,57 @@
         }
         
         // Custom confirm dialog
-        function showCustomConfirm(message, callback) {
+        function showCustomConfirm(message, callback, appId = null) {
             const modal = document.createElement('div');
             modal.className = 'custom-modal';
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 10000;
-            `;
+            
+            // If appId is provided, position relative to app window
+            if (appId) {
+                const appWindow = document.getElementById(`window_${appId}`);
+                if (appWindow) {
+                    modal.style.cssText = `
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.5);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 10000;
+                        backdrop-filter: blur(2px);
+                    `;
+                } else {
+                    // Fallback to fixed positioning if app window not found
+                    modal.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.5);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 10000;
+                    `;
+                }
+            } else {
+                // Default fixed positioning for system-wide dialogs
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                `;
+            }
             
             const dialog = document.createElement('div');
             dialog.style.cssText = `
@@ -1009,7 +1129,18 @@
             `;
             
             modal.appendChild(dialog);
-            document.body.appendChild(modal);
+            
+            // Append to app window if appId provided, otherwise to document body
+            if (appId) {
+                const appWindow = document.getElementById(`window_${appId}`);
+                if (appWindow) {
+                    appWindow.appendChild(modal);
+                } else {
+                    document.body.appendChild(modal);
+                }
+            } else {
+                document.body.appendChild(modal);
+            }
             
             // Set flag to prevent app key handlers from interfering
             window.customDialogOpen = true;
@@ -1018,7 +1149,10 @@
             const okBtn = document.getElementById('confirm-ok');
             
             function cleanup() {
-                document.body.removeChild(modal);
+                // Remove modal from its parent (either app window or document body)
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
                 // Clear flag to re-enable app key handlers
                 window.customDialogOpen = false;
             }
