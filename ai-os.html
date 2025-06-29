@@ -334,6 +334,713 @@
             }
         };
         
+        // ===== APP VERSION CONTROL SYSTEM =====
+        
+        // Track which apps already have version control listeners
+        const appsWithVersionListeners = new Set();
+        
+        // Helper function to add version control event listeners
+        function addVersionControlEventListeners(appId) {
+            if (!window.versionManager) {
+                console.error('Version manager not available for app', appId);
+                return;
+            }
+            
+            // Check if listeners already added for this app
+            if (appsWithVersionListeners.has(appId)) {
+                return;
+            }
+            
+            const revertBtn = document.getElementById(`revert-btn-${appId}`);
+            const saveBtn = document.getElementById(`save-btn-${appId}`);
+            
+            if (revertBtn) {
+                revertBtn.addEventListener('click', () => {
+                    if (!window.versionManager) return;
+                    const history = window.versionManager.getHistory(appId);
+                    if (history.length === 0) return;
+                    
+                    // Always show selection dialog for consistent UX, whether 1 or multiple snapshots
+                    showVersionSelectionDialog(appId, history);
+                });
+            }
+            
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => {
+                    if (!window.versionManager) return;
+                    showCustomPrompt('Enter a description for this save point (optional):', 'Manual save', (description) => {
+                        if (description !== null) {
+                            window.versionManager.createSnapshot(appId, description || 'Manual save');
+                        }
+                    });
+                });
+            }
+            
+            // Mark this app as having listeners
+            appsWithVersionListeners.add(appId);
+        }
+        
+        window.versionManager = {
+            snapshots: new Map(), // appId -> version history
+            dirtyApps: new Set(), // Track which apps have unsaved changes
+            activeSnapshots: new Map(), // appId -> currently active snapshot ID
+            maxVersions: 10,      // configurable limit
+            
+            // Create snapshot before editing
+            createSnapshot: function(appId, description = 'Auto-snapshot') {
+                try {
+                    const app = apps.find(a => a.id === appId);
+                    if (!app) {
+                        console.warn(`Cannot create snapshot: App ${appId} not found`);
+                        return false;
+                    }
+                    
+                    // Get current app state
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    const styleElement = document.getElementById(`style-${appId}`);
+                    const scriptElement = document.getElementById(`script-${appId}`);
+                    
+                    const snapshot = {
+                        id: Date.now(),
+                        timestamp: new Date().toISOString(),
+                        description: description,
+                        state: {
+                            html: contentElement ? contentElement.innerHTML : '',
+                            css: styleElement ? (styleElement.getAttribute('data-original-css') || styleElement.textContent) : '',
+                            javascript: scriptElement ? scriptElement.textContent : '',
+                            title: app.title,
+                            icon: app.icon,
+                            windowState: this.getWindowState(appId),
+                            sharedData: this.captureSharedData(appId)
+                        }
+                    };
+                    
+                    // Get or create version history for this app
+                    if (!this.snapshots.has(appId)) {
+                        this.snapshots.set(appId, []);
+                    }
+                    
+                    const history = this.snapshots.get(appId);
+                    history.push(snapshot);
+                    
+                    // Limit history size
+                    if (history.length > this.maxVersions) {
+                        history.shift(); // Remove oldest
+                    }
+                    
+                    console.log(`📸 Created snapshot for app ${appId}: ${description}`);
+                    
+                    // Set this as the active snapshot
+                    this.activeSnapshots.set(appId, snapshot.id);
+                    
+                    // Mark app as clean after saving
+                    this.markAppClean(appId);
+                    
+                    return true;
+                    
+                } catch (error) {
+                    console.error(`Failed to create snapshot for app ${appId}:`, error);
+                    return false;
+                }
+            },
+            
+            // Restore from snapshot
+            restoreSnapshot: function(appId, snapshotId = null) {
+                try {
+                    const history = this.snapshots.get(appId);
+                    if (!history || history.length === 0) {
+                        console.warn(`No snapshots available for app ${appId}`);
+                        return false;
+                    }
+                    
+                    // Get the snapshot (latest if no ID specified)
+                    let snapshot;
+                    if (snapshotId) {
+                        snapshot = history.find(s => s.id === snapshotId);
+                    } else {
+                        snapshot = history[history.length - 1]; // Latest
+                    }
+                    
+                    if (!snapshot) {
+                        console.warn(`Snapshot not found for app ${appId}`);
+                        return false;
+                    }
+                    
+                    // Show loading state
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    if (contentElement) {
+                        contentElement.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
+                                <h3 style="margin: 0 0 15px 0; color: #0078d4;">↶ Reverting...</h3>
+                                <p style="color: #666; margin: 0;">Restoring to: ${snapshot.description}</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // Restore after a brief delay for visual feedback
+                    setTimeout(() => {
+                        this.performRestore(appId, snapshot);
+                    }, 500);
+                    
+                    return true;
+                    
+                } catch (error) {
+                    console.error(`Failed to restore snapshot for app ${appId}:`, error);
+                    return false;
+                }
+            },
+            
+            // Perform the actual restore
+            performRestore: function(appId, snapshot) {
+                try {
+                    const app = apps.find(a => a.id === appId);
+                    if (!app) return;
+                    
+                    // Restore HTML content
+                    const contentElement = document.getElementById(`content_${appId}`);
+                    if (contentElement) {
+                        contentElement.innerHTML = snapshot.state.html;
+                    }
+                    
+                    // Restore CSS
+                    if (snapshot.state.css) {
+                        addAppCSS(snapshot.state.css, appId);
+                    }
+                    
+                    // Restore JavaScript
+                    if (snapshot.state.javascript) {
+                        executeAppJavaScript(snapshot.state.javascript, appId);
+                    }
+                    
+                    // Restore app metadata
+                    updateAppTitle(appId, snapshot.state.title);
+                    updateAppIcon(appId, snapshot.state.icon);
+                    
+                    // Restore window state
+                    if (snapshot.state.windowState) {
+                        this.restoreWindowState(appId, snapshot.state.windowState);
+                    }
+                    
+                    // Restore shared data
+                    if (snapshot.state.sharedData) {
+                        this.restoreSharedData(appId, snapshot.state.sharedData);
+                    }
+                    
+                    // Set this as the active snapshot
+                    this.activeSnapshots.set(appId, snapshot.id);
+                    
+                    // Mark app as clean after restoring
+                    this.markAppClean(appId);
+                    
+                    console.log(`✅ Restored app ${appId} to snapshot: ${snapshot.description}`);
+                    
+                    // Show success notification
+                    showCustomAlert(`App reverted to: ${snapshot.description}`, 'Revert Successful', appId);
+                    
+                } catch (error) {
+                    console.error(`Failed to perform restore for app ${appId}:`, error);
+                    showCustomAlert(`Failed to revert app: ${error.message}`, 'Revert Failed', appId);
+                }
+            },
+            
+            // Get current window state
+            getWindowState: function(appId) {
+                const windowElement = document.getElementById(`window_${appId}`);
+                if (!windowElement) return null;
+                
+                return {
+                    width: windowElement.style.width,
+                    height: windowElement.style.height,
+                    left: windowElement.style.left,
+                    top: windowElement.style.top,
+                    zIndex: windowElement.style.zIndex
+                };
+            },
+            
+            // Restore window state
+            restoreWindowState: function(appId, windowState) {
+                const windowElement = document.getElementById(`window_${appId}`);
+                if (!windowElement || !windowState) return;
+                
+                if (windowState.width) windowElement.style.width = windowState.width;
+                if (windowState.height) windowElement.style.height = windowState.height;
+                if (windowState.left) windowElement.style.left = windowState.left;
+                if (windowState.top) windowElement.style.top = windowState.top;
+                if (windowState.zIndex) windowElement.style.zIndex = windowState.zIndex;
+            },
+            
+            // Capture app-related shared data
+            captureSharedData: function(appId) {
+                const appData = {};
+                const allData = window.dataRegistry.getAllData();
+                
+                // Find data objects associated with this app
+                Object.keys(allData).forEach(key => {
+                    const meta = window.dataRegistry.getDataInfo(key);
+                    if (meta.config && meta.config.appId === appId) {
+                        appData[key] = JSON.parse(JSON.stringify(allData[key])); // Deep copy
+                    }
+                });
+                
+                return appData;
+            },
+            
+            // Restore app-related shared data
+            restoreSharedData: function(appId, sharedData) {
+                Object.keys(sharedData).forEach(key => {
+                    window.dataRegistry.updateData(key, sharedData[key]);
+                });
+            },
+            
+            // Update version control UI
+            updateVersionControls: function(appId) {
+                const versionControls = document.getElementById(`version-controls-${appId}`);
+                if (!versionControls) return;
+                
+                const history = this.snapshots.get(appId);
+                const hasSnapshots = history && history.length > 0;
+                const isDirty = this.isAppDirty(appId);
+                
+                // Update revert button state
+                const revertBtn = versionControls.querySelector('.revert-btn');
+                if (revertBtn) {
+                    revertBtn.disabled = !hasSnapshots;
+                    revertBtn.style.opacity = hasSnapshots ? '1' : '0.5';
+                }
+                
+                // Update save button state
+                const saveBtn = versionControls.querySelector('.save-btn');
+                if (saveBtn) {
+                    saveBtn.disabled = !isDirty;
+                    saveBtn.style.opacity = isDirty ? '1' : '0.5';
+                }
+                
+                // Update version indicator
+                const indicator = versionControls.querySelector('.version-indicator');
+                if (indicator) {
+                    if (isDirty) {
+                        indicator.textContent = 'Modified';
+                        indicator.style.color = '#ffc107';
+                    } else {
+                        indicator.textContent = hasSnapshots ? `${history.length}` : 'No versions';
+                        indicator.style.color = '#6c757d';
+                    }
+                }
+            },
+            
+            // Check if app has unsaved changes
+            isAppDirty: function(appId) {
+                return this.dirtyApps.has(appId);
+            },
+            
+            // Mark app as dirty (has unsaved changes)
+            markAppDirty: function(appId) {
+                this.dirtyApps.add(appId);
+                this.updateVersionControls(appId);
+            },
+            
+            // Mark app as clean (no unsaved changes)
+            markAppClean: function(appId) {
+                this.dirtyApps.delete(appId);
+                this.updateVersionControls(appId);
+            },
+            
+            // Get version history for an app
+            getHistory: function(appId) {
+                return this.snapshots.get(appId) || [];
+            },
+            
+            // Delete a specific snapshot
+            deleteSnapshot: function(appId, snapshotId) {
+                const history = this.snapshots.get(appId);
+                if (!history) return false;
+                
+                // Don't allow deletion of active snapshot
+                const activeSnapshotId = this.activeSnapshots.get(appId);
+                if (snapshotId === activeSnapshotId) {
+                    showCustomAlert('Cannot delete the currently active snapshot.', 'Delete Failed');
+                    return false;
+                }
+                
+                // Remove the snapshot
+                const updatedHistory = history.filter(snapshot => snapshot.id !== snapshotId);
+                this.snapshots.set(appId, updatedHistory);
+                
+                console.log(`🗑️ Deleted snapshot ${snapshotId} for app ${appId}`);
+                this.updateVersionControls(appId);
+                return true;
+            },
+            
+            // Clear all snapshots for an app
+            clearHistory: function(appId) {
+                this.snapshots.delete(appId);
+                this.updateVersionControls(appId);
+            }
+        };
+        
+        // Version selection dialog for multiple snapshots
+        function showVersionSelectionDialog(appId, history) {
+            const modal = document.createElement('div');
+            modal.className = 'custom-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: white;
+                border-radius: 8px;
+                padding: 20px;
+                max-width: 600px;
+                max-height: 70vh;
+                overflow-y: auto;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            `;
+            
+            const activeSnapshotId = window.versionManager.activeSnapshots.get(appId);
+            
+            dialog.innerHTML = `
+                <h3 style="margin: 0 0 20px 0; color: #333;">Manage App Versions</h3>
+                <div id="version-list" style="margin-bottom: 20px;">
+                    ${history.slice().reverse().map((snapshot, index) => {
+                        const isActive = snapshot.id === activeSnapshotId;
+                        const isLatest = index === 0;
+                        return `
+                            <div class="version-item" data-snapshot-id="${snapshot.id}" style="
+                                padding: 12px;
+                                border: 2px solid ${isActive ? '#28a745' : '#ddd'};
+                                border-radius: 4px;
+                                margin-bottom: 8px;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                                background-color: ${isActive ? '#f8fff9' : 'white'};
+                                position: relative;
+                            " onmouseover="if(!${isActive}) this.style.backgroundColor='#f8f9fa'"
+                               onmouseout="this.style.backgroundColor='${isActive ? '#f8fff9' : 'white'}'">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: bold; color: #333;">
+                                            ${snapshot.description}
+                                            ${isActive ? ' <span style="color: #28a745; font-size: 12px;">(ACTIVE)</span>' : ''}
+                                        </div>
+                                        <div style="font-size: 12px; color: #666;">
+                                            ${new Date(snapshot.timestamp).toLocaleString()}
+                                            ${isLatest ? ' (Latest)' : ''}
+                                        </div>
+                                    </div>
+                                    <button class="delete-snapshot-btn" data-snapshot-id="${snapshot.id}" style="
+                                        background: #dc3545;
+                                        color: white;
+                                        border: none;
+                                        border-radius: 3px;
+                                        padding: 4px 8px;
+                                        font-size: 12px;
+                                        cursor: pointer;
+                                        margin-left: 10px;
+                                        ${isActive ? 'opacity: 0.5; cursor: not-allowed;' : ''}
+                                    " ${isActive ? 'disabled' : ''} title="${isActive ? 'Cannot delete active snapshot' : 'Delete this snapshot'}">🗑️</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button id="cancel-revert" style="
+                        padding: 8px 16px;
+                        border: 1px solid #ccc;
+                        background: white;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Cancel</button>
+                    <button id="confirm-revert" style="
+                        padding: 8px 16px;
+                        border: none;
+                        background: #007bff;
+                        color: white;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    " disabled>Revert to Selected</button>
+                </div>
+            `;
+            
+            modal.appendChild(dialog);
+            document.body.appendChild(modal);
+            
+            let selectedSnapshotId = null;
+            
+            // Add click handlers for version items (for selection)
+            dialog.querySelectorAll('.version-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    // Don't select if clicking on delete button
+                    if (e.target.classList.contains('delete-snapshot-btn')) return;
+                    
+                    // Remove previous selection
+                    dialog.querySelectorAll('.version-item').forEach(i => {
+                        const isActive = parseInt(i.dataset.snapshotId) === activeSnapshotId;
+                        i.style.backgroundColor = isActive ? '#f8fff9' : 'white';
+                        i.style.borderColor = isActive ? '#28a745' : '#ddd';
+                    });
+                    
+                    // Highlight selected item
+                    item.style.backgroundColor = '#e3f2fd';
+                    item.style.borderColor = '#2196f3';
+                    
+                    selectedSnapshotId = parseInt(item.dataset.snapshotId);
+                    document.getElementById('confirm-revert').disabled = false;
+                });
+            });
+            
+            // Add click handlers for delete buttons
+            dialog.querySelectorAll('.delete-snapshot-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent item selection
+                    const snapshotId = parseInt(btn.dataset.snapshotId);
+                    
+                    if (snapshotId === activeSnapshotId) {
+                        showCustomAlert('Cannot delete the currently active snapshot.', 'Delete Failed');
+                        return;
+                    }
+                    
+                    showCustomConfirm('Are you sure you want to delete this snapshot? This action cannot be undone.', (confirmed) => {
+                        if (confirmed) {
+                            if (window.versionManager.deleteSnapshot(appId, snapshotId)) {
+                                // Refresh the dialog with updated history
+                                document.body.removeChild(modal);
+                                const updatedHistory = window.versionManager.getHistory(appId);
+                                if (updatedHistory.length > 0) {
+                                    showVersionSelectionDialog(appId, updatedHistory);
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+            
+            // Cancel button
+            document.getElementById('cancel-revert').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+            
+            // Confirm button
+            document.getElementById('confirm-revert').addEventListener('click', () => {
+                if (selectedSnapshotId) {
+                    window.versionManager.restoreSnapshot(appId, selectedSnapshotId);
+                }
+                document.body.removeChild(modal);
+            });
+            
+            // Click outside to close
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+        }
+        
+        // ===== CUSTOM NON-BLOCKING DIALOGS =====
+        
+        // Custom prompt dialog
+        function showCustomPrompt(message, defaultValue = '', callback) {
+            const modal = document.createElement('div');
+            modal.className = 'custom-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: white;
+                border-radius: 8px;
+                padding: 20px;
+                max-width: 400px;
+                width: 90%;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            `;
+            
+            dialog.innerHTML = `
+                <h3 style="margin: 0 0 15px 0; color: #333;">${message}</h3>
+                <input type="text" id="prompt-input" value="${defaultValue}" style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    margin-bottom: 20px;
+                    box-sizing: border-box;
+                ">
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button id="prompt-cancel" style="
+                        padding: 8px 16px;
+                        border: 1px solid #ccc;
+                        background: white;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Cancel</button>
+                    <button id="prompt-ok" style="
+                        padding: 8px 16px;
+                        border: none;
+                        background: #007bff;
+                        color: white;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">OK</button>
+                </div>
+            `;
+            
+            modal.appendChild(dialog);
+            document.body.appendChild(modal);
+            
+            const input = document.getElementById('prompt-input');
+            const cancelBtn = document.getElementById('prompt-cancel');
+            const okBtn = document.getElementById('prompt-ok');
+            
+            // Focus and select input
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 100);
+            
+            function cleanup() {
+                document.body.removeChild(modal);
+            }
+            
+            // Cancel button
+            cancelBtn.addEventListener('click', () => {
+                cleanup();
+                callback(null);
+            });
+            
+            // OK button
+            okBtn.addEventListener('click', () => {
+                const value = input.value.trim();
+                cleanup();
+                callback(value || defaultValue);
+            });
+            
+            // Enter key
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    okBtn.click();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelBtn.click();
+                }
+            });
+            
+            // Click outside to cancel
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    cancelBtn.click();
+                }
+            });
+        }
+        
+        // Custom confirm dialog
+        function showCustomConfirm(message, callback) {
+            const modal = document.createElement('div');
+            modal.className = 'custom-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: white;
+                border-radius: 8px;
+                padding: 20px;
+                max-width: 400px;
+                width: 90%;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            `;
+            
+            dialog.innerHTML = `
+                <h3 style="margin: 0 0 15px 0; color: #333;">Confirm Action</h3>
+                <p style="margin: 0 0 20px 0; color: #666; line-height: 1.4;">${message}</p>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button id="confirm-cancel" style="
+                        padding: 8px 16px;
+                        border: 1px solid #ccc;
+                        background: white;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Cancel</button>
+                    <button id="confirm-ok" style="
+                        padding: 8px 16px;
+                        border: none;
+                        background: #dc3545;
+                        color: white;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Confirm</button>
+                </div>
+            `;
+            
+            modal.appendChild(dialog);
+            document.body.appendChild(modal);
+            
+            const cancelBtn = document.getElementById('confirm-cancel');
+            const okBtn = document.getElementById('confirm-ok');
+            
+            function cleanup() {
+                document.body.removeChild(modal);
+            }
+            
+            // Cancel button
+            cancelBtn.addEventListener('click', () => {
+                cleanup();
+                callback(false);
+            });
+            
+            // OK button
+            okBtn.addEventListener('click', () => {
+                cleanup();
+                callback(true);
+            });
+            
+            // Escape key
+            document.addEventListener('keydown', function escapeHandler(e) {
+                if (e.key === 'Escape') {
+                    document.removeEventListener('keydown', escapeHandler);
+                    cancelBtn.click();
+                }
+            });
+            
+            // Click outside to cancel
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    cancelBtn.click();
+                }
+            });
+        }
+        
         // ===== CUSTOM POPUP SYSTEM =====
         
         function showCustomAlert(message, title = 'Alert', appId = null) {
@@ -1424,10 +2131,23 @@ const app = {
                     ${content}
                 </div>
                 <div class="window-system-toolbar">
-                    <button class="toolbar-button window-voice-button" id="voice-button-${appId}" title="Hold to talk - Modify this app with voice">🎤</button>
-                    <button class="toolbar-button window-text-button" id="text-button-${appId}" title="Edit this app with text prompt">✏️</button>
-                    <button class="toolbar-button window-history-button" id="history-button-${appId}" title="View prompt history" onclick="showPromptHistory('${appId}')">📜</button>
-                    <button class="toolbar-button window-download-button" id="download-button-${appId}" title="Download this app">💾</button>
+                    <div class="version-controls" id="version-controls-${appId}">
+                        <button class="toolbar-button revert-btn" id="revert-btn-${appId}" title="Revert to last saved state" disabled>
+                            ↶ Revert
+                        </button>
+                        <button class="toolbar-button save-btn" id="save-btn-${appId}" title="Save current state">
+                            💾 Save
+                        </button>
+                        <span class="version-indicator" title="Version status">
+                            No versions
+                        </span>
+                    </div>
+                    <div class="app-controls">
+                        <button class="toolbar-button window-voice-button" id="voice-button-${appId}" title="Hold to talk - Modify this app with voice">🎤</button>
+                        <button class="toolbar-button window-text-button" id="text-button-${appId}" title="Edit this app with text prompt">✏️</button>
+                        <button class="toolbar-button window-history-button" id="history-button-${appId}" title="View prompt history" onclick="showPromptHistory('${appId}')">📜</button>
+                        <button class="toolbar-button window-download-button" id="download-button-${appId}" title="Download this app">⬇️</button>
+                    </div>
                 </div>
                 <div class="resize-handle" onmousedown="startResize(event, '${appId}')"></div>
             `;
@@ -1503,7 +2223,53 @@ const app = {
                 } else {
                     console.warn(`Download button not found for app ${appId}`);
                 }
+                
+                // Version control event listeners are now handled by addVersionControlEventListeners()
+                
+                const revertButton = document.getElementById(`revert-btn-${appId}`);
+                if (revertButton) {
+                    revertButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const history = window.versionManager.getHistory(appId);
+                        if (history.length === 0) {
+                            showCustomAlert('No saved versions available to revert to.', 'No Versions');
+                            return;
+                        }
+                        
+                        if (history.length === 1) {
+                            // Only one version, revert directly
+                            showCustomConfirm(
+                                `Revert to saved state: "${history[0].description}"?\n\nThis will undo all changes since the last save.`,
+                                'Confirm Revert'
+                            ).then(confirmed => {
+                                if (confirmed) {
+                                    window.versionManager.restoreSnapshot(appId);
+                                }
+                            });
+                        } else {
+                            // Multiple versions, show selection dialog
+                            showVersionSelectionDialog(appId, history);
+                        }
+                    });
+                } else {
+                    console.warn(`Revert button not found for app ${appId}`);
+                }
             }, 50);
+            
+            // Initialize version control for this app
+            setTimeout(() => {
+                // Add event listeners for version control buttons
+                addVersionControlEventListeners(appId);
+                
+                // Create initial snapshot for new apps
+                if (content !== SPINNER_ANIMATION && window.versionManager) {
+                    window.versionManager.createSnapshot(appId, 'Initial state');
+                }
+                // Update version controls after snapshot creation
+                if (window.versionManager) {
+                    window.versionManager.updateVersionControls(appId);
+                }
+            }, 100);
             
             // Add click handler to window content to bring window to focus
             const windowContent = document.getElementById(`content_${appId}`);
@@ -2533,6 +3299,19 @@ const app = {
                 
                 // Clean up app-specific resources
                 cleanupAppNamespace(appId);
+                
+                // Clean up version control listeners and dirty state
+                if (appsWithVersionListeners.has(appId)) {
+                    appsWithVersionListeners.delete(appId);
+                }
+                if (window.versionManager) {
+                    if (window.versionManager.dirtyApps.has(appId)) {
+                        window.versionManager.dirtyApps.delete(appId);
+                    }
+                    if (window.versionManager.activeSnapshots.has(appId)) {
+                        window.versionManager.activeSnapshots.delete(appId);
+                    }
+                }
                 
                 apps = apps.filter(app => app.id !== appId);
                 updateSharedAppsRegistry();
@@ -5179,6 +5958,15 @@ const app = {
                 // Auto-size and center the window based on content
                 setTimeout(() => {
                     autoSizeAndCenterWindow(newApp.id);
+                    
+                    // Add event listeners for version control buttons
+                    addVersionControlEventListeners(newApp.id);
+                    
+                    // Create initial snapshot for loaded app
+                    if (window.versionManager) {
+                        window.versionManager.createSnapshot(newApp.id, 'Loaded from persistence');
+                        window.versionManager.updateVersionControls(newApp.id);
+                    }
                 }, 100);
                 
                 // Update apps submenu
@@ -5766,7 +6554,7 @@ const app = {
                                 
                                 const saveResult = await saveAppToPersistence(appId, appData, {
                                     description: `AI-generated app: ${appData.title}`,
-                                    savePrompt: true
+                                    savePrompt: false
                                 });
                                 
                                 if (saveResult.success) {
@@ -5912,7 +6700,7 @@ const app = {
                                 
                                 const saveResult = await saveAppToPersistence(appId, appData, {
                                     description: `AI-generated app with images: ${appData.title}`,
-                                    savePrompt: true
+                                    savePrompt: false
                                 });
                                 
                                 if (saveResult.success) {
@@ -6895,6 +7683,12 @@ ${containerSelector} {
                 return;
             }
             
+            // Create snapshot before modification
+            if (window.versionManager) {
+                const snapshotDescription = `Before: ${modificationRequest.substring(0, 50)}${modificationRequest.length > 50 ? '...' : ''}`;
+                window.versionManager.createSnapshot(appId, snapshotDescription);
+            }
+            
             // Extract current app code
             const appContentElement = document.getElementById(`content_${appId}`);
             const currentHTML = appContentElement ? appContentElement.innerHTML : '';
@@ -7057,6 +7851,11 @@ ${containerSelector} {
                     if (contentElement) {
                         contentElement.innerHTML = response.html;
                         
+                        // Mark app as dirty after modification
+                        if (window.versionManager) {
+                            window.versionManager.markAppDirty(appId);
+                        }
+                        
                         // Add CSS if provided
                         if (response.css) {
                             addAppCSS(response.css, appId);
@@ -7104,7 +7903,7 @@ ${containerSelector} {
                                     
                                     const saveResult = await saveAppToPersistence(appId, appData, {
                                         description: `Modified app: ${appData.title}`,
-                                        savePrompt: true
+                                        savePrompt: false
                                     });
                                     
                                     if (saveResult.success) {
@@ -7186,6 +7985,11 @@ ${containerSelector} {
                     if (contentElement) {
                         contentElement.innerHTML = response.html;
                         
+                        // Mark app as dirty after modification
+                        if (window.versionManager) {
+                            window.versionManager.markAppDirty(appId);
+                        }
+                        
                         // Add CSS if provided
                         if (response.css) {
                             addAppCSS(response.css, appId);
@@ -7237,7 +8041,7 @@ ${containerSelector} {
                                     
                                     const saveResult = await saveAppToPersistence(appId, appData, {
                                         description: `Modified app with images: ${appData.title}`,
-                                        savePrompt: true
+                                        savePrompt: false
                                     });
                                     
                                     if (saveResult.success) {
