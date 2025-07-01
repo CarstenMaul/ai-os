@@ -1739,6 +1739,10 @@
             document.addEventListener('keydown', handleGlobalKeyEvent);
             document.addEventListener('keyup', handleGlobalKeyEvent);
             document.addEventListener('keypress', handleGlobalKeyEvent);
+            
+            // Initialize fullscreen hotkeys
+            initializeGlobalHotkeys();
+            console.log('Fullscreen hotkeys initialized');
         }
 
         // Global variable to store pasted images for new app requests
@@ -2157,6 +2161,7 @@ window[appNamespace].app = app;
                     <div class="window-controls">
                         <button class="window-control minimize" onclick="minimizeWindow('${appId}')">−</button>
                         <button class="window-control maximize" onclick="toggleMaximize('${appId}')">□</button>
+                        <button class="window-control fullscreen-btn" onclick="toggleFullscreen('${appId}')" title="Fullscreen (F11)">⛶</button>
                         <button class="window-control close" onclick="closeWindow('${appId}')">×</button>
                     </div>
                 </div>
@@ -3321,6 +3326,11 @@ window[appNamespace].app = app;
             const icon = document.getElementById(`icon_${appId}`);
             const app = apps.find(a => a.id === appId);
             
+            // Clean up fullscreen state if window is closed while fullscreen
+            if (window.fullscreenApps && window.fullscreenApps.has(appId)) {
+                exitFullscreen(appId);
+            }
+            
             if (app && app.isSystemApp) {
                 // For system apps, hide instead of remove
                 if (window) {
@@ -3446,6 +3456,399 @@ window[appNamespace].app = app;
             if (icon && app) {
                 icon.classList.toggle('active', !app.isMinimized);
             }
+        }
+
+        // ===== FULLSCREEN FUNCTIONALITY =====
+        
+        // Global fullscreen state tracking
+        window.fullscreenApps = new Set();
+        window.fullscreenMouseHandlers = new Map();
+        window.hotkeySettings = {
+            fullscreen: 'F11',
+            exitFullscreen: 'Escape'
+        };
+
+        function toggleFullscreen(appId) {
+            const windowElement = document.getElementById(`window_${appId}`);
+            if (!windowElement) return;
+            
+            const isFullscreen = window.fullscreenApps.has(appId);
+            
+            if (isFullscreen) {
+                exitFullscreen(appId);
+            } else {
+                enterFullscreen(appId);
+            }
+        }
+
+        function enterFullscreen(appId) {
+            const windowElement = document.getElementById(`window_${appId}`);
+            const app = apps.find(a => a.id === appId);
+            
+            if (!windowElement || !app) return;
+            
+            // Store current window state for restoration
+            app.preFullscreenState = {
+                left: windowElement.style.left,
+                top: windowElement.style.top,
+                width: windowElement.style.width,
+                height: windowElement.style.height,
+                zIndex: windowElement.style.zIndex
+            };
+            
+            // Apply fullscreen class
+            windowElement.classList.add('fullscreen');
+            document.body.classList.add('has-fullscreen-app');
+            window.fullscreenApps.add(appId);
+            
+            // Update fullscreen button to exit mode
+            updateFullscreenButton(appId, true);
+            
+            // Set up mouse hover detection for header
+            setupFullscreenMouseHandlers(appId);
+            
+            // Bring to front
+            windowElement.style.zIndex = '10000';
+            
+            // Optimize content for fullscreen
+            const contentElement = document.getElementById(`content_${appId}`);
+            if (contentElement) {
+                contentElement.style.height = '100vh';
+                
+                // Notify app of fullscreen change
+                const resizeEvent = new Event('resize');
+                window.dispatchEvent(resizeEvent);
+            }
+            
+            console.log(`App ${appId} entered fullscreen mode`);
+        }
+
+        function exitFullscreen(appId) {
+            const windowElement = document.getElementById(`window_${appId}`);
+            const app = apps.find(a => a.id === appId);
+            
+            if (!windowElement || !app) return;
+            
+            // Remove fullscreen class and show header
+            windowElement.classList.remove('fullscreen', 'show-header');
+            window.fullscreenApps.delete(appId);
+            
+            // Show system UI if no more fullscreen apps
+            if (window.fullscreenApps.size === 0) {
+                document.body.classList.remove('has-fullscreen-app');
+            }
+            
+            // Update fullscreen button back to enter mode
+            updateFullscreenButton(appId, false);
+            
+            // Remove mouse handlers
+            removeFullscreenMouseHandlers(appId);
+            
+            // Restore window state
+            if (app.preFullscreenState) {
+                Object.assign(windowElement.style, app.preFullscreenState);
+                delete app.preFullscreenState;
+            }
+            
+            // Restore content
+            const contentElement = document.getElementById(`content_${appId}`);
+            if (contentElement) {
+                contentElement.style.height = '';
+                
+                // Notify app of fullscreen change
+                const resizeEvent = new Event('resize');
+                window.dispatchEvent(resizeEvent);
+            }
+            
+            console.log(`App ${appId} exited fullscreen mode`);
+        }
+
+        function setupFullscreenMouseHandlers(appId) {
+            const windowElement = document.getElementById(`window_${appId}`);
+            if (!windowElement) return;
+            
+            let hideTimeout;
+            
+            const mouseHandler = (event) => {
+                if (!window.fullscreenApps.has(appId)) return;
+                
+                const rect = windowElement.getBoundingClientRect();
+                const mouseY = event.clientY - rect.top;
+                
+                // Show header when mouse is near top (within 80px)
+                if (mouseY <= 80) {
+                    windowElement.classList.add('show-header');
+                    
+                    // Clear any existing hide timeout
+                    if (hideTimeout) {
+                        clearTimeout(hideTimeout);
+                        hideTimeout = null;
+                    }
+                } else {
+                    // Hide header when mouse moves away from top
+                    windowElement.classList.remove('show-header');
+                }
+            };
+            
+            const leaveHandler = () => {
+                if (!window.fullscreenApps.has(appId)) return;
+                
+                // Hide header when mouse leaves window
+                hideTimeout = setTimeout(() => {
+                    windowElement.classList.remove('show-header');
+                }, 1000); // 1 second delay
+            };
+            
+            // Store handlers for cleanup
+            window.fullscreenMouseHandlers.set(appId, {
+                mouseHandler,
+                leaveHandler
+            });
+            
+            // Add event listeners
+            windowElement.addEventListener('mousemove', mouseHandler);
+            windowElement.addEventListener('mouseleave', leaveHandler);
+        }
+
+        function removeFullscreenMouseHandlers(appId) {
+            const handlers = window.fullscreenMouseHandlers.get(appId);
+            if (!handlers) return;
+            
+            const windowElement = document.getElementById(`window_${appId}`);
+            if (windowElement) {
+                windowElement.removeEventListener('mousemove', handlers.mouseHandler);
+                windowElement.removeEventListener('mouseleave', handlers.leaveHandler);
+            }
+            
+            window.fullscreenMouseHandlers.delete(appId);
+        }
+
+        function updateFullscreenButton(appId, isFullscreen) {
+            const button = document.querySelector(`#window_${appId} .fullscreen-btn`);
+            if (!button) return;
+            
+            if (isFullscreen) {
+                // Exit fullscreen mode
+                button.innerHTML = '⤓';
+                button.title = `Exit Fullscreen (${window.hotkeySettings?.exitFullscreen || 'Escape'})`;
+                button.classList.add('exit-mode');
+            } else {
+                // Enter fullscreen mode
+                button.innerHTML = '⛶';
+                button.title = `Fullscreen (${window.hotkeySettings?.fullscreen || 'F11'})`;
+                button.classList.remove('exit-mode');
+            }
+        }
+
+        function captureHotkey(inputElement) {
+            const originalValue = inputElement.value;
+            const originalPlaceholder = inputElement.placeholder;
+            
+            // Show capture state
+            inputElement.value = '';
+            inputElement.placeholder = 'Press a key combination...';
+            inputElement.style.backgroundColor = '#ffffcc';
+            inputElement.focus();
+            
+            let captureTimeout;
+            
+            const keyHandler = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // Build key combination string
+                let keys = [];
+                if (event.ctrlKey) keys.push('Ctrl');
+                if (event.altKey) keys.push('Alt');
+                if (event.shiftKey) keys.push('Shift');
+                if (event.metaKey) keys.push('Cmd');
+                
+                // Add the main key (ignore modifier keys by themselves)
+                if (event.key && !['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) {
+                    let keyName = event.key;
+                    
+                    // Convert special keys to readable names
+                    const keyMap = {
+                        ' ': 'Space',
+                        'ArrowUp': 'Up',
+                        'ArrowDown': 'Down',
+                        'ArrowLeft': 'Left',
+                        'ArrowRight': 'Right',
+                        'Escape': 'Esc'
+                    };
+                    
+                    if (keyMap[keyName]) {
+                        keyName = keyMap[keyName];
+                    } else if (keyName.length === 1) {
+                        keyName = keyName.toUpperCase();
+                    }
+                    
+                    keys.push(keyName);
+                }
+                
+                if (keys.length > 0) {
+                    const combination = keys.join('+');
+                    inputElement.value = combination;
+                    
+                    // Save to settings
+                    const settingName = inputElement.dataset.setting;
+                    if (settingName) {
+                        if (!window.hotkeySettings) {
+                            window.hotkeySettings = {};
+                        }
+                        window.hotkeySettings[settingName] = combination;
+                        setCookie(`hotkey_${settingName}`, combination, 365);
+                        
+                        // Update button tooltips if needed
+                        if (settingName === 'fullscreen' || settingName === 'exitFullscreen') {
+                            apps.forEach(app => {
+                                updateFullscreenButton(app.id, window.fullscreenApps.has(app.id));
+                            });
+                        }
+                    }
+                }
+                
+                cleanup();
+            };
+            
+            const blurHandler = () => {
+                // Restore original value if no key was captured
+                if (!inputElement.value) {
+                    inputElement.value = originalValue;
+                }
+                cleanup();
+            };
+            
+            const cleanup = () => {
+                inputElement.style.backgroundColor = '';
+                inputElement.placeholder = originalPlaceholder;
+                inputElement.blur();
+                document.removeEventListener('keydown', keyHandler, true);
+                inputElement.removeEventListener('blur', blurHandler);
+                if (captureTimeout) {
+                    clearTimeout(captureTimeout);
+                }
+            };
+            
+            // Set timeout to cancel capture after 10 seconds
+            captureTimeout = setTimeout(() => {
+                inputElement.value = originalValue;
+                cleanup();
+            }, 10000);
+            
+            // Add event listeners
+            document.addEventListener('keydown', keyHandler, true);
+            inputElement.addEventListener('blur', blurHandler);
+        }
+
+        function getFocusedApp() {
+            // Find the topmost window (highest z-index)
+            let topApp = null;
+            let highestZIndex = 0;
+            
+            apps.forEach(app => {
+                const windowElement = document.getElementById(`window_${app.id}`);
+                if (windowElement && !app.isMinimized) {
+                    const zIndex = parseInt(windowElement.style.zIndex) || 0;
+                    if (zIndex > highestZIndex) {
+                        highestZIndex = zIndex;
+                        topApp = app;
+                    }
+                }
+            });
+            
+            return topApp;
+        }
+
+        function buildKeyString(event) {
+            let keys = [];
+            if (event.ctrlKey) keys.push('Ctrl');
+            if (event.altKey) keys.push('Alt');
+            if (event.shiftKey) keys.push('Shift');
+            if (event.metaKey) keys.push('Cmd');
+            
+            // Add the main key (ignore modifier keys by themselves)
+            if (event.key && !['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) {
+                let keyName = event.key;
+                
+                // Convert special keys to readable names (same as captureHotkey)
+                const keyMap = {
+                    ' ': 'Space',
+                    'ArrowUp': 'Up',
+                    'ArrowDown': 'Down',
+                    'ArrowLeft': 'Left',
+                    'ArrowRight': 'Right',
+                    'Escape': 'Esc'
+                };
+                
+                if (keyMap[keyName]) {
+                    keyName = keyMap[keyName];
+                } else if (keyName.length === 1) {
+                    keyName = keyName.toUpperCase();
+                }
+                
+                keys.push(keyName);
+            }
+            
+            return keys.join('+');
+        }
+
+        function initializeGlobalHotkeys() {
+            // Load hotkey settings from cookies
+            const fullscreenHotkey = getCookie('hotkey_fullscreen');
+            const exitFullscreenHotkey = getCookie('hotkey_exitFullscreen');
+            
+            if (fullscreenHotkey) {
+                window.hotkeySettings.fullscreen = fullscreenHotkey;
+                const input = document.getElementById('fullscreen-hotkey');
+                if (input) input.value = fullscreenHotkey;
+            }
+            
+            if (exitFullscreenHotkey) {
+                window.hotkeySettings.exitFullscreen = exitFullscreenHotkey;
+                const input = document.getElementById('exit-fullscreen-hotkey');
+                if (input) input.value = exitFullscreenHotkey;
+            }
+            
+            document.addEventListener('keydown', (event) => {
+                // Always allow Escape to exit fullscreen
+                if (event.key === 'Escape' && window.fullscreenApps.size > 0) {
+                    event.preventDefault();
+                    window.fullscreenApps.forEach(appId => {
+                        exitFullscreen(appId);
+                    });
+                    return;
+                }
+                
+                // Don't handle other hotkeys when typing
+                if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                
+                const keyString = buildKeyString(event);
+                const focusedApp = getFocusedApp();
+                
+                // Handle fullscreen toggle
+                if (keyString === window.hotkeySettings?.fullscreen && focusedApp) {
+                    event.preventDefault();
+                    toggleFullscreen(focusedApp.id);
+                }
+                
+                // Handle custom exit fullscreen hotkey
+                if (keyString === window.hotkeySettings?.exitFullscreen && window.fullscreenApps.size > 0) {
+                    event.preventDefault();
+                    window.fullscreenApps.forEach(appId => {
+                        exitFullscreen(appId);
+                    });
+                    return;
+                }
+                
+                // F11 as default fullscreen toggle
+                if (event.key === 'F11' && focusedApp) {
+                    event.preventDefault();
+                    toggleFullscreen(focusedApp.id);
+                }
+            });
         }
 
         function bringToFront(appId) {
@@ -5258,6 +5661,23 @@ window[appNamespace].app = app;
             
             console.log('Settings saved to cookie:', settings);
             return settings;
+        }
+
+        function setCookie(name, value, days) {
+            const expires = new Date();
+            expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/`;
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+            }
+            return null;
         }
 
         function loadSettingsFromCookie() {
@@ -8227,6 +8647,16 @@ ${containerSelector} {
                                         <option value="12">12-hour (h:MM:SS AM/PM)</option>
                                     </select>
                                 </div>
+                                <div class="setting-item">
+                                    <label for="fullscreen-hotkey">Fullscreen Hotkey</label>
+                                    <input type="text" id="fullscreen-hotkey" value="F11" readonly
+                                           placeholder="Click to set hotkey" class="hotkey-input" data-setting="fullscreen">
+                                </div>
+                                <div class="setting-item">
+                                    <label for="exit-fullscreen-hotkey">Exit Fullscreen Hotkey</label>
+                                    <input type="text" id="exit-fullscreen-hotkey" value="Escape" readonly
+                                           placeholder="Click to set hotkey" class="hotkey-input" data-setting="exitFullscreen">
+                                </div>
                             </div>
                             
                             <!-- Appearance Settings -->
@@ -8695,6 +9125,14 @@ ${containerSelector} {
                     testMicrophone();
                 });
             }
+            
+            // Hotkey configuration
+            const hotkeyInputs = document.querySelectorAll('.hotkey-input');
+            hotkeyInputs.forEach(input => {
+                input.addEventListener('click', () => {
+                    captureHotkey(input);
+                });
+            });
             
             // Reset cost button
             const resetCostBtn = document.getElementById('reset-cost');
