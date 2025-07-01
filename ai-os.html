@@ -6131,7 +6131,7 @@ window[appNamespace].app = app;
                 }
                 
                 if (appData.javascript) {
-                    executeAppJavaScript(appData.javascript, newApp.id, newApp.title);
+                    executeAppJavaScript(appData.javascript, newApp.id);
                 }
                 
                 // Auto-size and center the window based on content
@@ -7625,7 +7625,7 @@ ${containerSelector} {
             return themeBaseStyles + '\n' + namespacedRules.join('\n');
         }
 
-        function executeAppJavaScript(javascript, appId) {
+        function executeAppJavaScript(javascript, appId, providedNamespace = null) {
             let namespacedJS = '';
             try {
                 // Verify that the app container exists before executing JavaScript
@@ -7641,8 +7641,21 @@ ${containerSelector} {
                 scriptElement.textContent = javascript;
                 document.head.appendChild(scriptElement);
                 
-                // Create app-specific namespace
-                const appNamespace = 'app_' + appId.replace(/-/g, '_');
+                // Determine the app namespace - use provided, look in window, or generate
+                let appNamespace = providedNamespace;
+                
+                if (!appNamespace) {
+                    // Try to find existing namespace in window object
+                    const generatedNamespace = 'app_' + appId.replace(/-/g, '_');
+                    if (window[generatedNamespace]) {
+                        appNamespace = generatedNamespace;
+                    } else {
+                        // Generate new namespace
+                        appNamespace = generatedNamespace;
+                    }
+                }
+                
+                // Ensure namespace exists in window
                 window[appNamespace] = window[appNamespace] || {};
                 
                 // Apply namespace isolation to JavaScript
@@ -7723,7 +7736,11 @@ ${containerSelector} {
             }
         }
 
-        function namespaceJavaScript(javascript, appId, helperFunctions = '', appNamespace) {
+        function namespaceJavaScript(javascript, appId, helperFunctions = '', appNamespace = null) {
+            // Generate appNamespace if not provided (for backward compatibility)
+            if (!appNamespace) {
+                appNamespace = 'app_' + appId.replace(/-/g, '_');
+            }
             // Wrap JavaScript in an IIFE with app namespace
             const namespacedJS = `
 (function(appId, appNamespace) {
@@ -7731,11 +7748,15 @@ ${containerSelector} {
     ${helperFunctions}
     
     // *** Make namespace accessible to app code ***
-    const namespace = ${appNamespace};
+    const namespace = "${appNamespace}";
     const appScope = window[appNamespace];
     
     // *** Execute the app's JavaScript code ***
-    ${javascript.replace(/^\s*(let|const|var)\s+(namespace|appNamespace|appScope|app)\s*=[^;]*;\s*\n?/gm, '').replace(/window\[[^\]]+\]/g, 'window[appNamespace]')}
+    ${javascript.replace(/^\s*(var|let|const)?\s+(namespace|appNamespace|appScope|app)\s*=[^;]*;\s*\n?/gm, '')
+                .replace(/window\[[^\]]+\]/g, 'window[appNamespace]')
+                .replace(/^\s*(var|let|const)?\s+window\[appNamespace\]\s*=\s*{}\s*;\s*\n?/gm, '')
+                .replace(/(['"])window\[appNamespace\]/g, (match, quote) => { const otherQuote = quote === '"' ? "'" : '"'; return `${quote}window[${otherQuote}\${appNamespace}${otherQuote}]`;
+})}
     
 })('${appId}', '${appNamespace}');
             `;

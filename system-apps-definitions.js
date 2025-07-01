@@ -362,7 +362,6 @@ EXACT LAYOUT REQUIREMENTS:
 - Header section with title "Data Registry" and refresh button (🔄)
 - Main table with columns: Name, Description, Storage Type, Data Type, Current Value Preview, Actions
 - Each row must have a "Console Log" button and a "Delete" button in the Actions column
-- Footer section with action buttons: "Add Sample Data", "Clear Sample Data", "Export Registry"
 - Handle empty registry state with message "No shared data registered yet"
 
 VISUAL DESIGN DETAILS:
@@ -392,9 +391,6 @@ FUNCTIONALITY REQUIREMENTS:
 - NEVER use window.dataRegistry.hasData() - this method does not exist
 - To check if data exists, use: window.dataRegistry.getData(key) !== undefined
 - Refresh button updates the display by calling loadRegistryData() function
-- Add Sample Data button creates test entries using window.dataRegistry.registerData()
-- Clear Sample Data button removes test entries using window.dataRegistry.updateData()
-- Export Registry button shows JSON representation of all data
 - Subscribe to data changes for real-time updates using window.dataRegistry.subscribe()
 - CRITICAL: Create a main loadRegistryData() function that populates the table
 - CRITICAL: All refresh operations should call loadRegistryData(), not refreshDataTable()
@@ -512,7 +508,6 @@ TECHNICAL IMPLEMENTATION:
 - Use proper error handling for missing data or metadata
 - Handle all JavaScript data types: string, number, boolean, object, array
 - Ensure table updates dynamically when refresh is clicked or data changes
-- Maintain proper state management for sample data
 - Include proper null/undefined checks for safety
 - Subscribe to data registry changes for automatic updates
 - Implement proper confirmation dialogs for destructive actions
