@@ -836,7 +836,7 @@
                         return;
                     }
                     
-                    showCustomConfirm('Are you sure you want to delete this snapshot? This action cannot be undone.', (confirmed) => {
+                    showCustomConfirm('Are you sure you want to delete this snapshot? This action cannot be undone.', 'Delete Snapshot', appId).then(confirmed => {
                         if (confirmed) {
                             if (window.versionManager.deleteSnapshot(appId, snapshotId)) {
                                 // Refresh the dialog with updated history
@@ -849,7 +849,7 @@
                                 }
                             }
                         }
-                    }, appId);
+                    });
                 });
             });
             
@@ -1043,147 +1043,7 @@
             });
         }
         
-        // Custom confirm dialog
-        function showCustomConfirm(message, callback, appId = null) {
-            const modal = document.createElement('div');
-            modal.className = 'custom-modal';
-            
-            // If appId is provided, position relative to app window
-            if (appId) {
-                const appWindow = document.getElementById(`window_${appId}`);
-                if (appWindow) {
-                    modal.style.cssText = `
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0, 0, 0, 0.5);
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        z-index: 10000;
-                        backdrop-filter: blur(2px);
-                    `;
-                } else {
-                    // Fallback to fixed positioning if app window not found
-                    modal.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0, 0, 0, 0.5);
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        z-index: 10000;
-                    `;
-                }
-            } else {
-                // Default fixed positioning for system-wide dialogs
-                modal.style.cssText = `
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(0, 0, 0, 0.5);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 10000;
-                `;
-            }
-            
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                background: white;
-                border-radius: 8px;
-                padding: 20px;
-                max-width: 400px;
-                width: 90%;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            `;
-            
-            dialog.innerHTML = `
-                <h3 style="margin: 0 0 15px 0; color: #333;">Confirm Action</h3>
-                <p style="margin: 0 0 20px 0; color: #666; line-height: 1.4;">${message}</p>
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button id="confirm-cancel" style="
-                        padding: 8px 16px;
-                        border: 1px solid #ccc;
-                        background: white;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    ">Cancel</button>
-                    <button id="confirm-ok" style="
-                        padding: 8px 16px;
-                        border: none;
-                        background: #dc3545;
-                        color: white;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    ">Confirm</button>
-                </div>
-            `;
-            
-            modal.appendChild(dialog);
-            
-            // Append to app window if appId provided, otherwise to document body
-            if (appId) {
-                const appWindow = document.getElementById(`window_${appId}`);
-                if (appWindow) {
-                    appWindow.appendChild(modal);
-                } else {
-                    document.body.appendChild(modal);
-                }
-            } else {
-                document.body.appendChild(modal);
-            }
-            
-            // Set flag to prevent app key handlers from interfering
-            window.customDialogOpen = true;
-            
-            const cancelBtn = document.getElementById('confirm-cancel');
-            const okBtn = document.getElementById('confirm-ok');
-            
-            function cleanup() {
-                // Remove modal from its parent (either app window or document body)
-                if (modal.parentNode) {
-                    modal.parentNode.removeChild(modal);
-                }
-                // Clear flag to re-enable app key handlers
-                window.customDialogOpen = false;
-            }
-            
-            // Cancel button
-            cancelBtn.addEventListener('click', () => {
-                cleanup();
-                callback(false);
-            });
-            
-            // OK button
-            okBtn.addEventListener('click', () => {
-                cleanup();
-                callback(true);
-            });
-            
-            // Escape key
-            document.addEventListener('keydown', function escapeHandler(e) {
-                if (e.key === 'Escape') {
-                    document.removeEventListener('keydown', escapeHandler);
-                    cancelBtn.click();
-                }
-            });
-            
-            // Click outside to cancel
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    cancelBtn.click();
-                }
-            });
-        }
+        // Old callback-based showCustomConfirm removed - using Promise-based version below
         
         // ===== CUSTOM POPUP SYSTEM =====
         
@@ -6980,7 +6840,7 @@ window[appNamespace].app = app;
                 }
             }
             
-            let prompt = ROLE_PROMPT +
+            let prompt = ROLE_PROMPT + CONTEXT_PROMPT + 
                          APPCREATION_PROMPT.replace(/{appId}/g, appId).replace(/{availableDataObjects}/g, availableDataObjects) +
                          NAMESPACEISOLATION_GUIDELINES.replace(/{appId}/g, appId) +
                          CSS_GUIDELINES.replace(/{currentTheme}/g, currentTheme) +
@@ -7937,7 +7797,7 @@ ${containerSelector} {
 
             // Create a modification prompt that includes the current app code
             // Use string concatenation to avoid template literal issues
-            const modificationPrompt = ROLE_PROMPT +
+            const modificationPrompt = ROLE_PROMPT + CONTEXT_PROMPT +
                 APPMODIFY_PROMPT.replace(/{appId}/g, appId)
                     .replace(/{appTitle}/g, app.title)
                     .replace(/{modificationRequest}/g, modificationRequest)

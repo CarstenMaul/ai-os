@@ -4,6 +4,75 @@ Your task is to generate HTML, CSS, and JavaScript code for a new app based on u
 
         `;
 
+        // AI-OS System Context - Essential understanding for LLM app generation
+        const CONTEXT_PROMPT = `
+
+AI-OS SYSTEM CONTEXT:
+
+You are generating code for ai-os, a windowed operating system that runs web applications in isolated environments.
+
+FUNDAMENTAL CONCEPTS:
+1. ENVIRONMENT: ai-os is the host system that manages multiple apps in resizable windows
+2. ISOLATION: Each app runs in its own namespace to prevent conflicts with other apps
+3. LIFECYCLE: Apps are created, initialized, and managed by the ai-os system automatically
+4. INTEGRATION: Apps can access shared data and system services through well-defined APIs
+
+NAMESPACE SYSTEM (CRITICAL UNDERSTANDING):
+- The ai-os system automatically creates a unique namespace for each app
+- Variable 'appNamespace' is PROVIDED to your code (DO NOT declare it yourself)
+- All HTML element IDs MUST use {appId}_ prefix (this gets replaced by the system)
+- All CSS classes MUST use {appId}__ prefix (this gets replaced by the system)
+- Your init function MUST be: window[appNamespace].init = function() { ... }
+- NEVER write: const appNamespace = ... or let appNamespace = ... or var appNamespace = ...
+- The appNamespace variable is already available in your code scope
+
+APP LIFECYCLE INTEGRATION:
+- Your app code runs inside a window container managed by ai-os
+- The init function is automatically called after your app is loaded into the DOM
+- ALL event listeners and initialization code MUST go inside the init function
+- Apps can be minimized, maximized, resized, and closed by the ai-os window manager
+- Multiple instances of apps can run simultaneously without conflicts
+
+DATA REGISTRY SYSTEM:
+- Shared data system accessible via: window.dataRegistry.getData('name')
+- Automatic persistence: Data can be saved to IndexedDB automatically
+- Cross-app communication: Apps can subscribe to data changes
+- Safe access pattern: Always provide fallbacks (const data = window.dataRegistry.getData('name') || defaultValue)
+- Registration: window.dataRegistry.registerData('name', data, 'description', 'structure')
+- Updates: window.dataRegistry.updateData('name', newData) notifies all subscribers
+
+WINDOW MANAGEMENT INTEGRATION:
+- Apps run inside resizable windows (300-600px typical width)
+- Theme classes (.app-light-theme/.app-dark-theme) are automatically applied by ai-os
+- Responsive design is crucial as users can resize windows dynamically
+- Apps should adapt gracefully to different window sizes
+- No assumptions about fixed window dimensions
+
+SYSTEM INTEGRATION APIS:
+- Key events: Use app.onKey(eventType, handlerFunction) for focus-aware keyboard handling
+- NEVER use global event listeners like document.addEventListener('keydown') for keys
+- Key events are only delivered to the currently focused/active app window
+- Custom dialogs: Create in-app modals instead of alert()/prompt()/confirm()
+- Focus management: Apps receive focus when their window is clicked or activated
+
+CRITICAL DIFFERENCES FROM STANDALONE WEB APPS:
+- You are NOT creating a standalone web page
+- You are creating an app component that integrates with ai-os
+- Multiple apps run simultaneously in the same browser context
+- Namespace isolation prevents conflicts between apps
+- System services (themes, data, events) are provided by ai-os
+- Apps should leverage ai-os features rather than reinventing them
+
+INTEGRATION BEST PRACTICES:
+- Always use the provided appNamespace variable
+- Leverage the data registry for persistence and cross-app communication
+- Design for window resizing and theme switching
+- Use focus-aware event handling via app.onKey()
+- Create self-contained apps that don't interfere with others
+- Follow ai-os conventions for consistent user experience
+
+        `;
+
         const NAMESPACEISOLATION_GUIDELINES = `
 
 NAMESPACE ISOLATION REQUIREMENTS:
@@ -337,6 +406,8 @@ CRITICAL REQUIREMENTS:
         `;
 
         const APPCREATION_PROMPT = `
+${CONTEXT_PROMPT}
+
 TASK:
 You are creating a functional app for a windowed operating system interface.
 
@@ -476,6 +547,8 @@ CONTENT RULES:
 
     // modificationPrompt
         const APPMODIFY_PROMPT = `
+${CONTEXT_PROMPT}
+
 TASK:
 You are modifying an existing app for a windowed operating system interface. The user wants you to make changes to the existing app. The user may also submit images to show problems or give graphical advice for changes.
 This is the modification request of the user:
