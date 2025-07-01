@@ -99,6 +99,7 @@ ESSENTIAL JAVASCRIPT CODE GENERATION GUIDELINES:
 - Always use document.getElementById() and addEventListener() pattern
 - Keep Javascript scripts simple and avoid complex string operations that could break JSON
 - All declared variables must be prefixed with "{appId}_" to avoid conflicts
+- MANDATORY: NEVER create a namespace variable yourself - it is already available as variable appNamespace
 - CRITICAL: never use window.prompt() or window.alert() in the JavaScript code, always implement custom UI for user interactions
 - CRITICAL: For user notifications, create custom modal dialogs or inline messages within your app
 - CRITICAL: For user input, create custom input forms or dialogs within your app

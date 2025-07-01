@@ -7641,9 +7641,13 @@ ${containerSelector} {
                 scriptElement.textContent = javascript;
                 document.head.appendChild(scriptElement);
                 
+                // Create app-specific namespace
+                const appNamespace = 'app_' + appId.replace(/-/g, '_');
+                window[appNamespace] = window[appNamespace] || {};
+                
                 // Apply namespace isolation to JavaScript
                 const helperFunctions = createAppHelperFunctions(appId);
-                namespacedJS = namespaceJavaScript(javascript, appId, helperFunctions);
+                namespacedJS = namespaceJavaScript(javascript, appId, helperFunctions, appNamespace);
                 
                 console.log(`Executing JavaScript for app ${appId}`);
                 console.log('Original JavaScript:', javascript);
@@ -7663,7 +7667,7 @@ ${containerSelector} {
                             return;
                         }
                         
-                        const appNamespace = 'app_' + appId.replace(/-/g, '_');
+                        // Use the appNamespace already declared in the outer scope
                         if (window[appNamespace] && typeof window[appNamespace].init === 'function') {
                             console.log(`Calling init function for app ${appId}`);
                             // Wrap init call in try-catch to handle any data registry errors
@@ -7719,34 +7723,21 @@ ${containerSelector} {
             }
         }
 
-        function namespaceJavaScript(javascript, appId, helperFunctions = '') {
+        function namespaceJavaScript(javascript, appId, helperFunctions = '', appNamespace) {
             // Wrap JavaScript in an IIFE with app namespace
             const namespacedJS = `
-(function(appId) {
-    // Create app-specific namespace
-    const appNamespace = 'app_' + appId.replace(/-/g, '_');
-    window[appNamespace] = window[appNamespace] || {};
-    
+(function(appId, appNamespace) {
+    // *** Helper Functions***
     ${helperFunctions}
     
-    // Legacy helper functions for backward compatibility
-    const getElementById = (id) => document.getElementById(appId + '_' + id);
-    const querySelector = (selector) => document.querySelector('#content_' + appId + ' ' + selector);
-    const querySelectorAll = (selector) => document.querySelectorAll('#content_' + appId + ' ' + selector);
+    // *** Make namespace accessible to app code ***
+    const namespace = ${appNamespace};
+    const appScope = window[appNamespace];
     
-    // Custom event helpers with namespace
-    const dispatchAppEvent = (eventName, detail) => {
-        document.dispatchEvent(new CustomEvent(appId + ':' + eventName, { detail }));
-    };
+    // *** Execute the app's JavaScript code ***
+    ${javascript.replace(/^\s*(let|const|var)\s+(namespace|appNamespace|appScope|app)\s*=[^;]*;\s*\n?/gm, '').replace(/window\[[^\]]+\]/g, 'window[appNamespace]')}
     
-    const addAppEventListener = (eventName, handler) => {
-        document.addEventListener(appId + ':' + eventName, handler);
-    };
-    
-    // Execute the app's JavaScript code
-    ${javascript}
-    
-})('${appId}');
+})('${appId}', '${appNamespace}');
             `;
             
             return namespacedJS;

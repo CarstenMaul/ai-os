@@ -306,8 +306,6 @@ CRITICAL SUCCESS FACTORS:
     
     HTML STRUCTURE (replace {appId} with actual app ID):
     <div style="padding: 20px; font-family: Arial, sans-serif;">
-        <h1>💰 Cost Tracking</h1>
-        
         <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <div>
@@ -319,16 +317,6 @@ CRITICAL SUCCESS FACTORS:
                     <span id="{appId}_call-count" style="font-size: 16px;">0</span>
                 </div>
             </div>
-            <div>
-                <strong>Data Registry:</strong>
-                <span id="{appId}_registry-status" style="font-weight: bold;">Checking...</span>
-            </div>
-        </div>
-        
-        <div style="margin-bottom: 20px; text-align: center;">
-            <button id="{appId}_refresh-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">🔄 Refresh Data</button>
-            <button id="{appId}_clear-btn" style="background: #dc3545; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">🗑️ Clear History</button>
-            <button id="{appId}_debug-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">🔍 Debug Info</button>
         </div>
         
         <table style="width: 100%; border-collapse: collapse; border: 1px solid #dee2e6;">
@@ -358,9 +346,8 @@ CRITICAL SUCCESS FACTORS:
     5. Use multiple data sources with fallbacks: dataRegistry -> window.costHistory -> localStorage
     6. The cost data structure is: [{timestamp: string, cost: number, description: string, prompt: string}]
     7. Subscribe to 'cost-history' changes for real-time updates
-    8. MANDATORY Access and subscribe the global cost-history data object
-    9. Please add a usefull graph that shows the costs, switchable between costs within tha last 24 hours by hour and costs within the last week by day. the graph should be 1/3 of the height of the app window.
-    10. the costs table should be 1/3 of the height of the window and scrollable
+    8. MANDATORY: Access and subscribe the global cost-history data object
+    10. MANDATORY: There must be a reload button
     
     The app will work with the AI-OS system's data registry and provide multiple fallback data sources.`
 },
