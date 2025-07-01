@@ -6481,7 +6481,7 @@ window[appNamespace].app = app;
 
         const SPINNER_ANIMATION = `
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; text-align: center; padding: 40px;">
-                    <h2 style="margin: 0 0 30px 0; color: #333; font-weight: 300;">Creating your app</h2>
+                    <h2 style="margin: 0 0 30px 0; color: #333; font-weight: 300;">Creating Your App</h2>
                     <div class="spinner" style="
                         width: 40px;
                         height: 40px;
@@ -6840,7 +6840,8 @@ window[appNamespace].app = app;
                 }
             }
             
-            let prompt = ROLE_PROMPT + CONTEXT_PROMPT + 
+            let prompt = ROLE_PROMPT +
+                         CONTEXT_PROMPT + 
                          APPCREATION_PROMPT.replace(/{appId}/g, appId).replace(/{availableDataObjects}/g, availableDataObjects) +
                          NAMESPACEISOLATION_GUIDELINES.replace(/{appId}/g, appId) +
                          CSS_GUIDELINES.replace(/{currentTheme}/g, currentTheme) +
@@ -7797,21 +7798,22 @@ ${containerSelector} {
 
             // Create a modification prompt that includes the current app code
             // Use string concatenation to avoid template literal issues
-            const modificationPrompt = ROLE_PROMPT + CONTEXT_PROMPT +
-                APPMODIFY_PROMPT.replace(/{appId}/g, appId)
-                    .replace(/{appTitle}/g, app.title)
-                    .replace(/{modificationRequest}/g, modificationRequest)
-                    .replace(/{promptHistory}/g, thisAppPromptHistory)
-                    .replace(/{availableDataObjects}/g, availableDataObjects)
-                    .replace(/{currentHTML}/g, currentHTML)
-                    .replace(/{currentCSS}/g, currentCSS)
-                    .replace(/{currentJavaScript}/g, currentJavaScript) +
-                LIBRARIES_GUIDELINES.replace(/{appId}/g, appId);
+            const modificationPrompt =  ROLE_PROMPT +
+                                        CONTEXT_PROMPT +
+                                        APPMODIFY_PROMPT.replace(/{appId}/g, appId)
+                                            .replace(/{appTitle}/g, app.title)
+                                            .replace(/{modificationRequest}/g, modificationRequest)
+                                            .replace(/{promptHistory}/g, thisAppPromptHistory)
+                                            .replace(/{availableDataObjects}/g, availableDataObjects)
+                                            .replace(/{currentHTML}/g, currentHTML)
+                                            .replace(/{currentCSS}/g, currentCSS)
+                                            .replace(/{currentJavaScript}/g, currentJavaScript) +
+                                        LIBRARIES_GUIDELINES.replace(/{appId}/g, appId);
 
             // Show loading state
             const contentElement = document.getElementById(`content_${appId}`);
             if (contentElement) {
-                contentElement.innerHTML = SPINNER_ANIMATION;
+                contentElement.innerHTML = SPINNER_ANIMATION.replace("Creating Your App","Modifying Your App");
             }
             
             // Process the modification with LLM
@@ -7891,7 +7893,7 @@ ${containerSelector} {
             // Show loading state
             const contentElement = document.getElementById(`content_${appId}`);
             if (contentElement) {
-                contentElement.innerHTML = SPINNER_ANIMATION;
+                contentElement.innerHTML = SPINNER_ANIMATION.replace("Creating Your App","Modifying Your App");
             }
             
             // Process the modification with LLM, including images
