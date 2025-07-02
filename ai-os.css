@@ -429,7 +429,7 @@ body.has-fullscreen-app .status-bar {
 }
 
 .revert-btn {
-    width: 90px;
+    width: 55px;
     height: 40px;
     background: #dc3545 !important;
     color: white !important;
@@ -453,7 +453,7 @@ body.has-fullscreen-app .status-bar {
 }
 
 .save-btn {
-    width: 90px;
+    width: 55px;
     height: 40px;
     background: #28a745 !important;
     color: white !important;
