@@ -334,6 +334,293 @@
             }
         };
         
+        // ===== API REGISTRY SYSTEM =====
+        // Global API registry for storing and managing API endpoints and keys
+        
+        console.log('Initializing API registry system...');
+        window.apiRegistry = {
+            apis: new Map(), // In-memory storage for APIs
+            
+            // Initialize API registry and load persisted APIs
+            async init() {
+                try {
+                    const persistedAPIs = await window.persistenceManager.load('api-registry');
+                    if (persistedAPIs && persistedAPIs.data) {
+                        // Load APIs from persistence
+                        for (const [name, config] of Object.entries(persistedAPIs.data)) {
+                            this.apis.set(name, config);
+                        }
+                        console.log(`Loaded ${this.apis.size} APIs from persistence`);
+                    }
+                } catch (error) {
+                    console.warn('Failed to load persisted APIs:', error);
+                }
+            },
+            
+            // Register a new API
+            registerAPI(name, config) {
+                if (!name || !config) {
+                    throw new Error('API name and config are required');
+                }
+                
+                const apiConfig = {
+                    name: name,
+                    baseUrl: config.baseUrl || '',
+                    apiKey: config.apiKey || '',
+                    description: config.description || '',
+                    endpoints: config.endpoints || [],
+                    headers: config.headers || {},
+                    active: config.active !== false,
+                    createdAt: new Date().toISOString(),
+                    ...config
+                };
+                
+                this.apis.set(name, apiConfig);
+                this.persistAPIs();
+                console.log(`Registered API: ${name}`);
+                return apiConfig;
+            },
+            
+            // Get API configuration
+            getAPI(name) {
+                return this.apis.get(name);
+            },
+            
+            // Get all registered APIs
+            getAllAPIs() {
+                return Array.from(this.apis.values());
+            },
+            
+            // Update existing API
+            updateAPI(name, config) {
+                const existingAPI = this.apis.get(name);
+                if (!existingAPI) {
+                    throw new Error(`API '${name}' not found`);
+                }
+                
+                const updatedConfig = {
+                    ...existingAPI,
+                    ...config,
+                    name: name, // Ensure name doesn't change
+                    updatedAt: new Date().toISOString()
+                };
+                
+                this.apis.set(name, updatedConfig);
+                this.persistAPIs();
+                console.log(`Updated API: ${name}`);
+                return updatedConfig;
+            },
+            
+            // Delete API
+            deleteAPI(name) {
+                const deleted = this.apis.delete(name);
+                if (deleted) {
+                    this.persistAPIs();
+                    console.log(`Deleted API: ${name}`);
+                }
+                return deleted;
+            },
+            
+            // Test API connectivity
+            async testAPI(name) {
+                const api = this.apis.get(name);
+                if (!api) {
+                    throw new Error(`API '${name}' not found`);
+                }
+                
+                try {
+                    // Determine the best test URL and method based on the API
+                    let testUrl = api.baseUrl;
+                    let testMethod = 'GET';
+                    let testBody = null;
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        ...api.headers
+                    };
+                    
+                    // Handle different authentication types
+                    if (api.apiKey && api.authentication) {
+                        switch (api.authentication.type) {
+                            case 'header':
+                                const headerName = api.authentication.headerName || 'Authorization';
+                                // Handle Bearer token format
+                                if (headerName.toLowerCase() === 'authorization' && !api.apiKey.startsWith('Bearer ')) {
+                                    headers[headerName] = `Bearer ${api.apiKey}`;
+                                } else {
+                                    headers[headerName] = api.apiKey;
+                                }
+                                break;
+                            case 'query_param':
+                                const paramName = api.authentication.keyName || 'apikey';
+                                const separator = testUrl.includes('?') ? '&' : '?';
+                                testUrl += `${separator}${paramName}=${encodeURIComponent(api.apiKey)}`;
+                                break;
+                        }
+                    }
+                    
+                    // Special handling for common API patterns
+                    if (testUrl.includes('openai.com')) {
+                        // For OpenAI, test with a simple models endpoint instead of chat/completions
+                        testUrl = testUrl.replace('/chat/completions', '').replace('/v1', '') + '/v1/models';
+                        testMethod = 'GET';
+                    } else if (testUrl.includes('chat/completions') || testUrl.includes('completions')) {
+                        // For other chat APIs, try a simple test request
+                        testMethod = 'POST';
+                        testBody = JSON.stringify({
+                            model: 'test',
+                            messages: [{ role: 'user', content: 'test' }],
+                            max_tokens: 1
+                        });
+                    }
+                    
+                    // Make the test request
+                    const fetchOptions = {
+                        method: testMethod,
+                        headers: headers,
+                        mode: 'cors'
+                    };
+                    
+                    if (testBody) {
+                        fetchOptions.body = testBody;
+                    }
+                    
+                    const response = await fetch(testUrl, fetchOptions);
+                    const status = response.status;
+                    
+                    // Determine success based on status code
+                    // 200-299: Success
+                    // 401: Authentication issue (but connection works)
+                    // 403: Forbidden (but connection works)
+                    // 400: Bad request (but connection works, might be expected for test data)
+                    const connectionSuccess = status < 500; // Server errors indicate connection issues
+                    const authSuccess = status >= 200 && status < 400;
+                    
+                    let testResult = 'failed';
+                    let testMessage = '';
+                    
+                    if (authSuccess) {
+                        testResult = 'success';
+                        testMessage = `Connection successful (${status})`;
+                    } else if (status === 401) {
+                        testResult = 'auth_failed';
+                        testMessage = `Connection OK, but authentication failed (${status}). Check your API key and auth settings.`;
+                    } else if (status === 403) {
+                        testResult = 'forbidden';
+                        testMessage = `Connection OK, but access forbidden (${status}). Check API permissions.`;
+                    } else if (status === 400) {
+                        testResult = 'bad_request';
+                        testMessage = `Connection OK, but bad request (${status}). This might be expected for test data.`;
+                    } else if (connectionSuccess) {
+                        testResult = 'connection_ok';
+                        testMessage = `Connection established but got status ${status}`;
+                    } else {
+                        testResult = 'failed';
+                        testMessage = `Connection failed with status ${status}`;
+                    }
+                    
+                    // Update API test status
+                    this.updateAPI(name, {
+                        lastTested: new Date().toISOString(),
+                        testStatus: testResult,
+                        testMessage: testMessage,
+                        lastTestResponse: { status, ok: authSuccess, connectionSuccess }
+                    });
+                    
+                    return {
+                        success: connectionSuccess,
+                        authSuccess: authSuccess,
+                        status,
+                        message: testMessage,
+                        response
+                    };
+                } catch (error) {
+                    const errorMessage = error.message.includes('CORS') ?
+                        'CORS error - API may not support browser requests' :
+                        error.message;
+                    
+                    // Update API test status
+                    this.updateAPI(name, {
+                        lastTested: new Date().toISOString(),
+                        testStatus: 'failed',
+                        testMessage: `Test failed: ${errorMessage}`,
+                        lastTestError: error.message
+                    });
+                    
+                    throw new Error(errorMessage);
+                }
+            },
+            
+            // Persist APIs to storage
+            async persistAPIs() {
+                try {
+                    const apisObject = {};
+                    for (const [name, config] of this.apis) {
+                        apisObject[name] = config;
+                    }
+                    
+                    await window.persistenceManager.save('api-registry', apisObject, {
+                        type: 'api-registry',
+                        description: 'API Registry storage'
+                    });
+                } catch (error) {
+                    console.error('Failed to persist APIs:', error);
+                }
+            },
+            
+            // Get API information for LLM prompts
+            getAPIPromptInfo() {
+                const apis = this.getAllAPIs().filter(api => api.active);
+                if (apis.length === 0) {
+                    return 'No APIs currently registered.';
+                }
+                
+                let promptInfo = `REGISTERED APIS (${apis.length} available):\n\n`;
+                
+                for (const api of apis) {
+                    promptInfo += `${api.name}:\n`;
+                    promptInfo += `  Base URL: ${api.baseUrl}\n`;
+                    promptInfo += `  Description: ${api.description}\n`;
+                    
+                    if (api.endpoints && api.endpoints.length > 0) {
+                        promptInfo += `  Endpoints:\n`;
+                        for (const endpoint of api.endpoints) {
+                            promptInfo += `    - ${endpoint.method || 'GET'} ${endpoint.path}: ${endpoint.description}\n`;
+                            if (endpoint.example) {
+                                promptInfo += `      Example: ${endpoint.example}\n`;
+                            }
+                        }
+                    }
+                    
+                    if (api.authentication) {
+                        promptInfo += `  Authentication: ${api.authentication.type}\n`;
+                        if (api.authentication.keyName) {
+                            promptInfo += `  API Key Parameter: ${api.authentication.keyName}\n`;
+                        }
+                        
+                        // Add specific usage guidance for different authentication types
+                        if (api.authentication.type === 'header') {
+                            const headerName = api.authentication.keyName || 'Authorization';
+                            if (headerName.toLowerCase() === 'authorization') {
+                                promptInfo += `  Usage: Use 'Bearer ' + apiInfo.apiKey in Authorization header\n`;
+                                promptInfo += `  Example: 'Authorization': 'Bearer ' + apiInfo.apiKey\n`;
+                            } else {
+                                promptInfo += `  Usage: Use apiInfo.apiKey directly in ${headerName} header\n`;
+                                promptInfo += `  Example: '${headerName}': apiInfo.apiKey\n`;
+                            }
+                        } else if (api.authentication.type === 'query_param') {
+                            const paramName = api.authentication.keyName || 'key';
+                            promptInfo += `  Usage: Add ?${paramName}=apiInfo.apiKey to URL\n`;
+                            promptInfo += `  Example: url += '?${paramName}=' + encodeURIComponent(apiInfo.apiKey)\n`;
+                        }
+                    }
+                    
+                    promptInfo += '\n';
+                }
+                
+                return promptInfo;
+            }
+        };
+        
         // ===== APP VERSION CONTROL SYSTEM =====
         
         // Track which apps already have version control listeners
@@ -1700,6 +1987,10 @@
             try {
                 await window.persistenceManager.init();
                 console.log('Persistence system initialized');
+                
+                // Initialize API registry
+                await window.apiRegistry.init();
+                console.log('API registry initialized');
                 
                 // Load all persistent data
                 const loadResult = await window.dataRegistry.loadAllPersistent();
@@ -7558,9 +7849,15 @@ window[appNamespace].app = app;
                 }
             }
             
+            // Get available APIs from registry
+            let availableAPIs = 'None currently registered';
+            if (window.apiRegistry && typeof window.apiRegistry.getAPIPromptInfo === 'function') {
+                availableAPIs = window.apiRegistry.getAPIPromptInfo();
+            }
+            
             let prompt = ROLE_PROMPT +
-                         CONTEXT_PROMPT + 
-                         APPCREATION_PROMPT.replace(/{appId}/g, appId).replace(/{availableDataObjects}/g, availableDataObjects) +
+                         CONTEXT_PROMPT +
+                         APPCREATION_PROMPT.replace(/{appId}/g, appId).replace(/{availableDataObjects}/g, availableDataObjects).replace(/{availableAPIs}/g, availableAPIs) +
                          NAMESPACEISOLATION_GUIDELINES.replace(/{appId}/g, appId) +
                          CSS_GUIDELINES.replace(/{currentTheme}/g, currentTheme) +
                          JAVASCRIPT_GUIDELINES.replace(/{appId}/g, appId) +
@@ -8542,6 +8839,12 @@ ${containerSelector} {
                 }
             }
 
+            // Get available APIs from registry
+            let availableAPIs = 'None currently registered';
+            if (window.apiRegistry && typeof window.apiRegistry.getAPIPromptInfo === 'function') {
+                availableAPIs = window.apiRegistry.getAPIPromptInfo();
+            }
+
             // Create a modification prompt that includes the current app code
             // Use string concatenation to avoid template literal issues
             const modificationPrompt =  ROLE_PROMPT +
@@ -8551,6 +8854,7 @@ ${containerSelector} {
                                             .replace(/{modificationRequest}/g, modificationRequest)
                                             .replace(/{promptHistory}/g, thisAppPromptHistory)
                                             .replace(/{availableDataObjects}/g, availableDataObjects)
+                                            .replace(/{availableAPIs}/g, availableAPIs)
                                             .replace(/{currentHTML}/g, currentHTML)
                                             .replace(/{currentCSS}/g, currentCSS)
                                             .replace(/{currentJavaScript}/g, currentJavaScript) +
@@ -8619,6 +8923,12 @@ ${containerSelector} {
                 }
             }
 
+            // Get available APIs from registry
+            let availableAPIs = 'None currently registered';
+            if (window.apiRegistry && typeof window.apiRegistry.getAPIPromptInfo === 'function') {
+                availableAPIs = window.apiRegistry.getAPIPromptInfo();
+            }
+
             // Create a modification prompt that includes the current app code
             let modificationPrompt = ROLE_PROMPT +
                 APPMODIFY_PROMPT.replace(/{appId}/g, appId)
@@ -8626,6 +8936,7 @@ ${containerSelector} {
                     .replace(/{modificationRequest}/g, modificationData.text)
                     .replace(/{promptHistory}/g, thisAppPromptHistory)
                     .replace(/{availableDataObjects}/g, availableDataObjects)
+                    .replace(/{availableAPIs}/g, availableAPIs)
                     .replace(/{currentHTML}/g, currentHTML)
                     .replace(/{currentCSS}/g, currentCSS)
                     .replace(/{currentJavaScript}/g, currentJavaScript) +
@@ -8958,6 +9269,7 @@ ${containerSelector} {
                             <button class="settings-nav-btn" data-category="appearance">🎨 Appearance</button>
                             <button class="settings-nav-btn" data-category="voice">🎤 Voice & Audio</button>
                             <button class="settings-nav-btn" data-category="ai">🤖 AI Models</button>
+                            <button class="settings-nav-btn" data-category="apis">🔌 API Management</button>
                             <button class="settings-nav-btn" data-category="system">💻 System</button>
                             <button class="settings-nav-btn" data-category="about">ℹ️ About</button>
                         </div>
@@ -9200,6 +9512,75 @@ ${containerSelector} {
                                 </div>
                                 <div class="setting-item">
                                     <button id="reset-settings" class="settings-btn">🔄 Reset All Settings</button>
+                                </div>
+                            </div>
+                            
+                            <!-- API Management Settings -->
+                            <div class="settings-panel" id="apis-panel">
+                                <h3>API Management</h3>
+                                <div class="setting-item">
+                                    <p style="color: #666; margin-bottom: 15px;">Manage external API endpoints and keys for app generation.</p>
+                                </div>
+                                
+                                <!-- API List -->
+                                <div class="setting-item">
+                                    <label>Registered APIs</label>
+                                    <div id="api-list" style="border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; padding: 10px; background: #f9f9f9;">
+                                        <div id="api-list-content">
+                                            <p style="color: #999; text-align: center; margin: 20px 0;">No APIs registered yet</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Add New API Button -->
+                                <div class="setting-item">
+                                    <button id="add-api-btn" class="settings-btn">➕ Add New API</button>
+                                    <button id="refresh-api-list-btn" class="settings-btn" style="margin-left: 10px;">🔄 Refresh</button>
+                                </div>
+                                
+                                <!-- Add/Edit API Form (Initially Hidden) -->
+                                <div id="api-form-container" style="display: none; margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                    <h4 id="api-form-title">Add New API</h4>
+                                    <div class="setting-item">
+                                        <label for="api-name">API Name *</label>
+                                        <input type="text" id="api-name" placeholder="e.g., Weather API" required>
+                                    </div>
+                                    <div class="setting-item">
+                                        <label for="api-base-url">Base URL *</label>
+                                        <input type="url" id="api-base-url" placeholder="https://api.example.com" required>
+                                    </div>
+                                    <div class="setting-item">
+                                        <label for="api-key">API Key</label>
+                                        <small style="color: #666;">Leave empty if no authentication required</small>
+                                        <input type="password" id="api-key" placeholder="Enter your API key">
+                                    </div>
+                                    <div class="setting-item">
+                                        <label for="api-description">Description</label>
+                                        <textarea id="api-description" placeholder="Describe what this API does..." rows="2"></textarea>
+                                    </div>
+                                    <div class="setting-item">
+                                        <label for="api-auth-type">Authentication Type</label>
+                                        <select id="api-auth-type">
+                                            <option value="">No Authentication</option>
+                                            <option value="query_param">Query Parameter</option>
+                                            <option value="header">Header (Bearer Token)</option>
+                                        </select>
+                                        <small style="color: #666; display: block; margin-top: 4px;">
+                                            <strong>OpenAI API:</strong> Use "Header (Bearer Token)" with "Authorization" as header name<br>
+                                            <strong>Weather APIs:</strong> Often use "Query Parameter" with "apikey" or "key"
+                                        </small>
+                                    </div>
+                                    <div class="setting-item" id="api-auth-details" style="display: none;">
+                                        <label for="api-auth-name">Parameter/Header Name</label>
+                                        <input type="text" id="api-auth-name" placeholder="e.g., Authorization, apikey, key">
+                                        <small style="color: #666; display: block; margin-top: 4px;">For OpenAI: use "Authorization"</small>
+                                    </div>
+                                    <div class="setting-item">
+                                        <button id="save-api-btn" class="settings-btn">💾 Save API</button>
+                                        <button id="cancel-api-btn" class="settings-btn" style="margin-left: 10px;">❌ Cancel</button>
+                                        <button id="test-api-btn" class="settings-btn" style="margin-left: 10px;">🧪 Test Connection</button>
+                                    </div>
+                                    <div id="api-test-result" style="margin-top: 10px; display: none;"></div>
                                 </div>
                             </div>
                             
@@ -9820,6 +10201,266 @@ ${containerSelector} {
                 updateCurrentProviderDisplay(providerSettings.llmProvider);
             } else {
                 updateCurrentProviderDisplay('openrouter'); // Default
+            }
+            
+            // ===== API MANAGEMENT EVENT HANDLERS =====
+            
+            // Initialize API list
+            function refreshAPIList() {
+                const apiListContent = document.getElementById('api-list-content');
+                if (!apiListContent) return;
+                
+                const apis = window.apiRegistry.getAllAPIs();
+                
+                if (apis.length === 0) {
+                    apiListContent.innerHTML = '<p style="color: #999; text-align: center; margin: 20px 0;">No APIs registered yet</p>';
+                    return;
+                }
+                
+                let html = '';
+                apis.forEach(api => {
+                    const statusIcon = api.active ? '✅' : '❌';
+                    
+                    // Enhanced test status display
+                    let testStatusIcon = '⚪';
+                    let testStatusText = 'Not tested';
+                    let testStatusColor = '#999';
+                    
+                    switch (api.testStatus) {
+                        case 'success':
+                            testStatusIcon = '🟢';
+                            testStatusText = 'Success';
+                            testStatusColor = '#28a745';
+                            break;
+                        case 'auth_failed':
+                            testStatusIcon = '🟡';
+                            testStatusText = 'Auth Failed';
+                            testStatusColor = '#ffc107';
+                            break;
+                        case 'forbidden':
+                            testStatusIcon = '🟠';
+                            testStatusText = 'Forbidden';
+                            testStatusColor = '#fd7e14';
+                            break;
+                        case 'bad_request':
+                            testStatusIcon = '🔵';
+                            testStatusText = 'Bad Request';
+                            testStatusColor = '#007bff';
+                            break;
+                        case 'connection_ok':
+                            testStatusIcon = '🟡';
+                            testStatusText = 'Connected';
+                            testStatusColor = '#17a2b8';
+                            break;
+                        case 'failed':
+                            testStatusIcon = '🔴';
+                            testStatusText = 'Failed';
+                            testStatusColor = '#dc3545';
+                            break;
+                    }
+                    
+                    const testMessage = api.testMessage || testStatusText;
+                    const lastTested = api.lastTested ?
+                        new Date(api.lastTested).toLocaleString() : 'Never';
+                    
+                    html += `
+                        <div class="api-item" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 8px; background: white;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                                        <strong>${api.name}</strong> ${statusIcon}
+                                        <span style="margin-left: 10px; color: ${testStatusColor}; font-size: 12px;">
+                                            ${testStatusIcon} ${testStatusText}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #666; margin-bottom: 2px;">
+                                        ${api.baseUrl}
+                                    </div>
+                                    <div style="font-size: 11px; color: #888; margin-bottom: 2px;">
+                                        ${api.description || 'No description'}
+                                    </div>
+                                    ${api.testMessage ? `
+                                        <div style="font-size: 11px; color: ${testStatusColor}; margin-bottom: 2px;">
+                                            ${testMessage}
+                                        </div>
+                                    ` : ''}
+                                    <div style="font-size: 10px; color: #aaa;">
+                                        Last tested: ${lastTested}
+                                    </div>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <button onclick="editAPI('${api.name}')" style="padding: 4px 8px; font-size: 12px; white-space: nowrap;">✏️ Edit</button>
+                                    <button onclick="testAPI('${api.name}')" style="padding: 4px 8px; font-size: 12px; white-space: nowrap;">🧪 Test</button>
+                                    <button onclick="deleteAPI('${api.name}')" style="padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; white-space: nowrap;">🗑️ Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                apiListContent.innerHTML = html;
+            }
+            
+            // Add New API button
+            const addAPIBtn = document.getElementById('add-api-btn');
+            if (addAPIBtn) {
+                addAPIBtn.addEventListener('click', () => {
+                    document.getElementById('api-form-container').style.display = 'block';
+                    document.getElementById('api-form-title').textContent = 'Add New API';
+                    clearAPIForm();
+                });
+            }
+            
+            // Refresh API list button
+            const refreshAPIListBtn = document.getElementById('refresh-api-list-btn');
+            if (refreshAPIListBtn) {
+                refreshAPIListBtn.addEventListener('click', refreshAPIList);
+            }
+            
+            // Cancel API form
+            const cancelAPIBtn = document.getElementById('cancel-api-btn');
+            if (cancelAPIBtn) {
+                cancelAPIBtn.addEventListener('click', () => {
+                    document.getElementById('api-form-container').style.display = 'none';
+                    clearAPIForm();
+                });
+            }
+            
+            // Save API button
+            const saveAPIBtn = document.getElementById('save-api-btn');
+            if (saveAPIBtn) {
+                saveAPIBtn.addEventListener('click', saveAPI);
+            }
+            
+            // Test API button
+            const testAPIBtn = document.getElementById('test-api-btn');
+            if (testAPIBtn) {
+                testAPIBtn.addEventListener('click', () => {
+                    const name = document.getElementById('api-name').value;
+                    if (name) {
+                        testAPI(name);
+                    }
+                });
+            }
+            
+            // Auth type change handler
+            const authTypeSelect = document.getElementById('api-auth-type');
+            if (authTypeSelect) {
+                authTypeSelect.addEventListener('change', (e) => {
+                    const authDetails = document.getElementById('api-auth-details');
+                    if (e.target.value) {
+                        authDetails.style.display = 'block';
+                    } else {
+                        authDetails.style.display = 'none';
+                    }
+                });
+            }
+            
+            // API Management Functions
+            function clearAPIForm() {
+                document.getElementById('api-name').value = '';
+                document.getElementById('api-base-url').value = '';
+                document.getElementById('api-key').value = '';
+                document.getElementById('api-description').value = '';
+                document.getElementById('api-auth-type').value = '';
+                document.getElementById('api-auth-name').value = '';
+                document.getElementById('api-auth-details').style.display = 'none';
+                document.getElementById('api-test-result').style.display = 'none';
+            }
+            
+            function saveAPI() {
+                const name = document.getElementById('api-name').value.trim();
+                const baseUrl = document.getElementById('api-base-url').value.trim();
+                const apiKey = document.getElementById('api-key').value.trim();
+                const description = document.getElementById('api-description').value.trim();
+                const authType = document.getElementById('api-auth-type').value;
+                const authName = document.getElementById('api-auth-name').value.trim();
+                
+                if (!name || !baseUrl) {
+                    alert('API name and base URL are required');
+                    return;
+                }
+                
+                const config = {
+                    baseUrl: baseUrl,
+                    apiKey: apiKey,
+                    description: description,
+                    active: true
+                };
+                
+                if (authType && authName) {
+                    config.authentication = {
+                        type: authType,
+                        keyName: authName,
+                        headerName: authType === 'header' ? authName : undefined
+                    };
+                }
+                
+                try {
+                    window.apiRegistry.registerAPI(name, config);
+                    document.getElementById('api-form-container').style.display = 'none';
+                    refreshAPIList();
+                    clearAPIForm();
+                    alert('API saved successfully!');
+                } catch (error) {
+                    alert('Error saving API: ' + error.message);
+                }
+            }
+            
+            window.editAPI = function(name) {
+                const api = window.apiRegistry.getAPI(name);
+                if (!api) return;
+                
+                document.getElementById('api-name').value = api.name;
+                document.getElementById('api-base-url').value = api.baseUrl;
+                document.getElementById('api-key').value = api.apiKey || '';
+                document.getElementById('api-description').value = api.description || '';
+                
+                if (api.authentication) {
+                    document.getElementById('api-auth-type').value = api.authentication.type;
+                    document.getElementById('api-auth-name').value = api.authentication.keyName || '';
+                    document.getElementById('api-auth-details').style.display = 'block';
+                } else {
+                    document.getElementById('api-auth-type').value = '';
+                    document.getElementById('api-auth-details').style.display = 'none';
+                }
+                
+                document.getElementById('api-form-container').style.display = 'block';
+                document.getElementById('api-form-title').textContent = 'Edit API: ' + name;
+            };
+            
+            window.deleteAPI = function(name) {
+                if (confirm(`Are you sure you want to delete the API "${name}"?`)) {
+                    window.apiRegistry.deleteAPI(name);
+                    refreshAPIList();
+                }
+            };
+            
+            window.testAPI = async function(name) {
+                const resultDiv = document.getElementById('api-test-result');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<p style="color: #666;">Testing connection...</p>';
+                
+                try {
+                    const result = await window.apiRegistry.testAPI(name);
+                    if (result.success) {
+                        resultDiv.innerHTML = `<p style="color: green;">✅ Connection successful (Status: ${result.status})</p>`;
+                    } else {
+                        resultDiv.innerHTML = `<p style="color: red;">❌ Connection failed (Status: ${result.status})</p>`;
+                    }
+                    refreshAPIList();
+                } catch (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ Test failed: ${error.message}</p>`;
+                    refreshAPIList();
+                }
+            };
+            
+            // Initialize API list when APIs panel is shown
+            const apisNavBtn = document.querySelector('[data-category="apis"]');
+            if (apisNavBtn) {
+                apisNavBtn.addEventListener('click', () => {
+                    setTimeout(refreshAPIList, 100); // Small delay to ensure panel is visible
+                });
             }
             
         }

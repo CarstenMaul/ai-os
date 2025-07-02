@@ -4,6 +4,103 @@ Your task is to generate HTML, CSS, and JavaScript code for a new app based on u
 
         `;
 
+        // API Registry System Prompt - Provides information about available APIs
+        const API_ENDPOINT_PROMPT = `
+
+API REGISTRY SYSTEM:
+- Access API info: window.apiRegistry.getAPI('apiName')
+- List all APIs: window.apiRegistry.getAllAPIs()
+- Apps make direct fetch() calls using the provided API keys and endpoints
+
+AVAILABLE APIS:
+{availableAPIs}
+
+API USAGE PATTERN:
+// Get API configuration
+const apiInfo = window.apiRegistry.getAPI('weather-api');
+if (apiInfo && apiInfo.active) {
+  // Build request URL
+  let url = apiInfo.baseUrl + '/weather?q=London';
+  
+  // Prepare headers
+  const headers = {
+    'Content-Type': 'application/json',
+    ...apiInfo.headers
+  };
+  
+  // Add API key based on authentication type
+  if (apiInfo.authentication && apiInfo.apiKey) {
+    if (apiInfo.authentication.type === 'query_param') {
+      const paramName = apiInfo.authentication.keyName || 'key';
+      url += (url.includes('?') ? '&' : '?') + paramName + '=' + encodeURIComponent(apiInfo.apiKey);
+    } else if (apiInfo.authentication.type === 'header') {
+      const headerName = apiInfo.authentication.headerName || 'Authorization';
+      // Handle Bearer token format for Authorization header
+      if (headerName.toLowerCase() === 'authorization' && !apiInfo.apiKey.startsWith('Bearer ')) {
+        headers[headerName] = 'Bearer ' + apiInfo.apiKey;
+      } else {
+        headers[headerName] = apiInfo.apiKey;
+      }
+    }
+  }
+  
+  // Make the API call
+  fetch(url, {
+    method: 'GET',
+    headers: headers
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Handle successful response
+    console.log('API data:', data);
+    // Update your app UI with the data
+  })
+  .catch(error => {
+    // Handle errors gracefully
+    console.warn('API call failed:', error);
+    // Show fallback UI or cached data
+  });
+}
+
+OPENAI API SPECIFIC EXAMPLE:
+// Example for OpenAI Chat Completions API
+const openaiAPI = window.apiRegistry.getAPI('OpenAI API');
+if (openaiAPI && openaiAPI.active) {
+  fetch(openaiAPI.baseUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + openaiAPI.apiKey  // CRITICAL: Bearer prefix required
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: 'Hello!' }],
+      max_tokens: 150
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    const reply = data.choices[0].message.content;
+    // Display the AI response in your app
+  })
+  .catch(error => {
+    console.warn('OpenAI API call failed:', error);
+    // Show error message to user
+  });
+}
+
+API BEST PRACTICES:
+- Always check if API is available and active before use
+- Implement proper error handling with user-friendly messages
+- Respect rate limits and cache responses when appropriate
+- Never expose API keys in client-side logs
+- Provide fallback content when APIs are unavailable
+- Use loading states while API calls are in progress
+- For OpenAI API: ALWAYS use 'Bearer ' prefix with Authorization header
+- For query parameter APIs: Use encodeURIComponent() for API keys
+
+        `;
+
         // AI-OS System Context - Essential understanding for LLM app generation
         const CONTEXT_PROMPT = `
 
@@ -408,6 +505,8 @@ CRITICAL REQUIREMENTS:
         const APPCREATION_PROMPT = `
 ${CONTEXT_PROMPT}
 
+${API_ENDPOINT_PROMPT}
+
 TASK:
 You are creating a functional app for a windowed operating system interface.
 
@@ -548,6 +647,8 @@ CONTENT RULES:
     // modificationPrompt
         const APPMODIFY_PROMPT = `
 ${CONTEXT_PROMPT}
+
+${API_ENDPOINT_PROMPT}
 
 TASK:
 You are modifying an existing app for a windowed operating system interface. The user wants you to make changes to the existing app. The user may also submit images to show problems or give graphical advice for changes.
