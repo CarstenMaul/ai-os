@@ -3327,7 +3327,7 @@ window[appNamespace].app = app;
         }
 
         function closeWindow(appId) {
-            const window = document.getElementById(`window_${appId}`);
+            const windowElement = document.getElementById(`window_${appId}`);
             const icon = document.getElementById(`icon_${appId}`);
             const app = apps.find(a => a.id === appId);
             
@@ -3337,15 +3337,15 @@ window[appNamespace].app = app;
             }
             
             // Clean up maximized state if window is closed while maximized
-            if (window && window.classList.contains('maximized')) {
-                window.classList.remove('maximized');
+            if (windowElement && windowElement.classList.contains('maximized')) {
+                windowElement.classList.remove('maximized');
                 console.log(`Cleaned up maximized state for window ${appId}`);
             }
             
             if (app && app.isSystemApp) {
                 // For system apps, hide instead of remove
-                if (window) {
-                    window.style.display = 'none';
+                if (windowElement) {
+                    windowElement.style.display = 'none';
                     app.isHidden = true;
                     updateSharedAppsRegistry();
                 }
@@ -3355,7 +3355,7 @@ window[appNamespace].app = app;
                 console.log(`System app ${appId} hidden`);
             } else {
                 // For user apps, remove completely and clean up namespace
-                if (window) window.remove();
+                if (windowElement) windowElement.remove();
                 if (icon) icon.remove();
                 
                 // Clean up app-specific resources
