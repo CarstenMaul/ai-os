@@ -62,6 +62,7 @@ Have fun!
 - **Digital Clock**: Real-time clock with 12/24-hour format toggle and date display
 - **Cost Tracking**: Detailed API usage monitoring with history and export functionality
 - **Data Registry Browser**: View and manage shared data objects across apps
+- **API Registry Manager**: Configure and manage external API endpoints with authentication
 - **App Manager**: Comprehensive application management interface
 - **Setup Assistant**: First-time setup wizard with progress tracking
 
@@ -93,6 +94,16 @@ Have fun!
 - **Session Recovery**: Data objects restored on system startup
 - **Data Structure Analysis**: Automatic analysis and documentation of data types and structures
 - **Cross-Session Continuity**: Data maintains state between browser sessions
+
+#### API Registry System
+- **External API Integration**: Register and manage external API endpoints for app generation
+- **Authentication Support**: Multiple authentication types (Bearer tokens, API keys, query parameters)
+- **API Testing**: Built-in connection testing with detailed status reporting
+- **Smart Authentication**: Automatic Bearer token formatting for OpenAI and similar APIs
+- **API Discovery**: LLM automatically discovers and uses registered APIs when generating apps
+- **Secure Storage**: API keys stored locally with proper encryption and access control
+- **Usage Guidance**: Contextual help and examples for different API authentication methods
+- **Status Monitoring**: Real-time API health monitoring with detailed error reporting
 
 #### Advanced AI Integration
 - **Multiple LLM Providers**: Support for OpenRouter, OpenAI API, and LMStudio
@@ -237,7 +248,37 @@ AI-OS now supports creating sophisticated 3D graphics and data visualization app
 - **Digital Clock**: Real-time clock with format toggle
 - **Cost Tracking**: Monitor API usage and costs
 - **Data Registry**: View shared data between apps
+- **API Registry**: Configure external APIs for enhanced app generation
 - **App Manager**: Manage all created applications
+
+### API Registry & External Services
+AI-OS now supports integrating external APIs to enhance app generation capabilities:
+
+#### Setting Up APIs
+1. **Access API Registry**: Go to Settings → API Registry
+2. **Add New API**: Click "Add New API" button
+3. **Configure Authentication**: Choose appropriate authentication method
+4. **Test Connection**: Use built-in testing to verify API connectivity
+5. **Enable for Apps**: Activated APIs are automatically available to generated apps
+
+#### Supported Authentication Types
+- **Bearer Token**: For APIs like OpenAI, Anthropic Claude (Authorization header)
+- **API Key (Header)**: Custom header-based authentication
+- **API Key (Query Parameter)**: URL parameter-based authentication
+- **No Authentication**: For public APIs
+
+#### Popular API Examples
+- **OpenAI API**: For ChatGPT integration in generated apps
+- **Weather APIs**: For weather data in dashboard apps
+- **News APIs**: For news aggregation applications
+- **Financial APIs**: For stock market and trading apps
+- **Social Media APIs**: For social platform integrations
+
+#### How It Works
+1. **Automatic Discovery**: When creating apps, the LLM automatically detects available APIs
+2. **Smart Integration**: APIs are intelligently integrated based on app requirements
+3. **Proper Authentication**: Authentication is handled automatically with correct formatting
+4. **Error Handling**: Built-in error handling and fallback mechanisms
 
 ## ⚙️ Configuration
 
@@ -266,6 +307,13 @@ AI-OS now supports creating sophisticated 3D graphics and data visualization app
 - **LMStudio Simple**: `microsoft/phi-4`
 - **LMStudio Tough**: `deepseek-r1-0528-qwen3-8b`
 
+#### API Registry
+- **External API Management**: Register and configure third-party APIs for app generation
+- **Authentication Configuration**: Support for Bearer tokens, API keys, and query parameters
+- **Connection Testing**: Built-in API testing with detailed status reporting
+- **Usage Examples**: Contextual guidance for popular APIs like OpenAI, weather services
+- **Security**: Local storage of API keys with proper encryption
+
 #### System
 - **Debug Mode**: Enable detailed logging
 - **Settings Export/Import**: Backup and restore configurations
@@ -284,6 +332,7 @@ AI-OS now supports creating sophisticated 3D graphics and data visualization app
 - **Persistence Manager**: Handles app and data persistence using IndexedDB
 - **Settings Manager**: Handles configuration and persistence
 - **Data Registry**: Global data sharing system between apps with persistence support
+- **API Registry**: External API management system with authentication and testing capabilities
 - **Namespace Manager**: Ensures app isolation and prevents conflicts
 - **Non-Blocking Dialog System**: Custom prompts and confirmations for responsive user interactions
 
@@ -323,6 +372,7 @@ Each AI-generated app consists of:
 - **Voice**: OpenAI Whisper API, Web Speech API
 - **Storage**: IndexedDB, LocalStorage, Cookies for persistence
 - **Data Sharing**: Custom data registry system with persistence
+- **API Integration**: External API registry with authentication and testing
 
 ### Browser Compatibility
 - ✅ Chrome 80+
@@ -390,9 +440,11 @@ The AI-OS is designed to be extensible:
 3. **System Apps**: Create built-in applications
 4. **Themes**: Develop custom theme systems
 5. **Data Registry**: Create shared data objects for app communication
+6. **API Registry**: Register external APIs for enhanced app capabilities
 
 ### App Development Guidelines
 - **Use Data Registry**: Access shared data with `window.dataRegistry.getData()`
+- **Use API Registry**: Access external APIs with `window.apiRegistry.getAPI()`
 - **Implement Init Function**: Use `window[appNamespace].init` for setup
 - **Handle Keyboard Events**: Register with `app.onKey()` for keyboard support
 - **Theme Support**: Use `.app-light-theme` and `.app-dark-theme` classes
@@ -416,6 +468,7 @@ ai-os.html
     ├── Settings Manager
     ├── Window Manager
     ├── Data Registry
+    ├── API Registry
     ├── Custom Popup System
     ├── Keyboard Handler
     └── Cost Tracking
@@ -482,10 +535,53 @@ ai-os.html
 5. **Secure Storage**: IndexedDB provides encrypted local storage
 6. **Data Control**: Full user control over persistent data via Data Registry
 
+#### API Registry Issues
+1. **API Connection Failed**: Verify API endpoint URL and network connectivity
+2. **Authentication Errors**: Check API key format and authentication type selection
+3. **OpenAI API Issues**: Ensure "Bearer Token" authentication with "Authorization" header
+4. **CORS Errors**: Some APIs don't support browser requests (expected behavior)
+5. **Rate Limiting**: Check API provider's rate limits and usage quotas
+6. **API Key Invalid**: Verify API key is correct and has proper permissions
+7. **Generated Apps Not Using APIs**: Ensure APIs are active and properly configured
+
 ### Debug Mode
 Enable debug mode in Settings → System for detailed logging and troubleshooting information. This provides comprehensive logging through `debugLog`, `debugWarn`, and `debugError` functions.
 
-## 🔄 Recent Updates (v2.3.0)
+## 🔄 Recent Updates (v2.4.0)
+
+### API Registry System
+Revolutionary new feature enabling external API integration for enhanced app generation:
+
+#### New API Registry Features
+- **External API Management**: Register and configure third-party APIs (OpenAI, weather, news, financial APIs)
+- **Multiple Authentication Types**: Support for Bearer tokens, API keys, query parameters, and header authentication
+- **Smart Authentication Handling**: Automatic Bearer token formatting for OpenAI and similar APIs
+- **Built-in API Testing**: Comprehensive connection testing with detailed status reporting and error analysis
+- **Intelligent API Discovery**: LLM automatically detects and integrates registered APIs when generating apps
+- **Secure Local Storage**: API keys stored locally with proper encryption and access control
+- **Usage Guidance**: Contextual help and examples for different API authentication methods
+
+#### Technical Improvements
+- **Enhanced System Prompts**: Updated LLM prompts with API usage patterns and examples
+- **Automatic API Integration**: Generated apps automatically use appropriate APIs based on functionality
+- **Error Handling**: Robust error handling with user-friendly messages and fallback mechanisms
+- **Status Monitoring**: Real-time API health monitoring with detailed connection status
+- **Bearer Token Support**: Proper Bearer token formatting for modern APIs like OpenAI
+
+#### User Experience Enhancements
+- **Intuitive Configuration**: Step-by-step API setup with clear guidance for popular services
+- **Visual Status Indicators**: Color-coded status indicators showing API health and connectivity
+- **Test Results**: Detailed test results explaining connection status and authentication issues
+- **Configuration Help**: Built-in examples and guidance for OpenAI, weather APIs, and other services
+
+#### Benefits
+- **Enhanced App Capabilities**: Generated apps can now integrate with external services automatically
+- **Seamless Integration**: APIs are intelligently selected and integrated based on app requirements
+- **Professional Authentication**: Proper handling of modern API authentication patterns
+- **Local Security**: All API keys stored locally with no external transmission
+- **Developer-Friendly**: Clear error messages and testing tools for easy troubleshooting
+
+### Previous Updates (v2.3.0)
 
 ### Advanced Version Control & Snapshot Management
 Revolutionary improvements to app version control with comprehensive snapshot management:
