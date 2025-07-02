@@ -820,6 +820,57 @@ body.dark-theme .setting-item select {
     color: #f8f9fa;
 }
 
+/* Temperature Slider Styles - Dark Theme */
+body.dark-theme .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+body.dark-theme .temperature-slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #4a5f7a;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+body.dark-theme .temperature-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #0078d4;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-theme .temperature-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #0078d4;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-theme .slider-value {
+    min-width: 30px;
+    text-align: center;
+    font-weight: 600;
+    color: #f8f9fa;
+    background: #34495e;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #4a5f7a;
+}
+
 body.dark-theme .settings-footer {
     background: #34495e;
     border-top: 1px solid #4a5f7a;
@@ -1038,6 +1089,57 @@ body.light-theme .setting-item select {
     background: white;
     border: 1px solid #ced4da;
     color: #212529;
+}
+
+/* Temperature Slider Styles - Light Theme */
+body.light-theme .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+body.light-theme .temperature-slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #dee2e6;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+body.light-theme .temperature-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #0078d4;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.light-theme .temperature-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #0078d4;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.light-theme .slider-value {
+    min-width: 30px;
+    text-align: center;
+    font-weight: 600;
+    color: #212529;
+    background: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
 }
 
 body.light-theme .settings-footer {

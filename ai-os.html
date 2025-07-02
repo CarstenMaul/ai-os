@@ -5076,7 +5076,8 @@ window[appNamespace].app = app;
             MODEL_SIMPLE: 'google/gemini-2.5-flash-lite-preview-06-17',
             MODEL_TOUGH: 'anthropic/claude-sonnet-4',
             MODEL: 'google/gemini-2.5-flash-lite-preview-06-17', // Will be updated based on mode selection
-            CURRENT_LLM_PROVIDER: 'openrouter' // Current LLM provider: 'openrouter', 'openai', or 'lmstudio'
+            CURRENT_LLM_PROVIDER: 'openrouter', // Current LLM provider: 'openrouter', 'openai', or 'lmstudio'
+            TEMPERATURE: 0.7 // Default temperature for LLM requests (0 = focused, 1 = creative)
         };
 
         // Model selection state
@@ -5872,8 +5873,8 @@ window[appNamespace].app = app;
                                provider === 'openai' ? 'gpt-4o-mini' : 'llama-3.2-3b-instruct',
                         messages: [{ role: 'user', content: 'Hello! This is a test message.' }],
                         ...(provider === 'openai' ?
-                            { max_completion_tokens: 50, temperature: 1 } :
-                            { max_tokens: 50, temperature: 0.5 })
+                            { max_completion_tokens: 50, temperature: CONFIG.TEMPERATURE ?? 0.7 } :
+                            { max_tokens: 50, temperature: CONFIG.TEMPERATURE ?? 0.7 })
                     })
                 });
                 
@@ -6227,6 +6228,7 @@ window[appNamespace].app = app;
                 lmstudioToughModel: document.getElementById('lmstudio-tough-model')?.value ?? 'llama-3.1-8b-instruct',
                 
                 // AI Model Settings - General
+                temperature: parseFloat(document.getElementById('temperature')?.value) ?? 0.7,
                 apiTimeout: parseInt(document.getElementById('api-timeout')?.value) ?? 30,
                 maxRetries: parseInt(document.getElementById('max-retries')?.value) ?? 3,
                 costTracking: document.getElementById('cost-tracking')?.checked ?? true,
@@ -6356,6 +6358,14 @@ window[appNamespace].app = app;
                 if (lmstudioToughModel) lmstudioToughModel.value = settings.lmstudioToughModel ?? 'llama-3.1-8b-instruct';
                 
                 // AI Model Settings - General
+                const temperature = document.getElementById('temperature');
+                if (temperature) {
+                    temperature.value = settings.temperature ?? 0.7;
+                    // Update the display value
+                    const temperatureValue = document.getElementById('temperature-value');
+                    if (temperatureValue) temperatureValue.textContent = settings.temperature ?? 0.7;
+                }
+                
                 const apiTimeout = document.getElementById('api-timeout');
                 if (apiTimeout) apiTimeout.value = settings.apiTimeout ?? 30;
                 
@@ -6508,6 +6518,11 @@ window[appNamespace].app = app;
                     }
                     
                     // Cost tracking app is now handled in the unified "All Apps" submenu
+                }
+                
+                // Apply temperature setting to CONFIG
+                if (settings.temperature !== undefined) {
+                    CONFIG.TEMPERATURE = settings.temperature;
                 }
                 
                 // Apply API timeout and max retries to CONFIG
@@ -8106,11 +8121,10 @@ function sanitizeJsonCodeFields(jsonStr) {
             // Use the correct parameters based on provider
             if (CONFIG.CURRENT_LLM_PROVIDER === 'openai') {
                 requestBody.max_completion_tokens = 16000;
-                // OpenAI models may not support custom temperature, use default (1)
-                requestBody.temperature = 1;
+                requestBody.temperature = CONFIG.TEMPERATURE ?? 0.7;
             } else {
                 requestBody.max_tokens = 32000;
-                requestBody.temperature = 0.7;
+                requestBody.temperature = CONFIG.TEMPERATURE ?? 0.7;
             }
             
             // Debug logging for LMStudio
@@ -8255,10 +8269,10 @@ function sanitizeJsonCodeFields(jsonStr) {
             // Use the correct parameters based on provider
             if (CONFIG.CURRENT_LLM_PROVIDER === 'openai') {
                 requestBody.max_completion_tokens = 16000;
-                requestBody.temperature = 1;
+                requestBody.temperature = CONFIG.TEMPERATURE ?? 0.7;
             } else {
                 requestBody.max_tokens = 32000;
-                requestBody.temperature = 0.7;
+                requestBody.temperature = CONFIG.TEMPERATURE ?? 0.7;
             }
             
             console.log('Sending request with images to LLM:', {
@@ -9476,6 +9490,13 @@ ${containerSelector} {
                                 <div class="setting-section">
                                     <h4 style="color: #0078d4; margin: 20px 0 10px 0; font-size: 16px; font-weight: 600;">⚙️ General</h4>
                                     <div class="setting-item">
+                                        <label for="temperature">Temperature (0 = Focused, 1 = Creative)</label>
+                                        <div class="slider-container">
+                                            <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7" class="temperature-slider">
+                                            <span class="slider-value" id="temperature-value">0.7</span>
+                                        </div>
+                                    </div>
+                                    <div class="setting-item">
                                         <label for="api-timeout">API Timeout (seconds)</label>
                                         <input type="number" id="api-timeout" value="30" min="10" max="120">
                                     </div>
@@ -9825,6 +9846,21 @@ ${containerSelector} {
                 });
             }
             
+            // Temperature slider
+            const temperatureSlider = document.getElementById('temperature');
+            const temperatureValue = document.getElementById('temperature-value');
+            if (temperatureSlider && temperatureValue) {
+                temperatureSlider.addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    temperatureValue.textContent = value.toFixed(1);
+                    
+                    // Auto-save settings when temperature changes
+                    const settings = saveSettingsToCookie();
+                    applySettingsToSystem(settings);
+                    console.log(`Temperature updated to ${value}`);
+                });
+            }
+            
             // Test microphone button
             const testMicBtn = document.getElementById('test-microphone');
             if (testMicBtn) {
@@ -10096,6 +10132,7 @@ ${containerSelector} {
             
             // API Settings change handlers for immediate application
             const apiSettingsInputs = [
+                'temperature',
                 'openai-whisper-key',
                 'openai-whisper-url',
                 'openrouter-api-key',
