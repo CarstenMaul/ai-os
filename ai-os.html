@@ -8403,15 +8403,17 @@ ${containerSelector} {
             // Get the natural size of the content after it's fully rendered
             const contentRect = contentElement.getBoundingClientRect();
             const windowHeaderHeight = 50; // Window header height
+            const windowToolbarHeight = 50; // Window toolbar height
             const padding = 40; // Extra padding for better appearance
             const osHeaderHeight = 50; // OS header height
+
             
             // Calculate optimal window size with generous limits
             const maxAvailableWidth = window.innerWidth - 100; // Leave 50px margin on each side
             const maxAvailableHeight = window.innerHeight - osHeaderHeight - 100; // Leave space for OS header and margins
             
             let optimalWidth = Math.max(350, Math.min(maxAvailableWidth, contentRect.width + padding));
-            let optimalHeight = Math.max(250, Math.min(maxAvailableHeight, contentRect.height + windowHeaderHeight + padding));
+            let optimalHeight = Math.max(250, Math.min(maxAvailableHeight, contentRect.height + windowHeaderHeight + windowToolbarHeight + padding));
             
             // Update window size
             windowElement.style.width = optimalWidth + 'px';
