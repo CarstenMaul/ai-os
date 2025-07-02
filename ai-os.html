@@ -3331,6 +3331,12 @@ window[appNamespace].app = app;
                 exitFullscreen(appId);
             }
             
+            // Clean up maximized state if window is closed while maximized
+            if (window && window.classList.contains('maximized')) {
+                window.classList.remove('maximized');
+                console.log(`Cleaned up maximized state for window ${appId}`);
+            }
+            
             if (app && app.isSystemApp) {
                 // For system apps, hide instead of remove
                 if (window) {
@@ -3368,7 +3374,47 @@ window[appNamespace].app = app;
                 console.log(`User app ${appId} removed and namespace cleaned`);
             }
             
+            // Force cleanup of any lingering CSS states that might hide the desktop
+            ensureDesktopVisibility();
+            
             updateAppCount();
+        }
+
+        function ensureDesktopVisibility() {
+            // Force cleanup of any lingering CSS states that might hide the desktop
+            const body = document.body;
+            
+            // Remove any fullscreen-related classes that might persist
+            if (body.classList.contains('has-fullscreen-app')) {
+                // Only remove if there are actually no fullscreen apps
+                if (!window.fullscreenApps || window.fullscreenApps.size === 0) {
+                    body.classList.remove('has-fullscreen-app');
+                    console.log('Removed lingering has-fullscreen-app class from body');
+                }
+            }
+            
+            // Ensure desktop element is visible
+            const desktop = document.getElementById('desktop');
+            if (desktop) {
+                desktop.style.display = '';
+                desktop.style.visibility = '';
+                desktop.style.opacity = '';
+            }
+            
+            // Ensure taskbar and status bar are visible if no fullscreen apps
+            if (!window.fullscreenApps || window.fullscreenApps.size === 0) {
+                const taskbar = document.querySelector('.taskbar');
+                const statusBar = document.querySelector('.status-bar');
+                
+                if (taskbar) {
+                    taskbar.style.display = '';
+                }
+                if (statusBar) {
+                    statusBar.style.display = '';
+                }
+            }
+            
+            console.log('Desktop visibility ensured');
         }
 
         function cleanupAppNamespace(appId) {
@@ -3425,8 +3471,21 @@ window[appNamespace].app = app;
             const app = apps.find(a => a.id === appId);
             
             if (window && app) {
+                const wasMaximized = window.classList.contains('maximized');
                 window.classList.toggle('maximized');
                 app.isMaximized = !app.isMaximized;
+                
+                // Log state change for debugging
+                console.log(`Window ${appId} ${wasMaximized ? 'restored' : 'maximized'}`);
+                
+                // Ensure no conflicting states
+                if (app.isMaximized) {
+                    // Remove fullscreen state if maximizing
+                    if (window.fullscreenApps && window.fullscreenApps.has(appId)) {
+                        exitFullscreen(appId);
+                    }
+                }
+                
                 updateSharedAppsRegistry();
                 bringToFront(appId);
             }
@@ -4699,6 +4758,12 @@ window[appNamespace].app = app;
         }
 
         // Setup Assistant Functions
+        // Global setup selections to track user choices across steps
+        let setupSelections = {
+            aiProvider: null,
+            voiceProvider: 'whisper' // Default selection
+        };
+        
         function startSetupAssistant() {
             const setupContent = `
                 <div class="setup-assistant">
@@ -4709,7 +4774,7 @@ window[appNamespace].app = app;
                             <div class="progress-bar">
                                 <div class="progress-fill" id="setup-progress-fill"></div>
                             </div>
-                            <span class="progress-text" id="setup-progress-text">Step 1 of 4</span>
+                            <span class="progress-text" id="setup-progress-text">Step 1 of 6</span>
                         </div>
                     </div>
                     
@@ -4719,10 +4784,8 @@ window[appNamespace].app = app;
                     
                     <div class="setup-footer">
                         <button class="setup-btn secondary" id="setup-back" style="display: none;">← Back</button>
-                        <div class="setup-footer-right">
-                            <button class="setup-btn secondary" id="setup-skip">Skip Setup</button>
-                            <button class="setup-btn primary" id="setup-next">Next →</button>
-                        </div>
+                        <button class="setup-btn secondary" id="setup-skip">Skip Setup</button>
+                        <button class="setup-btn primary" id="setup-next">Next →</button>
                     </div>
                 </div>
             `;
@@ -4734,7 +4797,7 @@ window[appNamespace].app = app;
                 type: 'system',
                 title: 'Setup Assistant',
                 isMinimized: false,
-                isMaximized: false,
+                isMaximized: true, // Start maximized
                 customRequest: 'System Setup Assistant'
             };
 
@@ -4747,8 +4810,15 @@ window[appNamespace].app = app;
             // Add setup-specific CSS
             addSetupAssistantCSS(setupId);
             
-            // Initialize setup assistant
+            // Automatically set setup assistant to fullscreen
             setTimeout(() => {
+                const setupWindow = document.getElementById(`window_${setupId}`);
+                if (setupWindow) {
+                    setupWindow.classList.add('fullscreen');
+                    console.log('Setup Assistant automatically set to fullscreen');
+                }
+                
+                // Initialize setup assistant
                 initializeSetupAssistant(setupId);
             }, 100);
         }
@@ -4933,11 +5003,23 @@ window[appNamespace].app = app;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    position: relative;
                 }
                 
-                .setup-footer-right {
-                    display: flex;
-                    gap: 10px;
+                .setup-footer #setup-back {
+                    order: 1;
+                }
+                
+                .setup-footer #setup-skip {
+                    order: 2;
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                }
+                
+                .setup-footer #setup-next {
+                    order: 3;
+                    margin-left: auto;
                 }
                 
                 .setup-btn {
@@ -4979,13 +5061,15 @@ window[appNamespace].app = app;
 
         function initializeSetupAssistant(setupId) {
             let currentStep = 1;
-            const totalSteps = 4;
+            const totalSteps = 6;
             
             const steps = {
                 1: createWelcomeStep,
-                2: createAIModelStep,
-                3: createVoiceAudioStep,
-                4: createCompletionStep
+                2: createAIProviderStep,
+                3: createAIConfigStep,
+                4: createVoiceProviderStep,
+                5: createVoiceConfigStep,
+                6: createCompletionStep
             };
             
             function updateProgress() {
@@ -5008,6 +5092,46 @@ window[appNamespace].app = app;
                 
                 if (content && steps[stepNumber]) {
                     content.innerHTML = steps[stepNumber]();
+                }
+                
+                // Auto-populate configuration steps based on previous selections
+                if (stepNumber === 3) {
+                    // AI Config step - show config for selected provider
+                    setTimeout(() => {
+                        if (setupSelections.aiProvider) {
+                            showProviderConfig(setupSelections.aiProvider);
+                        }
+                    }, 100);
+                } else if (stepNumber === 4) {
+                    // Voice Provider step - restore previous selection
+                    setTimeout(() => {
+                        if (setupSelections.voiceProvider) {
+                            const voiceCard = document.querySelector(`[data-voice="${setupSelections.voiceProvider}"]`);
+                            if (voiceCard) {
+                                document.querySelectorAll('.setup-option-card[data-voice]').forEach(c => c.classList.remove('selected'));
+                                voiceCard.classList.add('selected');
+                            }
+                        }
+                    }, 100);
+                } else if (stepNumber === 5) {
+                    // Voice Config step - show config for selected voice provider
+                    setTimeout(() => {
+                        if (setupSelections.voiceProvider) {
+                            showVoiceConfig(setupSelections.voiceProvider);
+                        }
+                    }, 100);
+                } else if (stepNumber === 6) {
+                    // Completion step - populate summary immediately
+                    setTimeout(() => {
+                        const summaryDiv = document.getElementById('setup-summary');
+                        if (summaryDiv) {
+                            summaryDiv.innerHTML = `
+                                <div>🤖 AI Provider: ${setupSelections.aiProvider || 'OpenRouter'}</div>
+                                <div>🎤 Voice Recognition: ${setupSelections.voiceProvider === 'web' ? 'Web Speech API' : 'OpenAI Whisper'}</div>
+                                <div>🎨 Theme: Light Mode</div>
+                            `;
+                        }
+                    }, 100);
                 }
                 
                 // Update button visibility
@@ -5033,43 +5157,36 @@ window[appNamespace].app = app;
             
             function addStepEventListeners(stepNumber) {
                 if (stepNumber === 2) {
-                    // AI Model step listeners
+                    // AI Provider selection step listeners
                     const providerCards = document.querySelectorAll('.setup-option-card[data-provider]');
                     providerCards.forEach(card => {
                         card.addEventListener('click', () => {
                             providerCards.forEach(c => c.classList.remove('selected'));
                             card.classList.add('selected');
-                            
-                            const provider = card.dataset.provider;
-                            showProviderConfig(provider);
+                            setupSelections.aiProvider = card.dataset.provider;
                         });
                     });
-                    
+                } else if (stepNumber === 3) {
+                    // AI Configuration step listeners
                     const testBtn = document.getElementById('test-ai-connection');
                     if (testBtn) {
                         testBtn.addEventListener('click', testAIConnection);
                     }
-                } else if (stepNumber === 3) {
-                    // Voice & Audio step listeners
+                } else if (stepNumber === 4) {
+                    // Voice Provider selection step listeners
                     const voiceCards = document.querySelectorAll('.setup-option-card[data-voice]');
                     voiceCards.forEach(card => {
                         card.addEventListener('click', () => {
                             voiceCards.forEach(c => c.classList.remove('selected'));
                             card.classList.add('selected');
-                            
-                            const voiceType = card.dataset.voice;
-                            showVoiceConfig(voiceType);
+                            setupSelections.voiceProvider = card.dataset.voice;
                         });
                     });
-                    
+                } else if (stepNumber === 5) {
+                    // Voice Configuration step listeners
                     const testMicBtn = document.getElementById('test-microphone-setup');
                     if (testMicBtn) {
                         testMicBtn.addEventListener('click', testMicrophone);
-                    }
-                    
-                    const testVoiceBtn = document.getElementById('test-voice-recognition');
-                    if (testVoiceBtn) {
-                        testVoiceBtn.addEventListener('click', testVoiceRecognition);
                     }
                 }
             }
@@ -5097,7 +5214,9 @@ window[appNamespace].app = app;
                             showStep(currentStep);
                         }
                     } else {
-                        // Finish setup
+                        // Finish setup - disable button immediately to prevent double-click
+                        nextBtn.disabled = true;
+                        nextBtn.textContent = 'Finishing...';
                         finishSetup(setupId);
                     }
                 });
@@ -5141,10 +5260,10 @@ window[appNamespace].app = app;
             `;
         }
 
-        function createAIModelStep() {
+        function createAIProviderStep() {
             return `
                 <div class="setup-step">
-                    <h3>🤖 AI Model Configuration</h3>
+                    <h3>🤖 AI Provider Selection</h3>
                     <p>Choose your AI provider for app generation. Each has different features and pricing.</p>
                     
                     <div class="setup-option-card" data-provider="openrouter">
@@ -5161,6 +5280,15 @@ window[appNamespace].app = app;
                         <h4>💻 LMStudio (Local)</h4>
                         <p>Run AI models locally on your computer. Free but requires powerful hardware.</p>
                     </div>
+                </div>
+            `;
+        }
+
+        function createAIConfigStep() {
+            return `
+                <div class="setup-step">
+                    <h3>🔑 AI Configuration</h3>
+                    <p>Enter your API key and configure settings for your selected AI provider.</p>
                     
                     <div id="provider-config" style="margin-top: 20px;">
                         <!-- Provider-specific configuration will appear here -->
@@ -5172,21 +5300,30 @@ window[appNamespace].app = app;
             `;
         }
 
-        function createVoiceAudioStep() {
+        function createVoiceProviderStep() {
             return `
                 <div class="setup-step">
-                    <h3>🎤 Voice & Audio Setup</h3>
-                    <p>Configure voice recognition for hands-free app creation and modification.</p>
-                    
-                    <div class="setup-option-card selected" data-voice="whisper">
-                        <h4>🎯 OpenAI Whisper (Recommended)</h4>
-                        <p>High-accuracy speech recognition supporting 50+ languages. Requires internet connection.</p>
-                    </div>
-                    
+                    <h3>🎤 Voice Provider Selection</h3>
+                    <p>Choose your voice recognition provider for hands-free app creation and modification.</p>
+
                     <div class="setup-option-card" data-voice="web">
                         <h4>🌐 Web Speech API</h4>
                         <p>Browser-based speech recognition. Free but limited language support and accuracy.</p>
                     </div>
+                                        
+                    <div class="setup-option-card selected" data-voice="whisper">
+                        <h4>🎯 OpenAI Whisper (Recommended)</h4>
+                        <p>High-accuracy speech recognition supporting 50+ languages. Requires internet connection.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createVoiceConfigStep() {
+            return `
+                <div class="setup-step">
+                    <h3>🔧 Voice Configuration</h3>
+                    <p>Configure API key, language settings, and test your voice recognition setup.</p>
                     
                     <div id="voice-config" style="margin-top: 20px;">
                         <!-- Voice-specific configuration will appear here -->
@@ -5194,7 +5331,6 @@ window[appNamespace].app = app;
                     
                     <div style="display: flex; gap: 10px; margin-top: 15px;">
                         <button id="test-microphone-setup" class="setup-btn secondary">🎤 Test Microphone</button>
-                        <button id="test-voice-recognition" class="setup-btn secondary">🗣️ Test Voice Recognition</button>
                     </div>
                     <div id="voice-test-result"></div>
                 </div>
@@ -5304,13 +5440,12 @@ window[appNamespace].app = app;
             const resultDiv = document.getElementById('ai-test-result');
             if (!resultDiv) return;
             
-            const selectedProvider = document.querySelector('.setup-option-card[data-provider].selected');
-            if (!selectedProvider) {
+            // Use the global setupSelections instead of looking for DOM elements
+            const provider = setupSelections.aiProvider;
+            if (!provider) {
                 resultDiv.innerHTML = '<div class="setup-test-result error">Please select an AI provider first.</div>';
                 return;
             }
-            
-            const provider = selectedProvider.dataset.provider;
             resultDiv.innerHTML = '<div class="setup-test-result warning">Testing connection...</div>';
             
             try {
@@ -5376,13 +5511,12 @@ window[appNamespace].app = app;
             const resultDiv = document.getElementById('voice-test-result');
             if (!resultDiv) return;
             
-            const selectedVoice = document.querySelector('.setup-option-card[data-voice].selected');
-            if (!selectedVoice) {
+            // Use the global setupSelections instead of looking for DOM elements
+            const voiceType = setupSelections.voiceProvider;
+            if (!voiceType) {
                 resultDiv.innerHTML = '<div class="setup-test-result error">Please select a voice recognition method first.</div>';
                 return;
             }
-            
-            const voiceType = selectedVoice.dataset.voice;
             resultDiv.innerHTML = '<div class="setup-test-result warning">🎤 Say something to test voice recognition...</div>';
             
             try {
@@ -5434,14 +5568,14 @@ window[appNamespace].app = app;
 
         function validateCurrentStep(stepNumber) {
             if (stepNumber === 2) {
-                // Validate AI Model step
-                const selectedProvider = document.querySelector('.setup-option-card[data-provider].selected');
-                if (!selectedProvider) {
+                // Validate AI Provider selection step
+                if (!setupSelections.aiProvider) {
                     showCustomAlert('Please select an AI provider.', 'Setup Required');
                     return false;
                 }
-                
-                const provider = selectedProvider.dataset.provider;
+            } else if (stepNumber === 3) {
+                // Validate AI Configuration step
+                const provider = setupSelections.aiProvider;
                 if (provider === 'openrouter') {
                     const apiKey = document.getElementById('setup-openrouter-key')?.value;
                     if (!apiKey) {
@@ -5455,15 +5589,15 @@ window[appNamespace].app = app;
                         return false;
                     }
                 }
-            } else if (stepNumber === 3) {
-                // Validate Voice & Audio step
-                const selectedVoice = document.querySelector('.setup-option-card[data-voice].selected');
-                if (!selectedVoice) {
+            } else if (stepNumber === 4) {
+                // Validate Voice Provider selection step
+                if (!setupSelections.voiceProvider) {
                     showCustomAlert('Please select a voice recognition method.', 'Setup Required');
                     return false;
                 }
-                
-                const voiceType = selectedVoice.dataset.voice;
+            } else if (stepNumber === 5) {
+                // Validate Voice Configuration step
+                const voiceType = setupSelections.voiceProvider;
                 if (voiceType === 'whisper') {
                     const apiKey = document.getElementById('setup-whisper-key')?.value;
                     if (!apiKey) {
@@ -5476,46 +5610,40 @@ window[appNamespace].app = app;
         }
 
         function saveCurrentStepSettings(stepNumber) {
-            if (stepNumber === 2) {
-                // Save AI Model settings
-                const selectedProvider = document.querySelector('.setup-option-card[data-provider].selected');
-                if (selectedProvider) {
-                    const provider = selectedProvider.dataset.provider;
-                    
-                    if (provider === 'openrouter') {
-                        const apiKey = document.getElementById('setup-openrouter-key')?.value;
-                        if (apiKey) {
-                            CONFIG.OPENROUTER_API_KEY = apiKey;
-                            CONFIG.CURRENT_LLM_PROVIDER = 'openrouter';
-                        }
-                    } else if (provider === 'openai') {
-                        const apiKey = document.getElementById('setup-openai-key')?.value;
-                        if (apiKey) {
-                            CONFIG.OPENROUTER_API_KEY = apiKey; // Reuse same config key
-                            CONFIG.OPENROUTER_URL = 'https://api.openai.com/v1/chat/completions';
-                            CONFIG.CURRENT_LLM_PROVIDER = 'openai';
-                        }
-                    } else if (provider === 'lmstudio') {
-                        const url = document.getElementById('setup-lmstudio-url')?.value;
-                        if (url) {
-                            CONFIG.OPENROUTER_API_KEY = 'not-needed';
-                            CONFIG.OPENROUTER_URL = url;
-                            CONFIG.CURRENT_LLM_PROVIDER = 'lmstudio';
-                        }
+            if (stepNumber === 3) {
+                // Save AI Configuration settings
+                const provider = setupSelections.aiProvider;
+                
+                if (provider === 'openrouter') {
+                    const apiKey = document.getElementById('setup-openrouter-key')?.value;
+                    if (apiKey) {
+                        CONFIG.OPENROUTER_API_KEY = apiKey;
+                        CONFIG.CURRENT_LLM_PROVIDER = 'openrouter';
+                    }
+                } else if (provider === 'openai') {
+                    const apiKey = document.getElementById('setup-openai-key')?.value;
+                    if (apiKey) {
+                        CONFIG.OPENROUTER_API_KEY = apiKey; // Reuse same config key
+                        CONFIG.OPENROUTER_URL = 'https://api.openai.com/v1/chat/completions';
+                        CONFIG.CURRENT_LLM_PROVIDER = 'openai';
+                    }
+                } else if (provider === 'lmstudio') {
+                    const url = document.getElementById('setup-lmstudio-url')?.value;
+                    if (url) {
+                        CONFIG.OPENROUTER_API_KEY = 'not-needed';
+                        CONFIG.OPENROUTER_URL = url;
+                        CONFIG.CURRENT_LLM_PROVIDER = 'lmstudio';
                     }
                 }
-            } else if (stepNumber === 3) {
-                // Save Voice & Audio settings
-                const selectedVoice = document.querySelector('.setup-option-card[data-voice].selected');
-                if (selectedVoice) {
-                    const voiceType = selectedVoice.dataset.voice;
-                    voiceRecognitionType = voiceType;
-                    
-                    if (voiceType === 'whisper') {
-                        const apiKey = document.getElementById('setup-whisper-key')?.value;
-                        if (apiKey) {
-                            CONFIG.OPENAI_API_KEY = apiKey;
-                        }
+            } else if (stepNumber === 5) {
+                // Save Voice Configuration settings
+                const voiceType = setupSelections.voiceProvider;
+                voiceRecognitionType = voiceType;
+                
+                if (voiceType === 'whisper') {
+                    const apiKey = document.getElementById('setup-whisper-key')?.value;
+                    if (apiKey) {
+                        CONFIG.OPENAI_API_KEY = apiKey;
                     }
                 }
             }
@@ -5576,16 +5704,6 @@ window[appNamespace].app = app;
             // Apply settings to system
             applySettingsToSystem(settings);
             
-            // Update summary in completion step
-            const summaryDiv = document.getElementById('setup-summary');
-            if (summaryDiv) {
-                summaryDiv.innerHTML = `
-                    <div>🤖 AI Provider: ${CONFIG.CURRENT_LLM_PROVIDER || 'OpenRouter'}</div>
-                    <div>🎤 Voice Recognition: ${voiceRecognitionType === 'web' ? 'Web Speech API' : 'OpenAI Whisper'}</div>
-                    <div>🎨 Theme: Light Mode</div>
-                `;
-            }
-            
             // Initialize voice system with new settings
             setTimeout(async () => {
                 try {
@@ -5598,11 +5716,24 @@ window[appNamespace].app = app;
             
             console.log('Setup completed successfully!', settings);
             
-            // Show completion message and close setup after delay
+            // Close setup after delay (no popup)
             setTimeout(() => {
-                showCustomAlert('🎉 Setup completed! Your Self-Evolving OS is ready to use. Try saying "Create a calculator app" or use the Start menu.', 'Setup Complete');
+                // Additional safety measures for setup assistant closure
+                const setupWindow = document.getElementById(`window_${setupId}`);
+                if (setupWindow) {
+                    // Force remove any window state classes before closing
+                    setupWindow.classList.remove('maximized', 'fullscreen', 'minimized');
+                    console.log('Cleaned up setup window states before closure');
+                }
+                
                 closeWindow(setupId);
-            }, 2000);
+                
+                // Extra safety: ensure desktop is visible after setup completion
+                setTimeout(() => {
+                    ensureDesktopVisibility();
+                    console.log('Setup assistant closed - desktop visibility verified');
+                }, 100);
+            }, 1000);
         }
 
         // Settings persistence functions
@@ -9510,6 +9641,41 @@ ${containerSelector} {
 
         // Initialize voice recognition on page load
         // Voice system will be initialized by DOMContentLoaded event handler above
+        
+        // ===== DEBUG AND TESTING FUNCTIONS =====
+        
+        // Test function to verify the desktop visibility fix
+        window.testDesktopVisibilityFix = function() {
+            console.log('=== Testing Desktop Visibility Fix ===');
+            
+            // Check current state
+            const body = document.body;
+            const desktop = document.getElementById('desktop');
+            const taskbar = document.querySelector('.taskbar');
+            const statusBar = document.querySelector('.status-bar');
+            
+            console.log('Current state:');
+            console.log('- Body classes:', Array.from(body.classList));
+            console.log('- Desktop display:', desktop ? desktop.style.display : 'not found');
+            console.log('- Taskbar display:', taskbar ? taskbar.style.display : 'not found');
+            console.log('- Status bar display:', statusBar ? statusBar.style.display : 'not found');
+            console.log('- Fullscreen apps count:', window.fullscreenApps ? window.fullscreenApps.size : 0);
+            
+            // Test the ensureDesktopVisibility function
+            console.log('\nTesting ensureDesktopVisibility...');
+            ensureDesktopVisibility();
+            
+            console.log('After cleanup:');
+            console.log('- Body classes:', Array.from(body.classList));
+            console.log('- Desktop display:', desktop ? desktop.style.display : 'not found');
+            console.log('- Taskbar display:', taskbar ? taskbar.style.display : 'not found');
+            console.log('- Status bar display:', statusBar ? statusBar.style.display : 'not found');
+            
+            console.log('=== Test Complete ===');
+        };
+        
+        // Make test function available globally for debugging
+        console.log('Desktop visibility test function available: window.testDesktopVisibilityFix()');
     </script>
 </body>
 </html>
