@@ -6704,6 +6704,8 @@ window[appNamespace].app = app;
                     
                     // Create initial snapshot for loaded app
                     if (window.versionManager) {
+                        // Clear any existing version history when loading from persistence
+                        window.versionManager.clearHistory(newApp.id);
                         window.versionManager.createSnapshot(newApp.id, 'Loaded from persistence');
                         window.versionManager.updateVersionControls(newApp.id);
                     }
