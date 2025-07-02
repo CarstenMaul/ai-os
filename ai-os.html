@@ -1632,6 +1632,11 @@
                 }));
                 setSharedData('running-apps', sharedApps);
             }
+            
+            // Automatically refresh all open App Manager windows when apps change
+            if (typeof refreshAllAppManagers === 'function') {
+                refreshAllAppManagers();
+            }
         }
 
 
@@ -4011,32 +4016,61 @@ window[appNamespace].app = app;
             document.removeEventListener('mouseup', stopResize);
         }
 
-        function showAppList() {
-            const appListContent = `
+        function generateAppManagerContent(managerId = '') {
+            return `
                 <h3>App Manager</h3>
-                <div style="margin-bottom: 15px;">
-                    <button id="load-app-btn" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">📁 Load App</button>
-                    <input type="file" id="app-file-input" accept=".json" style="display: none;">
-                </div>
                 <div style="max-height: 300px; overflow-y: auto;">
-                    ${apps.map(app => `
-                        <div style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; border-radius: 4px;">
-                            <strong>ID:</strong> ${app.id}<br>
-                            <strong>Title:</strong> ${app.title}<br>
-                            <strong>Type:</strong> ${app.type}<br>
-                            ${app.customRequest ? `<strong>Request:</strong> ${app.customRequest}<br>` : ''}
-                            <strong>Status:</strong> ${app.isMinimized ? 'Minimized' : 'Active'}
-                            <div style="margin-top: 8px;">
-                                <button onclick="downloadApp('${app.id}')" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; margin-right: 5px; font-size: 12px;">💾 Download</button>
-                                <button onclick="closeWindow('${app.id}')" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">❌ Close</button>
-                            </div>
-                        </div>
-                    `).join('')}
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">ID</th>
+                                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Title</th>
+                                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Type</th>
+                                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Status</th>
+                                <th style="padding: 8px; text-align: center; border: 1px solid #dee2e6;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${apps.map(app => `
+                                <tr style="border-bottom: 1px solid #dee2e6;">
+                                    <td style="padding: 8px; border: 1px solid #dee2e6; font-family: monospace; font-size: 10px;">${app.id}</td>
+                                    <td style="padding: 8px; border: 1px solid #dee2e6; font-weight: bold;">${app.title}</td>
+                                    <td style="padding: 8px; border: 1px solid #dee2e6;">${app.type}</td>
+                                    <td style="padding: 8px; border: 1px solid #dee2e6;">${app.isMinimized ? 'Minimized' : 'Active'}</td>
+                                    <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">
+                                        <button onclick="downloadApp('${app.id}')" style="background: #007bff; color: white; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; margin: 1px; font-size: 10px;" title="Download App">💾</button>
+                                        <button onclick="closeWindow('${app.id}')" style="background: #6c757d; color: white; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; margin: 1px; font-size: 10px;" title="Close App">❌</button>
+                                        ${app.title === 'App Manager' ?
+                                            '<span style="color: #6c757d; font-size: 10px; padding: 3px 6px;" title="Protected System App">🔒</span>' :
+                                            `<button onclick="deleteAppPermanently('${app.id}')" style="background: #dc3545; color: white; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; margin: 1px; font-size: 10px;" title="Delete App">🗑️</button>`
+                                        }
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
                 <p style="margin-top: 10px; font-size: 12px; color: #666;">
                     Total apps: ${apps.length} | Next ID: app_${nextAppId}
                 </p>
             `;
+        }
+
+        function refreshAllAppManagers() {
+            // Find all open App Manager windows and refresh their content
+            const managerWindows = apps.filter(a => a.title === 'App Manager');
+            managerWindows.forEach(managerApp => {
+                const managerContent = document.getElementById(`content_${managerApp.id}`);
+                if (managerContent) {
+                    // Update the content with the new table format
+                    const refreshedContent = generateAppManagerContent(managerApp.id);
+                    managerContent.innerHTML = refreshedContent;
+                }
+            });
+        }
+
+        function showAppList() {
+            const appListContent = generateAppManagerContent();
             
             // Create App Manager directly without AI generation
             const managerId = generateAppId();
@@ -4055,27 +4089,6 @@ window[appNamespace].app = app;
             createTaskbarIcon(managerId, 'App Manager', '📋');
             updateAppCount();
             
-            const contentElement = document.getElementById(`content_${managerId}`);
-            
-            // Add event listeners for the new buttons
-            setTimeout(() => {
-                const loadBtn = document.getElementById('load-app-btn');
-                const fileInput = document.getElementById('app-file-input');
-                
-                if (loadBtn && fileInput) {
-                    loadBtn.addEventListener('click', () => {
-                        fileInput.click();
-                    });
-                    
-                    fileInput.addEventListener('change', (e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                            loadAppFromFile(file);
-                        }
-                    });
-                }
-            }, 100);
-            
             document.getElementById('start-menu').classList.remove('show');
         }
 
@@ -4086,6 +4099,69 @@ window[appNamespace].app = app;
                 }
             });
             document.getElementById('start-menu').classList.remove('show');
+        }
+
+        function deleteAppPermanently(appId) {
+            const app = apps.find(a => a.id === appId);
+            if (!app) {
+                showCustomAlert('App not found!', 'Error');
+                return;
+            }
+
+            // Prevent deletion of the App Manager itself
+            if (app.title === 'App Manager') {
+                showCustomAlert('The App Manager cannot be deleted as it is required for managing other applications.', 'Cannot Delete System App');
+                return;
+            }
+
+            // Show confirmation dialog
+            showCustomConfirm(
+                `Are you sure you want to permanently delete "${app.title}"?\n\nThis will:\n• Close the app if it's running\n• Delete all app data from storage\n• This action cannot be undone`,
+                'Delete App Permanently'
+            ).then(async confirmed => {
+                if (confirmed) {
+                    try {
+                        console.log(`Starting permanent deletion of app: ${appId} (${app.title})`);
+                        
+                        // Step 1: Close the app window if it's open
+                        const windowElement = document.getElementById(`window_${appId}`);
+                        if (windowElement) {
+                            console.log(`Closing window for app: ${appId}`);
+                            closeWindow(appId);
+                        }
+                        
+                        // Step 2: Delete from persistence using the data registry
+                        if (window.dataRegistry && typeof window.dataRegistry.deleteApp === 'function') {
+                            console.log(`Deleting app data from persistence: ${appId}`);
+                            const deleteResult = await window.dataRegistry.deleteApp(appId);
+                            if (deleteResult.success) {
+                                console.log(`Successfully deleted ${deleteResult.deleted} items from persistence for app: ${appId}`);
+                            } else {
+                                console.warn(`Failed to delete app data from persistence: ${deleteResult.error}`);
+                            }
+                        }
+                        
+                        // Step 3: Remove from apps array
+                        const appIndex = apps.findIndex(a => a.id === appId);
+                        if (appIndex !== -1) {
+                            apps.splice(appIndex, 1);
+                            console.log(`Removed app from apps array: ${appId}`);
+                        }
+                        
+                        // Step 4: Update shared registry and UI (this will automatically refresh App Managers)
+                        updateSharedAppsRegistry();
+                        updateAppCount();
+                        
+                        // Show success message
+                        showCustomAlert(`App "${app.title}" has been permanently deleted.`, 'App Deleted');
+                        console.log(`Successfully completed permanent deletion of app: ${appId}`);
+                        
+                    } catch (error) {
+                        console.error(`Error during permanent app deletion: ${error}`);
+                        showCustomAlert(`Failed to delete app: ${error.message}`, 'Deletion Error');
+                    }
+                }
+            });
         }
 
         function downloadApp(appId) {
