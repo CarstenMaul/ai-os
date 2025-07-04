@@ -145,6 +145,62 @@ This document provides a deep dive into the features, architecture, and technica
 - **Namespace Manager**: Ensures app isolation and prevents conflicts
 - **Non-Blocking Dialog System**: Custom prompts and confirmations for responsive user interactions
 
+```mermaid
+graph TB
+    subgraph "AI-OS Core System"
+        UI[User Interface Layer]
+        WM[Window Manager]
+        AI[AI Engine]
+        VM[Voice System]
+        
+        subgraph "Management Layer"
+            SM[Settings Manager]
+            PM[Persistence Manager]
+            NM[Namespace Manager]
+            VCS[Version Control System]
+        end
+        
+        subgraph "Data & API Layer"
+            DR[Data Registry]
+            AR[API Registry]
+            
+        end
+        
+        subgraph "Runtime Environment"
+            APP[App Runtime]
+            GE[3D Graphics Engine]
+            VE[Visualization Engine]
+            KE[Keyboard Event System]
+        end
+        
+        subgraph "Storage"
+            IDB[(IndexedDB)]
+            LS[(LocalStorage)]
+            COOK[(Cookies)]
+        end
+    end
+    
+    subgraph "External Services"
+        LLM[LLM Providers<br/>OpenRouter/OpenAI/LMStudio]
+        WHISPER[OpenAI Whisper API]
+        EXT_API[External APIs]
+    end
+    
+    UI --> WM
+    UI --> VM
+    WM --> APP
+    AI --> LLM
+    VM --> WHISPER
+    AR --> EXT_API
+    PM --> IDB
+    PM --> LS
+    SM --> COOK
+    DR --> IDB
+    APP --> GE
+    APP --> VE
+    APP --> KE
+```
+
 ### Generated App Structure
 Each AI-generated app consists of:
 - **HTML**: User interface markup
@@ -152,6 +208,28 @@ Each AI-generated app consists of:
 - **JavaScript**: Interactive functionality with isolated namespace
 - **Metadata**: Title, description, and configuration
 - **Init Function**: Proper initialization with `window[appNamespace].init`
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as User Interface
+    participant AI as AI Engine
+    participant LLM as LLM Provider
+    participant AR as App Runtime
+    participant PM as Persistence Manager
+    participant WM as Window Manager
+    
+    User->>UI: Voice/Text Command
+    UI->>AI: Process Request
+    AI->>LLM: Generate App Code
+    LLM-->>AI: Return HTML/CSS/JS
+    AI->>AR: Create App Instance
+    AR->>WM: Register Window
+    AR->>PM: Save App Data
+    WM-->>User: Display App Window
+    
+    Note over User,WM: App is now running and persistent
+```
 
 ### Theme System
 - Apps automatically inherit system theme
@@ -164,6 +242,38 @@ Each AI-generated app consists of:
 - **Data Registration**: `window.dataRegistry.registerData(name, data, description, structure)`
 - **Change Notifications**: `window.dataRegistry.subscribe(name, callback)`
 - **Persistent Storage**: Integration with localStorage and sessionStorage
+
+```mermaid
+graph LR
+    subgraph "Apps"
+        A1[App 1]
+        A2[App 2]
+        A3[App 3]
+    end
+    
+    subgraph "Data Registry"
+        DR[Data Registry Core]
+        SUB[Subscription System]
+        CACHE[Data Cache]
+    end
+    
+    subgraph "Storage"
+        IDB[(IndexedDB)]
+        LS[(LocalStorage)]
+    end
+    
+    A1 -->|registerData| DR
+    A2 -->|getData| DR
+    A3 -->|subscribe| SUB
+    
+    DR --> CACHE
+    DR --> IDB
+    DR --> LS
+    
+    SUB -->|notify| A1
+    SUB -->|notify| A2
+    SUB -->|notify| A3
+```
 
 ### Keyboard Event System
 - **Focus-Aware**: Events only sent to active apps
@@ -284,6 +394,36 @@ ai-os.html
 ```
 
 ## 🔒 Privacy & Security
+
+### Security Model
+
+```mermaid
+graph TB
+    subgraph "Global Scope (AI-OS)"
+        DR[Data Registry]
+        AR[API Registry]
+    end
+
+    subgraph "Isolated App Sandboxes"
+        NS1[App Namespace 1]
+        NS2[App Namespace 2]
+    end
+
+    NS1 -- "Interacts via Safe API" --> DR
+    NS2 -- "Interacts via Safe API" --> DR
+    NS1 -- "Interacts via Safe API" --> AR
+    NS2 -- "Interacts via Safe API" --> AR
+
+    subgraph "Direct Interaction Blocked"
+      direction LR
+      NS1 -.x NS2
+    end
+    
+    style DR fill:#ccf,stroke:#333,stroke-width:2px
+    style AR fill:#ccf,stroke:#333,stroke-width:2px
+    style NS1 fill:#f9f,stroke:#333,stroke-width:2px
+    style NS2 fill:#f9f,stroke:#333,stroke-width:2px
+```
 
 ### Data Handling
 - **Local Persistence**: Apps and data stored locally in IndexedDB
