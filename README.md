@@ -10,7 +10,7 @@ A revolutionary web-based operating system interface powered by artificial intel
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/mav-z/ai-os.git
+    git clone https://github.com/CarstenMaul/ai-os.git
     cd ai-os
     ```
 2.  **Run Locally**: `python -m http.server 8000 --bind 0.0.0.0`
