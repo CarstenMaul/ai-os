@@ -409,15 +409,14 @@ graph TB
         NS2[App Namespace 2]
     end
 
-    NS1 -- "Interacts via Safe API" --> DR
-    NS2 -- "Interacts via Safe API" --> DR
-    NS1 -- "Interacts via Safe API" --> AR
-    NS2 -- "Interacts via Safe API" --> AR
+    NS1 -- "Safe API" --> DR
+    NS2 -- "Safe API" --> DR
+    NS1 -- "Safe API" --> AR
+    NS2 -- "Safe API" --> AR
+    
+    NS1 ---|"<-- Direct Interaction Blocked -->"| NS2
 
-    subgraph "Direct Interaction Blocked"
-      direction LR
-      NS1 -.x NS2
-    end
+    linkStyle 4 stroke:red,stroke-width:2px,stroke-dasharray: 3 3;
     
     style DR fill:#ccf,stroke:#333,stroke-width:2px
     style AR fill:#ccf,stroke:#333,stroke-width:2px
