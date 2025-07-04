@@ -8,7 +8,11 @@ A revolutionary web-based operating system interface powered by artificial intel
 
 ## 🚀 Quick Start
 
-1.  **Download**: Get the [`ai-os.html`](ai-os.html) file.
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/mav-z/ai-os.git
+    cd ai-os
+    ```
 2.  **Run Locally**: `python -m http.server 8000 --bind 0.0.0.0`
 3.  **Open**: `http://127.0.0.1:8000/ai-os.html`
 4.  **Setup**: Complete the Setup Assistant or add your API keys in Settings.
