@@ -46,7 +46,7 @@ FUNCTIONALITY REQUIREMENTS:
 - Display updates immediately when any button is pressed
 - Keyboard support for number keys and basic operators using app.onKey() API
 - MANDATORY: show the selected operation in the display
-- MANDATORY: The calculator should be in a container that ensures it will not resize when the window is beeing resized
+- MANDATORY: The calculator should be in a container that ensures it will not resize when the window is beeing resizedi 
 
 TECHNICAL IMPLEMENTATION:
 - Maintain proper calculator state between operations
