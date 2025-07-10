@@ -2449,7 +2449,7 @@ window[appNamespace].app = app;
             // Z-index is now handled by CSS class (9999)
 
             window.innerHTML = `
-                <div class="window-header" onmousedown="startDrag(event, '${appId}')">
+                <div class="window-header" onmousedown="startDrag(event, '${appId}')" ondblclick="toggleMaximize('${appId}')" ontouchend="handleDoubleTap('${appId}', event)">
                     <div class="window-title" ontouchstart="startDrag(event, '${appId}')">
                         <span class="window-icon">${icon}</span>
                         <span class="window-title-text">${title}</span>
@@ -3785,6 +3785,51 @@ window[appNamespace].app = app;
                 updateSharedAppsRegistry();
                 bringToFront(appId);
             }
+        }
+
+        // Double-tap detection for touchscreens
+        const doubleTapTracking = new Map();
+
+        function handleDoubleTap(appId, event) {
+            const now = Date.now();
+            const key = `header_${appId}`;
+            
+            if (doubleTapTracking.has(key)) {
+                const lastTap = doubleTapTracking.get(key);
+                const timeDiff = now - lastTap.time;
+                
+                // Check if this is a double-tap (within 300ms and close to same position)
+                if (timeDiff < 300) {
+                    const touch = event.touches[0] || event.changedTouches[0];
+                    const xDiff = Math.abs(touch.clientX - lastTap.x);
+                    const yDiff = Math.abs(touch.clientY - lastTap.y);
+                    
+                    // Allow up to 30px movement between taps
+                    if (xDiff < 30 && yDiff < 30) {
+                        // This is a double-tap, toggle maximize
+                        event.preventDefault();
+                        toggleMaximize(appId);
+                        doubleTapTracking.delete(key);
+                        return;
+                    }
+                }
+            }
+            
+            // Store this tap for potential double-tap detection
+            const touch = event.touches[0] || event.changedTouches[0];
+            doubleTapTracking.set(key, {
+                time: now,
+                x: touch.clientX,
+                y: touch.clientY
+            });
+            
+            // Clean up old entries after 300ms
+            setTimeout(() => {
+                const stored = doubleTapTracking.get(key);
+                if (stored && stored.time === now) {
+                    doubleTapTracking.delete(key);
+                }
+            }, 300);
         }
 
         function toggleWindow(appId) {
