@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Development Studio</title>
+    <link rel="stylesheet" href="app-development-studio.css">
+</head>
+<body>
+    <div class="app-development-container">
+        <div class="main-layout">
+            <!-- Preview Area (70%) -->
+            <div class="preview-section">
+                <div class="preview-header">
+                    <h3>App Preview</h3>
+                    <div class="preview-controls">
+                        <button id="save-app-btn" class="control-btn save-btn">💾 Save to AI-OS</button>
+                        <button id="export-app-btn" class="control-btn export-btn">📤 Export</button>
+                        <button id="test-app-btn" class="control-btn test-btn">🧪 Test</button>
+                    </div>
+                </div>
+                <div class="preview-content" id="app-preview-area">
+                    <div class="welcome-message">
+                        <div class="welcome-icon">⚙️</div>
+                        <h2>Welcome to App Development Studio</h2>
+                        <p>Start by describing your app idea in the chat sidebar →</p>
+                        <div class="feature-list">
+                            <div class="feature-item">💬 Interactive AI chat</div>
+                            <div class="feature-item">🎯 Multiple choice suggestions</div>
+                            <div class="feature-item">👁️ Live preview</div>
+                            <div class="feature-item">💾 Direct save to AI-OS</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat Sidebar (30%) -->
+            <div class="chat-sidebar">
+                <div class="chat-header">
+                    <h3>AI Assistant</h3>
+                    <button id="clear-chat-btn" class="clear-btn">🗑️</button>
+                </div>
+                
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-message assistant">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <p>Hello! I'm your AI assistant for app development.</p>
+                            <p>Describe the app you want to create, and I'll help you build it step by step with suggestions and guidance.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Suggestions Panel -->
+                <div class="suggestions-panel" id="suggestions-panel" style="display: none;">
+                    <div class="suggestions-header">
+                        <h4 id="suggestions-question">Choose an option:</h4>
+                    </div>
+                    <div class="suggestions-buttons" id="suggestions-buttons">
+                        <!-- Suggestion buttons will be generated here -->
+                    </div>
+                    <div class="custom-answer-section">
+                        <input type="text" id="custom-answer-input" placeholder="Or type your own answer...">
+                        <button id="submit-custom-answer" class="custom-submit-btn">Send</button>
+                    </div>
+                </div>
+                
+                <!-- Chat Input Area -->
+                <div class="chat-input-section">
+                    <div class="input-row">
+                        <textarea id="chat-input" placeholder="Describe your app or ask for modifications..." rows="3"></textarea>
+                        <div class="input-buttons">
+                            <button id="image-upload-btn" class="image-btn" title="Upload Image">📷</button>
+                            <button id="send-chat-btn" class="send-btn">Send</button>
+                        </div>
+                    </div>
+                    <input type="file" id="image-file-input" accept="image/*" multiple style="display: none;">
+                    <div id="image-preview-container" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app-development-studio.js"></script>
+</body>
+</html>

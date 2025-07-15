@@ -74,6 +74,11 @@
         </div>
 
         <div class="menu-section">
+            <div class="menu-title">Development</div>
+            <div class="menu-item" onclick="openAppDevelopmentStudio()">⚙️ App Development Studio</div>
+        </div>
+
+        <div class="menu-section">
             <div class="menu-title">System</div>
             <div class="menu-item" onclick="showSettings()">⚙️ Settings</div>
             <div class="menu-item" onclick="showAppList()">📋 App Manager</div>
@@ -3643,6 +3648,30 @@ window[appNamespace].app = app;
                 if (icon) {
                     icon.style.display = 'none';
                 }
+                
+                // Special cleanup for App Development Studio
+                if (appId === 'app-development-studio') {
+                    // Clean up CSS
+                    const cssLink = document.getElementById('app-development-studio-css');
+                    if (cssLink) {
+                        cssLink.remove();
+                    }
+                    
+                    // Clean up preview styles
+                    const previewStyles = document.getElementById('preview-styles');
+                    if (previewStyles) {
+                        previewStyles.remove();
+                    }
+                    
+                    // Clean up JS (optional, as it doesn't hurt to keep it)
+                    const jsScript = document.getElementById('app-development-studio-js');
+                    if (jsScript) {
+                        jsScript.remove();
+                    }
+                    
+                    console.log('App Development Studio cleaned up');
+                }
+                
                 console.log(`System app ${appId} hidden`);
             } else {
                 // For user apps, remove completely and clean up namespace
@@ -6916,6 +6945,35 @@ window[appNamespace].app = app;
                             return;
                         }
                         
+                        // Check if this is an App Development Studio app that needs to be launched
+                        if (app.type === 'ai-generated' && app.html && !document.getElementById(`window_${app.id}`)) {
+                            console.log('Launching App Development Studio app:', app.title);
+                            
+                            // Use the stored HTML content directly (don't regenerate)
+                            const content = app.html;
+                            
+                            // Create the window with the stored content
+                            createWindow(app.id, app.title, content, 400, 300, app.icon);
+                            
+                            // Add CSS if provided
+                            if (app.css) {
+                                addAppCSS(app.css, app.id);
+                            }
+                            
+                            // Execute JavaScript if provided
+                            if (app.javascript) {
+                                executeAppJavaScript(app.javascript, app.id);
+                            }
+                            
+                            // Auto-size and center the window
+                            setTimeout(() => {
+                                autoSizeAndCenterWindow(app.id);
+                            }, 100);
+                            
+                            hideAppsSubmenu();
+                            return;
+                        }
+                        
                         // Focus existing app or show it if minimized/hidden
                         if (app.isHidden) {
                             // For hidden system apps, show them
@@ -7140,6 +7198,74 @@ window[appNamespace].app = app;
                 console.error(`Error deleting persistent app ${appId}:`, error);
                 return { success: false, error: error.message };
             }
+        }
+
+        // App Development Studio
+        function openAppDevelopmentStudio() {
+            console.log('Opening App Development Studio...');
+            
+            const studioId = 'app-development-studio';
+            
+            // Check if App Development Studio is already running
+            const existingApp = apps.find(app => app.id === studioId);
+            
+            if (existingApp) {
+                console.log('App Development Studio already running, bringing to front');
+                bringToFront(studioId);
+                return;
+            }
+            
+            // Load the App Development Studio HTML content
+            fetch('app-development-studio.html')
+                .then(response => response.text())
+                .then(html => {
+                    // Extract just the content inside the body tag
+                    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                    const content = bodyMatch ? bodyMatch[1] : html;
+                    
+                    // Create the app
+                    const app = {
+                        id: studioId,
+                        type: 'system',
+                        title: 'App Development Studio',
+                        icon: '⚙️',
+                        isMinimized: false,
+                        isMaximized: false,
+                        customRequest: 'App Development Studio - Interactive app creation tool',
+                        isSystemApp: true,
+                        isHidden: false
+                    };
+                    
+                    apps.push(app);
+                    updateSharedAppsRegistry();
+                    createWindow(studioId, 'App Development Studio', content, 1200, 800, '⚙️');
+                    createTaskbarIcon(studioId, 'App Development Studio', '⚙️');
+                    updateAppCount();
+                    
+                    // Load CSS
+                    const cssLink = document.createElement('link');
+                    cssLink.rel = 'stylesheet';
+                    cssLink.href = 'app-development-studio.css';
+                    cssLink.id = 'app-development-studio-css';
+                    document.head.appendChild(cssLink);
+                    
+                    // Load JavaScript after a short delay to ensure DOM is ready
+                    setTimeout(() => {
+                        const script = document.createElement('script');
+                        script.src = 'app-development-studio.js';
+                        script.id = 'app-development-studio-js';
+                        document.head.appendChild(script);
+                    }, 100);
+                    
+                    console.log('App Development Studio loaded successfully');
+                })
+                .catch(error => {
+                    console.error('Error loading App Development Studio:', error);
+                    showCustomAlert('Error loading App Development Studio. Please make sure all files are available.', 'Load Error');
+                });
+            
+            // Close start menu
+            document.getElementById('start-menu').classList.remove('show');
         }
 
         // Unified System App Opening Function
