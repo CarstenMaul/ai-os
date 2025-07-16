@@ -111,9 +111,9 @@ class ResizeHandler {
     }
 
     init() {
-        this.divider = document.getElementById('resize-divider');
-        this.previewSection = document.querySelector('.preview-section');
-        this.chatSidebar = document.querySelector('.chat-sidebar');
+        this.divider = document.getElementById('app-development-studio_resize-divider');
+        this.previewSection = document.querySelector('.appdev__preview-section');
+        this.chatSidebar = document.querySelector('.appdev__chat-sidebar');
 
         if (!this.divider || !this.previewSection || !this.chatSidebar) {
             console.warn('Resize elements not found');
@@ -144,7 +144,7 @@ class ResizeHandler {
         this.startChatWidth = chatRect.width;
         
         // Add dragging class for visual feedback
-        this.divider.classList.add('dragging');
+        this.divider.classList.add('appdev__dragging');
         
         // Prevent text selection
         document.body.style.userSelect = 'none';
@@ -197,7 +197,7 @@ class ResizeHandler {
         this.isDragging = false;
         
         // Remove dragging class
-        this.divider.classList.remove('dragging');
+        this.divider.classList.remove('appdev__dragging');
         
         // Restore normal cursor and text selection
         document.body.style.userSelect = '';
@@ -256,9 +256,9 @@ window.AppDevelopmentStudio = {
         
         // Set up click handlers for studio areas to blur app preview
         const studioAreas = [
-            document.getElementById('chat-container'),
-            document.getElementById('chat-input'),
-            document.getElementById('save-app-btn')
+            document.getElementById('app-development-studio_chat-container'),
+            document.getElementById('app-development-studio_chat-input'),
+            document.getElementById('app-development-studio_save-app-btn')
         ];
         
         studioAreas.forEach(element => {
@@ -281,13 +281,13 @@ window.AppDevelopmentStudio = {
     // Set up all event listeners
     setupEventListeners() {
         // Save button - saves generated app to ai-os
-        const saveBtn = document.getElementById('save-app-btn');
+        const saveBtn = document.getElementById('app-development-studio_save-app-btn');
         if (saveBtn) {
             saveBtn.addEventListener('click', () => this.saveGeneratedApp());
         }
         
         // Export button - downloads app as JSON
-        const exportBtn = document.getElementById('export-app-btn');
+        const exportBtn = document.getElementById('app-development-studio_export-app-btn');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => this.exportGeneratedApp());
         }
@@ -295,19 +295,19 @@ window.AppDevelopmentStudio = {
         // Test button removed per user request
         
         // Clear chat button
-        const clearBtn = document.getElementById('clear-chat-btn');
+        const clearBtn = document.getElementById('app-development-studio_clear-chat-btn');
         if (clearBtn) {
             clearBtn.addEventListener('click', () => this.clearChat());
         }
         
         // Send chat button
-        const sendBtn = document.getElementById('send-chat-btn');
+        const sendBtn = document.getElementById('app-development-studio_send-chat-btn');
         if (sendBtn) {
             sendBtn.addEventListener('click', () => this.sendMessage());
         }
         
         // Chat input enter key
-        const chatInput = document.getElementById('chat-input');
+        const chatInput = document.getElementById('app-development-studio_chat-input');
         if (chatInput) {
             chatInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -318,13 +318,13 @@ window.AppDevelopmentStudio = {
         }
         
         // Custom answer submit
-        const customSubmitBtn = document.getElementById('submit-custom-answer');
+        const customSubmitBtn = document.getElementById('app-development-studio_submit-custom-answer');
         if (customSubmitBtn) {
             customSubmitBtn.addEventListener('click', () => this.submitCustomAnswer());
         }
         
         // Custom answer input enter key
-        const customInput = document.getElementById('custom-answer-input');
+        const customInput = document.getElementById('app-development-studio_custom-answer-input');
         if (customInput) {
             customInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -370,7 +370,7 @@ Just start by describing what you want to create!`
         console.log('All elements with IDs:', Array.from(allElements).map(el => el.id));
         
         // Image upload button
-        const imageUploadBtn = document.getElementById('image-upload-btn');
+        const imageUploadBtn = document.getElementById('app-development-studio_image-upload-btn');
         console.log('Image upload button found:', imageUploadBtn);
         console.log('Image upload button element:', imageUploadBtn ? imageUploadBtn.outerHTML : 'NULL');
         
@@ -390,7 +390,7 @@ Just start by describing what you want to create!`
         }
         
         // File input
-        const fileInput = document.getElementById('image-file-input');
+        const fileInput = document.getElementById('app-development-studio_image-file-input');
         console.log('File input found:', fileInput);
         console.log('File input element:', fileInput ? fileInput.outerHTML : 'NULL');
         
@@ -405,7 +405,7 @@ Just start by describing what you want to create!`
         }
         
         // Drag and drop support
-        const chatInput = document.getElementById('chat-input');
+        const chatInput = document.getElementById('app-development-studio_chat-input');
         if (chatInput) {
             chatInput.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -432,7 +432,7 @@ Just start by describing what you want to create!`
             console.log('Paste target tagName:', e.target.tagName);
             
             // Check if we're in the App Development Studio
-            const studioContainer = document.querySelector('.app-development-container');
+            const studioContainer = document.querySelector('.appdev__container');
             console.log('Studio container found:', studioContainer);
             
             if (studioContainer && studioContainer.contains(e.target)) {
@@ -447,7 +447,7 @@ Just start by describing what you want to create!`
     // Trigger image upload dialog
     triggerImageUpload() {
         console.log('triggerImageUpload called');
-        const fileInput = document.getElementById('image-file-input');
+        const fileInput = document.getElementById('app-development-studio_image-file-input');
         console.log('File input element:', fileInput);
         if (fileInput) {
             console.log('Clicking file input');
@@ -540,11 +540,11 @@ Just start by describing what you want to create!`
     
     // Show image preview
     showImagePreview(imageData, index) {
-        const container = document.getElementById('image-preview-container');
+        const container = document.getElementById('app-development-studio_image-preview-container');
         if (!container) return;
         
         const previewDiv = document.createElement('div');
-        previewDiv.className = 'image-preview';
+        previewDiv.className = 'appdev__image-preview';
         previewDiv.dataset.index = index;
         
         const img = document.createElement('img');
@@ -552,7 +552,7 @@ Just start by describing what you want to create!`
         img.alt = imageData.name;
         
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'image-remove-btn';
+        removeBtn.className = 'appdev__image-remove-btn';
         removeBtn.innerHTML = '×';
         removeBtn.title = 'Remove image';
         removeBtn.addEventListener('click', () => this.removeImage(index));
@@ -564,7 +564,7 @@ Just start by describing what you want to create!`
     
     // Show image container
     showImageContainer() {
-        const container = document.getElementById('image-preview-container');
+        const container = document.getElementById('app-development-studio_image-preview-container');
         if (container) {
             container.style.display = 'flex';
         }
@@ -572,7 +572,7 @@ Just start by describing what you want to create!`
     
     // Hide image container
     hideImageContainer() {
-        const container = document.getElementById('image-preview-container');
+        const container = document.getElementById('app-development-studio_image-preview-container');
         if (container) {
             container.style.display = 'none';
         }
@@ -590,7 +590,7 @@ Just start by describing what you want to create!`
     
     // Refresh image previews
     refreshImagePreviews() {
-        const container = document.getElementById('image-preview-container');
+        const container = document.getElementById('app-development-studio_image-preview-container');
         if (container) {
             container.innerHTML = '';
             this.uploadedImages.forEach((imageData, index) => {
@@ -603,7 +603,7 @@ Just start by describing what you want to create!`
     clearUploadedImages() {
         this.uploadedImages = [];
         this.hideImageContainer();
-        const container = document.getElementById('image-preview-container');
+        const container = document.getElementById('app-development-studio_image-preview-container');
         if (container) {
             container.innerHTML = '';
         }
@@ -612,7 +612,7 @@ Just start by describing what you want to create!`
     // Clear image preview display (used after sending message)
     clearImagePreview() {
         this.hideImageContainer();
-        const container = document.getElementById('image-preview-container');
+        const container = document.getElementById('app-development-studio_image-preview-container');
         if (container) {
             container.innerHTML = '';
         }
@@ -620,7 +620,7 @@ Just start by describing what you want to create!`
     
     // Send message to AI
     sendMessage() {
-        const chatInput = document.getElementById('chat-input');
+        const chatInput = document.getElementById('app-development-studio_chat-input');
         if (!chatInput) return;
         
         const message = chatInput.value.trim();
@@ -659,27 +659,27 @@ Just start by describing what you want to create!`
     
     // Update chat display
     updateChatDisplay() {
-        const chatMessages = document.getElementById('chat-messages');
+        const chatMessages = document.getElementById('app-development-studio_chat-messages');
         if (!chatMessages) return;
         
         chatMessages.innerHTML = '';
         
         this.chatHistory.forEach(message => {
             const messageEl = document.createElement('div');
-            messageEl.className = `chat-message ${message.type}`;
+            messageEl.className = `appdev__chat-message appdev__${message.type}`;
             
             // Format message content with images
             const messageContent = this.formatMessageWithImages(message);
             
             if (message.type === 'assistant') {
                 messageEl.innerHTML = `
-                    <div class="message-avatar">🤖</div>
-                    <div class="message-content">${messageContent}</div>
+                    <div class="appdev__message-avatar">🤖</div>
+                    <div class="appdev__message-content">${messageContent}</div>
                 `;
             } else {
                 messageEl.innerHTML = `
-                    <div class="message-content">${messageContent}</div>
-                    <div class="message-avatar">👤</div>
+                    <div class="appdev__message-content">${messageContent}</div>
+                    <div class="appdev__message-avatar">👤</div>
                 `;
             }
             
@@ -792,8 +792,8 @@ Just start by describing what you want to create!`
 
     // Update button states based on processing status
     updateButtonStates() {
-        const sendBtn = document.getElementById('send-chat-btn');
-        const imageBtn = document.getElementById('image-upload-btn');
+        const sendBtn = document.getElementById('app-development-studio_send-chat-btn');
+        const imageBtn = document.getElementById('app-development-studio_image-upload-btn');
         
         if (sendBtn) {
             sendBtn.disabled = this.isProcessing;
@@ -804,7 +804,7 @@ Just start by describing what you want to create!`
         }
         
         // Also disable file input
-        const fileInput = document.getElementById('image-upload');
+        const fileInput = document.getElementById('app-development-studio_image-upload');
         if (fileInput) {
             fileInput.disabled = this.isProcessing;
         }
@@ -1590,9 +1590,9 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
     showSuggestions(question, suggestions) {
         console.log('showSuggestions called with question:', question, 'suggestions:', suggestions);
         
-        const panel = document.getElementById('suggestions-panel');
-        const questionEl = document.getElementById('suggestions-question');
-        const buttonsEl = document.getElementById('suggestions-buttons');
+        const panel = document.getElementById('app-development-studio_suggestions-panel');
+        const questionEl = document.getElementById('app-development-studio_suggestions-question');
+        const buttonsEl = document.getElementById('app-development-studio_suggestions-buttons');
         
         if (!panel || !questionEl || !buttonsEl) return;
         
@@ -1607,7 +1607,7 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
         // Create max 4 suggestion buttons in the format "Choice X: description"
         suggestions.slice(0, 4).forEach((suggestion, index) => {
             const button = document.createElement('button');
-            button.className = 'suggestion-btn';
+            button.className = 'appdev__suggestion-btn';
             
             // Handle both string suggestions and object suggestions
             let suggestionText, suggestionLabel;
@@ -1639,7 +1639,7 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
     
     // Submit custom answer
     submitCustomAnswer() {
-        const customInput = document.getElementById('custom-answer-input');
+        const customInput = document.getElementById('app-development-studio_custom-answer-input');
         if (!customInput) return;
         
         const answer = customInput.value.trim();
@@ -1653,7 +1653,7 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
     
     // Hide suggestions panel
     hideSuggestions() {
-        const panel = document.getElementById('suggestions-panel');
+        const panel = document.getElementById('app-development-studio_suggestions-panel');
         if (panel) {
             panel.style.display = 'none';
         }
@@ -1669,19 +1669,19 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
     
     // Show app preview
     showAppPreview(appData) {
-        const previewArea = document.getElementById('app-preview-area');
+        const previewArea = document.getElementById('app-development-studio_app-preview-area');
         if (!previewArea) return;
         
         // Create a unique preview container ID
         const previewContainerId = `preview-content-${Date.now()}`;
         
         previewArea.innerHTML = `
-            <div class="app-preview">
-                <div class="app-preview-header">
+            <div class="appdev__app-preview">
+                <div class="appdev__app-preview-header">
                     <span>${appData.icon || '📱'} ${appData.title}</span>
                     <span style="font-size: 12px; opacity: 0.7;">${appData.description || 'Generated app'}</span>
                 </div>
-                <div class="app-preview-content" id="${previewContainerId}" style="
+                <div class="appdev__app-preview-content" id="${previewContainerId}" style="
                     position: relative;
                     overflow: auto;
                     width: 100%;
@@ -1697,7 +1697,7 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
         
         // Apply CSS styles with proper scoping and containment
         if (appData.css) {
-            let styleEl = document.getElementById('preview-styles');
+            let styleEl = document.getElementById('app-development-studio_preview-styles');
             if (!styleEl) {
                 styleEl = document.createElement('style');
                 styleEl.id = 'preview-styles';
@@ -2066,21 +2066,21 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
     
     // Show typing indicator
     showTypingIndicator() {
-        const chatMessages = document.getElementById('chat-messages');
+        const chatMessages = document.getElementById('app-development-studio_chat-messages');
         if (!chatMessages) return;
         
         const indicator = document.createElement('div');
-        indicator.className = 'chat-message assistant';
+        indicator.className = 'appdev__chat-message appdev__assistant';
         indicator.id = 'typing-indicator';
         indicator.innerHTML = `
-            <div class="message-avatar">🤖</div>
-            <div class="message-content">
-                <div class="typing-indicator">
+            <div class="appdev__message-avatar">🤖</div>
+            <div class="appdev__message-content">
+                <div class="appdev__typing-indicator">
                     <span>AI is thinking</span>
-                    <div class="typing-dots">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
+                    <div class="appdev__typing-dots">
+                        <div class="appdev__typing-dot"></div>
+                        <div class="appdev__typing-dot"></div>
+                        <div class="appdev__typing-dot"></div>
                     </div>
                 </div>
             </div>

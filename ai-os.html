@@ -2434,7 +2434,7 @@ window[appNamespace].app = app;
         // Make test function globally available for debugging
         window.testNamespaceIsolation = testNamespaceIsolation;
 
-        function createWindow(appId, title, content, width = 400, height = 300, icon = '📱') {
+        function createWindow(appId, title, content, width = 400, height = 300, icon = '📱', options = {}) {
             const desktop = document.getElementById('desktop');
             const window = document.createElement('div');
             window.className = 'window';
@@ -2466,10 +2466,10 @@ window[appNamespace].app = app;
                         <button class="window-control close" onclick="closeWindow('${appId}')">×</button>
                     </div>
                 </div>
-                <div class="window-content" id="content_${appId}">
+                <div class="window-content" id="content_${appId}" ${options.hideToolbar ? 'style="height: calc(100% - 81px);"' : ''}>
                     ${content}
                 </div>
-                <div class="window-system-toolbar">
+                ${options.hideToolbar ? '' : `<div class="window-system-toolbar">
                     <div class="version-controls" id="version-controls-${appId}">
                         <button class="toolbar-button revert-btn" id="revert-btn-${appId}" title="Revert to last saved state" disabled>
                             ↶ Revert
@@ -2487,7 +2487,7 @@ window[appNamespace].app = app;
                         <button class="toolbar-button window-history-button" id="history-button-${appId}" title="View prompt history" onclick="showPromptHistory('${appId}')">📜</button>
                         <button class="toolbar-button window-download-button" id="download-button-${appId}" title="Download this app">⬇️</button>
                     </div>
-                </div>
+                </div>`}
                 <div class="resize-handle" onmousedown="startResize(event, '${appId}')" ontouchstart="startResize(event, '${appId}')"></div>
             `;
 
@@ -2499,118 +2499,125 @@ window[appNamespace].app = app;
             // Dispatch app shown event for newly created apps
             setTimeout(() => dispatchAppShownEvent(appId), 100); // Small delay to ensure app is fully rendered
             
-            // Add push-to-talk event handlers to the app voice button
-            const appVoiceButton = document.getElementById(`voice-button-${appId}`);
-            if (appVoiceButton) {
-                // Mouse events for push-to-talk
-                appVoiceButton.addEventListener('mousedown', function(e) {
-                    if (e.button === 0) { // Left mouse button
+            // Add push-to-talk event handlers to the app voice button (only if toolbar is not hidden)
+            if (!options.hideToolbar) {
+                const appVoiceButton = document.getElementById(`voice-button-${appId}`);
+                if (appVoiceButton) {
+                    // Mouse events for push-to-talk
+                    appVoiceButton.addEventListener('mousedown', function(e) {
+                        if (e.button === 0) { // Left mouse button
+                            e.preventDefault();
+                            startAppVoiceCommand(appId);
+                        }
+                    });
+
+                    appVoiceButton.addEventListener('mouseup', function(e) {
+                        if (e.button === 0) { // Left mouse button
+                            e.preventDefault();
+                            stopAppVoiceCommand(appId);
+                        }
+                    });
+
+                    // Touch events for mobile push-to-talk
+                    appVoiceButton.addEventListener('touchstart', function(e) {
                         e.preventDefault();
                         startAppVoiceCommand(appId);
-                    }
-                });
+                    });
 
-                appVoiceButton.addEventListener('mouseup', function(e) {
-                    if (e.button === 0) { // Left mouse button
+                    appVoiceButton.addEventListener('touchend', function(e) {
                         e.preventDefault();
                         stopAppVoiceCommand(appId);
-                    }
-                });
+                    });
 
-                // Touch events for mobile push-to-talk
-                appVoiceButton.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                    startAppVoiceCommand(appId);
-                });
-
-                appVoiceButton.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    stopAppVoiceCommand(appId);
-                });
-
-                // Click event as fallback (toggle behavior)
-                appVoiceButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (!isListening || currentModifyingAppId !== appId) {
-                        startAppVoiceCommand(appId);
-                    } else {
-                        stopAppVoiceCommand(appId);
-                    }
-                });
+                    // Click event as fallback (toggle behavior)
+                    appVoiceButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        if (!isListening || currentModifyingAppId !== appId) {
+                            startAppVoiceCommand(appId);
+                        } else {
+                            stopAppVoiceCommand(appId);
+                        }
+                    });
+                }
             }
             
             // Add event listeners to toolbar buttons with a small delay to ensure DOM is ready
-            setTimeout(() => {
-                // Add event listener to the app text button
-                const appTextButton = document.getElementById(`text-button-${appId}`);
-                if (appTextButton) {
-                    appTextButton.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        showTextPromptDialog(appId);
-                    });
-                } else {
-                    console.warn(`Text button not found for app ${appId}`);
-                }
-                
-                // Add event listener to the app download button
-                const appDownloadButton = document.getElementById(`download-button-${appId}`);
-                if (appDownloadButton) {
-                    appDownloadButton.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        downloadApp(appId);
-                    });
-                } else {
-                    console.warn(`Download button not found for app ${appId}`);
-                }
-                
-                // Version control event listeners are now handled by addVersionControlEventListeners()
-                
-                const revertButton = document.getElementById(`revert-btn-${appId}`);
-                if (revertButton) {
-                    revertButton.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        const history = window.versionManager.getHistory(appId);
-                        if (history.length === 0) {
-                            showCustomAlert('No saved versions available to revert to.', 'No Versions');
-                            return;
-                        }
-                        
-                        if (history.length === 1) {
-                            // Only one version, revert directly
-                            showCustomConfirm(
-                                `Revert to saved state: "${history[0].description}"?\n\nThis will undo all changes since the last save.`,
-                                'Confirm Revert'
-                            ).then(confirmed => {
-                                if (confirmed) {
-                                    window.versionManager.restoreSnapshot(appId);
-                                }
-                            });
-                        } else {
-                            // Multiple versions, show selection dialog
-                            showVersionSelectionDialog(appId, history);
-                        }
-                    });
-                } else {
-                    console.warn(`Revert button not found for app ${appId}`);
-                }
-            }, 50);
+            // Only add listeners if toolbar is not hidden
+            if (!options.hideToolbar) {
+                setTimeout(() => {
+                    // Add event listener to the app text button
+                    const appTextButton = document.getElementById(`text-button-${appId}`);
+                    if (appTextButton) {
+                        appTextButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            showTextPromptDialog(appId);
+                        });
+                    } else {
+                        console.warn(`Text button not found for app ${appId}`);
+                    }
+                    
+                    // Add event listener to the app download button
+                    const appDownloadButton = document.getElementById(`download-button-${appId}`);
+                    if (appDownloadButton) {
+                        appDownloadButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            downloadApp(appId);
+                        });
+                    } else {
+                        console.warn(`Download button not found for app ${appId}`);
+                    }
+                    
+                    // Version control event listeners are now handled by addVersionControlEventListeners()
+                    
+                    const revertButton = document.getElementById(`revert-btn-${appId}`);
+                    if (revertButton) {
+                        revertButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const history = window.versionManager.getHistory(appId);
+                            if (history.length === 0) {
+                                showCustomAlert('No saved versions available to revert to.', 'No Versions');
+                                return;
+                            }
+                            
+                            if (history.length === 1) {
+                                // Only one version, revert directly
+                                showCustomConfirm(
+                                    `Revert to saved state: "${history[0].description}"?\n\nThis will undo all changes since the last save.`,
+                                    'Confirm Revert'
+                                ).then(confirmed => {
+                                    if (confirmed) {
+                                        window.versionManager.restoreSnapshot(appId);
+                                    }
+                                });
+                            } else {
+                                // Multiple versions, show selection dialog
+                                showVersionSelectionDialog(appId, history);
+                            }
+                        });
+                    } else {
+                        console.warn(`Revert button not found for app ${appId}`);
+                    }
+                }, 50);
+            }
             
-            // Initialize version control for this app
-            setTimeout(() => {
-                // Add event listeners for version control buttons
-                addVersionControlEventListeners(appId);
-                
-                // Create initial snapshot for new apps (only for non-AI generated content)
-                // AI-generated apps will have their snapshots created after LLM processing completes
-                if (content !== SPINNER_ANIMATION && window.versionManager) {
-                    window.versionManager.createSnapshot(appId, 'Initial snapshot');
-                    console.log(`✅ Created initial snapshot for static content app: ${appId}`);
-                }
-                // Update version controls after snapshot creation
-                if (window.versionManager) {
-                    window.versionManager.updateVersionControls(appId);
-                }
-            }, 100);
+            // Initialize version control for this app (only if toolbar is not hidden)
+            if (!options.hideToolbar) {
+                setTimeout(() => {
+                    // Add event listeners for version control buttons
+                    addVersionControlEventListeners(appId);
+                    
+                    // Create initial snapshot for new apps (only for non-AI generated content)
+                    // AI-generated apps will have their snapshots created after LLM processing completes
+                    if (content !== SPINNER_ANIMATION && window.versionManager) {
+                        window.versionManager.createSnapshot(appId, 'Initial snapshot');
+                        console.log(`✅ Created initial snapshot for static content app: ${appId}`);
+                    }
+                    // Update version controls after snapshot creation
+                    if (window.versionManager) {
+                        window.versionManager.updateVersionControls(appId);
+                    }
+                }, 100);
+            }
             
             // Add click handler to window content to bring window to focus
             const windowContent = document.getElementById(`content_${appId}`);
@@ -4465,7 +4472,7 @@ window[appNamespace].app = app;
 
             apps.push(managerApp);
             updateSharedAppsRegistry();
-            createWindow(managerId, 'App Manager', appListContent);
+            createWindow(managerId, 'App Manager', appListContent, 400, 300, '📋', { hideToolbar: true });
             createTaskbarIcon(managerId, 'App Manager', '📋');
             updateAppCount();
             
@@ -7238,7 +7245,7 @@ window[appNamespace].app = app;
                     
                     apps.push(app);
                     updateSharedAppsRegistry();
-                    createWindow(studioId, 'App Development Studio', content, 1200, 800, '⚙️');
+                    createWindow(studioId, 'App Development Studio', content, 1200, 800, '⚙️', { hideToolbar: true });
                     createTaskbarIcon(studioId, 'App Development Studio', '⚙️');
                     updateAppCount();
                     
@@ -9815,7 +9822,7 @@ ${containerSelector} {
 
             apps.push(settingsApp);
             updateSharedAppsRegistry();
-            createWindow(settingsId, 'Settings', settingsContent, 700, 500);
+            createWindow(settingsId, 'Settings', settingsContent, 700, 500, '⚙️', { hideToolbar: true });
             createTaskbarIcon(settingsId, 'Settings', '⚙️');
             updateAppCount();
             
