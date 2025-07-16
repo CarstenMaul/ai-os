@@ -386,7 +386,7 @@ body.has-fullscreen-app .status-bar {
 }
 
 .window-content {
-    padding: 20px;
+    padding: 0;
     height: calc(100% - 131px); /* Adjusted for header (81px) + toolbar (50px) */
     overflow: auto;
 }
