@@ -912,7 +912,7 @@ MODIFICATION RULES
 4. Build upon the existing code rather than replacing it entirely
 5. You will not write json code block delimiters.
 6. MANDATORY: Also ENSURE the requirements the user asked for in the prompt history keep implemented
-7. IMPORTANT: Do NOT include a "title" field - the app name and icon must remain unchanged during editing.
+7. IMPORTANT: You MUST preserve the original app title and icon - do not change them unless specifically requested.
 8. IMPORTANT: MODIFY the code, do not replace it entirely - keep the existing app structure
 
 CRITICAL REQUIREMENTS
@@ -927,6 +927,8 @@ CRITICAL REQUIREMENTS
 
 RESPONSE FORMAT - Return ONLY a JSON object with this structure:
 {
+  "title": "{appTitle} (preserve the original title exactly)",
+  "icon": "📱 (preserve the original icon exactly)",
   "html": "COMPLETE HTML content with modifications applied",
   "css": "COMPLETE CSS styles with modifications applied",
   "javascript": "COMPLETE JavaScript functionality with modifications applied INCLUDING MANDATORY INIT FUNCTION",

@@ -292,6 +292,15 @@ window.AppDevelopmentStudio = {
             exportBtn.addEventListener('click', () => this.exportGeneratedApp());
         }
         
+        // Load app button
+        const loadBtn = document.getElementById('app-development-studio_load-app-btn');
+        if (loadBtn) {
+            loadBtn.addEventListener('click', () => this.showLoadAppModal());
+        }
+        
+        // Load app modal event listeners
+        this.setupLoadAppModal();
+        
         // Test button removed per user request
         
         // Clear chat button
@@ -774,8 +783,13 @@ Just start by describing what you want to create!`
         try {
             console.log('Processing with App Development Studio AI functions');
             
-            // Determine if this is an app creation or modification request
+            // Store the user's request for new apps (not for modifications)
             const isModification = this.isModificationRequest(message);
+            if (!isModification) {
+                this.currentUserRequest = message;
+                console.log('Stored user request for new app:', message);
+            }
+            
             console.log('Request type:', isModification ? 'MODIFICATION' : 'NEW APP CREATION');
             
             let response;
@@ -1300,10 +1314,33 @@ Make the suggestions specific and actionable based on the error analysis.`;
         // If this is a new app (not a modification), reset the saved app ID
         if (!isModification) {
             this.savedAppId = null;
+            this.isEditingExistingApp = false;
             console.log('Reset saved app ID for new app creation');
         }
         
         // Store the app data in studio context
+        if (isModification && this.isEditingExistingApp && this.currentApp) {
+            // When modifying an existing app, ALWAYS preserve the original metadata
+            // regardless of what the LLM generates
+            const originalTitle = this.currentApp.title;
+            const originalIcon = this.currentApp.icon;
+            const originalNamespace = this.currentApp.namespace;
+            
+            // ALWAYS use original title and icon when editing existing apps
+            appData.title = originalTitle;
+            appData.icon = originalIcon;
+            
+            // Preserve namespace if it exists
+            if (originalNamespace) {
+                appData.namespace = originalNamespace;
+            }
+            
+            console.log('FORCED preservation of original metadata:');
+            console.log('- Title:', originalTitle);
+            console.log('- Icon:', originalIcon);
+            console.log('- Namespace:', originalNamespace);
+        }
+        
         this.currentApp = appData;
         
         // Show preview safely within studio
@@ -1678,6 +1715,15 @@ You MUST respond with a JSON object containing the complete app code. Do NOT pro
                     console.log('Creating new app with ID:', appId);
                 }
                 
+                // Safety check: ensure appId is not null or undefined
+                if (!appId) {
+                    console.error('AppId is null or undefined! Generating fallback ID...');
+                    appId = generateAppId();
+                    this.savedAppId = appId;
+                    isUpdate = false; // Treat as new app if ID was corrupted
+                    console.log('Generated fallback app ID:', appId);
+                }
+                
                 const title = this.currentApp.title || 'Generated App';
                 const icon = this.currentApp.icon || '📱';
                 
@@ -1765,30 +1811,78 @@ You MUST respond with a JSON object containing the complete app code. Do NOT pro
                 // Save app to persistence (same as regular AI-generated apps)
                 setTimeout(async () => {
                     try {
-                        const appData = {
-                            title: title,
-                            icon: icon,
-                            html: this.currentApp.html,
-                            css: this.currentApp.css || '',
-                            javascript: this.currentApp.javascript || '',
-                            customRequest: `App Development Studio: ${title}`,
-                            timestamp: new Date().toISOString()
-                        };
+                        // For updates, preserve all original properties and only update what changed
+                        let appData;
+                        if (isUpdate && this.originalAppData) {
+                            // Preserve all original properties and only update the changed ones
+                            appData = {
+                                ...this.originalAppData, // Keep all original properties including customRequest
+                                title: title,
+                                icon: icon,
+                                html: this.currentApp.html,
+                                css: this.currentApp.css || '',
+                                javascript: this.currentApp.javascript || '',
+                                timestamp: new Date().toISOString(), // Update timestamp
+                                id: appId // Ensure the ID is explicitly set and matches the registry key
+                            };
+                            console.log('Preserving original app properties for update, including customRequest');
+                        } else {
+                            // For new apps, create structure with proper customRequest
+                            appData = {
+                                title: title,
+                                icon: icon,
+                                html: this.currentApp.html,
+                                css: this.currentApp.css || '',
+                                javascript: this.currentApp.javascript || '',
+                                customRequest: this.currentUserRequest || `App Development Studio: ${title}`,
+                                timestamp: new Date().toISOString(),
+                                id: appId // Ensure the ID is explicitly set
+                            };
+                        }
                         
-                        if (typeof saveAppToPersistence === 'function') {
-                            console.log('Saving app to persistence...');
-                            const saveResult = await saveAppToPersistence(appId, appData, {
-                                description: `App Development Studio app: ${appData.title}`,
-                                savePrompt: false
-                            });
-                            
-                            if (saveResult.success) {
-                                console.log(`✅ App ${appId} saved to persistence`);
-                            } else {
-                                console.warn(`⚠️ Failed to save app ${appId} to persistence:`, saveResult.error);
+                        if (isUpdate && window.dataRegistry) {
+                            // For updates, use data registry directly to overwrite existing entry
+                            console.log('Updating existing app in data registry...');
+                            console.log('App ID:', appId);
+                            console.log('App data to save:', appData);
+                            try {
+                                const registryResult = window.dataRegistry.register(appId, appData, {
+                                    description: this.originalAppData?.customRequest || `App Development Studio app: ${appData.title}`,
+                                    persistent: true,
+                                    type: 'app',
+                                    appId: appId // CRITICAL: Set the appId in config so AI-OS can find it
+                                });
+                                console.log(`✅ Updated existing app ${appId} in data registry`);
+                                console.log('Registry result:', registryResult);
+                                
+                                // Verify the data was saved correctly (if get method is available)
+                                if (typeof window.dataRegistry.get === 'function') {
+                                    const savedData = window.dataRegistry.get(appId);
+                                    console.log('Verification - saved data:', savedData);
+                                } else {
+                                    console.log('Data registry get method not available, skipping verification');
+                                }
+                            } catch (registryError) {
+                                console.error(`⚠️ Failed to update app ${appId} in data registry:`, registryError);
                             }
                         } else {
-                            console.warn('saveAppToPersistence function not available');
+                            // For new apps, use saveAppToPersistence
+                            if (typeof saveAppToPersistence === 'function') {
+                                console.log('Saving new app to persistence...');
+                                const saveResult = await saveAppToPersistence(appId, appData, {
+                                    description: `App Development Studio app: ${appData.title}`,
+                                    savePrompt: false,
+                                    appId: appId // CRITICAL: Set the appId in config so AI-OS can find it
+                                });
+                                
+                                if (saveResult.success) {
+                                    console.log(`✅ App ${appId} saved to persistence`);
+                                } else {
+                                    console.warn(`⚠️ Failed to save app ${appId} to persistence:`, saveResult.error);
+                                }
+                            } else {
+                                console.warn('saveAppToPersistence function not available');
+                            }
                         }
                     } catch (error) {
                         console.error(`❌ Error saving app ${appId} to persistence:`, error);
@@ -1852,6 +1946,18 @@ You MUST respond with a JSON object containing the complete app code. Do NOT pro
         this.chatHistory = [];
         this.hideSuggestions();
         this.showWelcomeMessage();
+        // Reset editing state when clearing chat
+        this.resetEditingState();
+    },
+
+    // Reset editing state (when starting fresh)
+    resetEditingState() {
+        this.savedAppId = null;
+        this.isEditingExistingApp = false;
+        this.currentApp = null;
+        this.originalAppData = null; // Clear original app data
+        this.currentUserRequest = null; // Clear stored user request
+        console.log('Reset editing state - ready for new app creation');
     },
     
     // Show typing indicator
@@ -1885,6 +1991,200 @@ You MUST respond with a JSON object containing the complete app code. Do NOT pro
         const indicator = document.getElementById('typing-indicator');
         if (indicator) {
             indicator.remove();
+        }
+    },
+
+    // Setup load app modal event listeners
+    setupLoadAppModal() {
+        const modal = document.getElementById('app-development-studio_load-app-modal');
+        const closeBtn = document.getElementById('app-development-studio_load-modal-close');
+        const cancelBtn = document.getElementById('app-development-studio_load-modal-cancel');
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.hideLoadAppModal());
+        }
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.hideLoadAppModal());
+        }
+
+        // Close modal when clicking outside
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.hideLoadAppModal();
+                }
+            });
+        }
+    },
+
+    // Show load app modal
+    showLoadAppModal() {
+        const modal = document.getElementById('app-development-studio_load-app-modal');
+        if (!modal) return;
+
+        // Populate app list
+        this.populateAppList();
+        
+        modal.style.display = 'flex';
+    },
+
+    // Hide load app modal
+    hideLoadAppModal() {
+        const modal = document.getElementById('app-development-studio_load-app-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    },
+
+    // Populate the app list in the modal
+    populateAppList() {
+        const appList = document.getElementById('app-development-studio_app-list');
+        if (!appList) return;
+
+        appList.innerHTML = '';
+
+        try {
+            // Get persistent apps using the same method as ai-os
+            const persistentApps = this.getPersistentApps();
+            
+            if (persistentApps.length === 0) {
+                appList.innerHTML = `
+                    <div class="appdev__no-apps">
+                        <p>No saved apps found.</p>
+                        <p>Create and save some apps first to load them for editing.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            persistentApps.forEach(app => {
+                const appItem = document.createElement('div');
+                appItem.className = 'appdev__app-item';
+                appItem.innerHTML = `
+                    <div style="display: flex; align-items: center;">
+                        <span class="appdev__app-item-icon">${app.icon || '📱'}</span>
+                        <div style="flex: 1;">
+                            <div class="appdev__app-item-title">${app.title || 'Untitled App'}</div>
+                            <div class="appdev__app-item-description">${app.description || 'No description available'}</div>
+                            <div class="appdev__app-item-meta">
+                                <span>Created: ${app.created ? new Date(app.created).toLocaleDateString() : 'Unknown'}</span>
+                                <span>Type: ${app.type || 'User App'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                appItem.addEventListener('click', () => {
+                    this.loadAppForEditing(app);
+                });
+                
+                appList.appendChild(appItem);
+            });
+        } catch (error) {
+            console.error('Error populating app list:', error);
+            appList.innerHTML = `
+                <div class="appdev__no-apps">
+                    <p>Error loading apps: ${error.message}</p>
+                </div>
+            `;
+        }
+    },
+
+    // Get persistent apps (similar to ai-os getPersistentApps function)
+    getPersistentApps() {
+        const persistentApps = [];
+        
+        if (!window.dataRegistry || typeof window.dataRegistry.getAllData !== 'function') {
+            console.warn('Data registry not available');
+            return persistentApps;
+        }
+
+        const allData = window.dataRegistry.getAllData();
+        
+        Object.keys(allData).forEach(key => {
+            const data = allData[key];
+            
+            // Check if this is an app (has html, css, javascript properties)
+            if (data && typeof data === 'object' &&
+                (data.html || data.css || data.javascript)) {
+                
+                persistentApps.push({
+                    id: key,
+                    title: data.title || data.name || key,
+                    description: data.description || 'User-generated app',
+                    icon: data.icon || '📱',
+                    html: data.html || '',
+                    css: data.css || '',
+                    javascript: data.javascript || '',
+                    created: data.created || data.timestamp,
+                    type: data.type || 'User App'
+                });
+            }
+        });
+
+        return persistentApps.sort((a, b) => {
+            // Sort by creation date, newest first
+            const dateA = new Date(a.created || 0);
+            const dateB = new Date(b.created || 0);
+            return dateB - dateA;
+        });
+    },
+
+    // Load an app for editing
+    loadAppForEditing(app) {
+        try {
+            console.log('Loading app for editing:', app.title);
+            console.log('Original app object:', app);
+            
+            // Store the complete original app data for preservation during save
+            this.originalAppData = { ...app };
+            
+            // Set the current app
+            this.currentApp = {
+                title: app.title,
+                description: app.description,
+                html: app.html || '',
+                css: app.css || '',
+                javascript: app.javascript || '',
+                icon: app.icon || '📱',
+                namespace: app.namespace || null // Preserve namespace if it exists
+            };
+
+            // IMPORTANT: Set the savedAppId to the original app's ID so saving will overwrite
+            this.savedAppId = app.id;
+            this.isEditingExistingApp = true;
+            
+            console.log('Set savedAppId for editing:', this.savedAppId);
+            console.log('Stored original app data for preservation');
+            console.log('Original app data keys:', Object.keys(this.originalAppData));
+            console.log('Loaded app metadata:');
+            console.log('- Title:', this.currentApp.title);
+            console.log('- Icon:', this.currentApp.icon);
+            console.log('- Namespace:', this.currentApp.namespace);
+            console.log('- App ID:', app.id);
+            
+            // Safety check: ensure we have a valid app ID
+            if (!this.savedAppId) {
+                console.error('WARNING: App ID is null or undefined!');
+                console.log('App object:', app);
+                throw new Error('Cannot load app: missing app ID');
+            }
+
+            // Update the preview
+            this.showAppPreview(this.currentApp);
+            
+            // Add a message to chat indicating the app was loaded
+            this.addMessageToChat('assistant', `✅ Loaded "${app.title}" for editing. You can now ask me to modify this app. When you save, it will overwrite the existing app.`);
+            
+            // Hide the modal
+            this.hideLoadAppModal();
+            
+            console.log('App loaded successfully for editing');
+            
+        } catch (error) {
+            console.error('Error loading app for editing:', error);
+            this.addMessageToChat('assistant', `❌ Error loading app: ${error.message}`);
         }
     }
 };

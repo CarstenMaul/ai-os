@@ -14,6 +14,7 @@
                 <div class="appdev__preview-header">
                     <h3>App Preview</h3>
                     <div class="appdev__preview-controls">
+                        <button id="app-development-studio_load-app-btn" class="appdev__control-btn appdev__load-btn">📂 Load App</button>
                         <button id="app-development-studio_save-app-btn" class="appdev__control-btn appdev__save-btn">💾 Save to AI-OS</button>
                         <button id="app-development-studio_export-app-btn" class="appdev__control-btn appdev__export-btn">📤 Export</button>
                     </div>
@@ -75,6 +76,25 @@
                     <input type="file" id="app-development-studio_image-file-input" accept="image/*" multiple style="display: none;">
                     <div id="app-development-studio_image-preview-container" class="appdev__image-preview-container" style="display: none;"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load App Modal -->
+    <div id="app-development-studio_load-app-modal" class="appdev__modal" style="display: none;">
+        <div class="appdev__modal-content">
+            <div class="appdev__modal-header">
+                <h3>Load App for Editing</h3>
+                <button class="appdev__modal-close" id="app-development-studio_load-modal-close">×</button>
+            </div>
+            <div class="appdev__modal-body">
+                <p>Select an app from your saved apps to load into the studio for editing:</p>
+                <div id="app-development-studio_app-list" class="appdev__app-list">
+                    <!-- App list will be populated dynamically -->
+                </div>
+            </div>
+            <div class="appdev__modal-footer">
+                <button id="app-development-studio_load-modal-cancel" class="appdev__modal-btn appdev__modal-btn-secondary">Cancel</button>
             </div>
         </div>
     </div>
