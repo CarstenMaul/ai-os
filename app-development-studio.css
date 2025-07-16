@@ -167,7 +167,7 @@ body {
     background: #007bff;
 }
 
-.resize-handle {
+.divider-resize-handle {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -179,7 +179,7 @@ body {
     opacity: 0.6;
 }
 
-.resize-divider:hover .resize-handle {
+.resize-divider:hover .divider-resize-handle {
     opacity: 1;
 }
 
