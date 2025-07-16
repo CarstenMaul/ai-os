@@ -304,6 +304,7 @@ LIBRARY INTEGRATION REQUIREMENTS:
 AVAILABLE LIBRARIES (Pre-loaded and Ready):
 - THREE.js v0.177.0 (namespace: THREE) - For 3D graphics, WebGL, animations
 - Chart.js v4.4.1 (namespace: Chart) - For data visualization, charts, graphs
+- Marked.js v16.0.0 (namespace: marked) - For markdown parsing and rendering
 
 MANDATORY LIBRARY USAGE PATTERN:
 1. ALWAYS check availability in init function using this exact pattern:
@@ -311,6 +312,7 @@ MANDATORY LIBRARY USAGE PATTERN:
      // Library availability check
      const hasThreeJS = typeof THREE !== 'undefined';
      const hasChartJS = typeof Chart !== 'undefined';
+     const hasMarked = typeof marked !== 'undefined';
      
      // Initialize based on availability
      if (hasThreeJS && needsThreeJS) {
@@ -318,6 +320,9 @@ MANDATORY LIBRARY USAGE PATTERN:
      }
      if (hasChartJS && needsCharts) {
        initChartFeatures();
+     }
+     if (hasMarked && needsMarkdown) {
+       initMarkdownFeatures();
      }
    };
 
@@ -440,6 +445,176 @@ function initChartFeatures() {
   });
 }
 
+MARKED.JS ESSENTIAL PATTERN (Copy exactly when needed):
+function initMarkdownFeatures() {
+  // Basic markdown parsing
+  function parseMarkdown(markdownText) {
+    if (typeof marked !== 'undefined') {
+      try {
+        return marked.parse(markdownText);
+      } catch (error) {
+        console.warn('Markdown parsing error:', error);
+        return markdownText.replace(/\n/g, '<br>'); // Fallback
+      }
+    }
+    return markdownText.replace(/\n/g, '<br>'); // Fallback if marked not available
+  }
+  
+  // Render markdown to HTML element
+  function renderMarkdownToElement(elementId, markdownText) {
+    const element = document.getElementById(elementId);
+    if (element) {
+      element.innerHTML = parseMarkdown(markdownText);
+    }
+  }
+  
+  // Example usage in your app
+  const sampleMarkdown = \`# Welcome to My App
+This is **bold text** and *italic text*.
+
+## Features
+- Easy to use
+- Fast rendering
+- Supports \\\`inline code\\\`
+
+\\\`\\\`\\\`javascript
+console.log('Code blocks work too!');
+\\\`\\\`\\\`
+
+[Visit our website](https://example.com)\`;
+  
+  renderMarkdownToElement('{appId}_markdown_content', sampleMarkdown);
+}
+
+MARKED.JS USAGE PATTERNS:
+
+1. BASIC MARKDOWN PARSING:
+   const htmlOutput = marked.parse('**Bold text** and *italic text*');
+   document.getElementById('{appId}_output').innerHTML = htmlOutput;
+
+2. SAFE MARKDOWN PARSING WITH ERROR HANDLING:
+   function safeMarkdownParse(markdown) {
+     if (typeof marked !== 'undefined') {
+       try {
+         return marked.parse(markdown);
+       } catch (error) {
+         console.warn('Markdown parsing failed:', error);
+         return markdown.replace(/\n/g, '<br>');
+       }
+     }
+     return markdown.replace(/\n/g, '<br>');
+   }
+
+3. REAL-TIME MARKDOWN EDITOR PATTERN:
+   function setupMarkdownEditor() {
+     const textarea = document.getElementById('{appId}_markdown_input');
+     const preview = document.getElementById('{appId}_markdown_preview');
+     
+     textarea.addEventListener('input', function() {
+       const markdownText = textarea.value;
+       const htmlOutput = safeMarkdownParse(markdownText);
+       preview.innerHTML = htmlOutput;
+     });
+   }
+
+4. MARKDOWN CONTENT LOADER:
+   function loadMarkdownContent(markdownText, targetElementId) {
+     const element = document.getElementById(targetElementId);
+     if (element && typeof marked !== 'undefined') {
+       element.innerHTML = marked.parse(markdownText);
+     }
+   }
+
+MARKED.JS HTML STRUCTURE REQUIREMENTS:
+
+1. MARKDOWN EDITOR LAYOUT:
+   <div class="{appId}__markdown_editor">
+     <div class="{appId}__editor_section">
+       <label for="{appId}_markdown_input">Markdown Input:</label>
+       <textarea id="{appId}_markdown_input" placeholder="Type markdown here..."></textarea>
+     </div>
+     <div class="{appId}__preview_section">
+       <label>Preview:</label>
+       <div id="{appId}_markdown_preview" class="{appId}__markdown_output"></div>
+     </div>
+   </div>
+
+2. MARKDOWN CONTENT DISPLAY:
+   <div id="{appId}_markdown_content" class="{appId}__markdown_display"></div>
+
+3. MARKDOWN STYLING (Essential CSS):
+   .{appId}__markdown_output h1, .{appId}__markdown_output h2, .{appId}__markdown_output h3 {
+     margin-top: 1.5em;
+     margin-bottom: 0.5em;
+   }
+   .{appId}__markdown_output p {
+     margin-bottom: 1em;
+     line-height: 1.6;
+   }
+   .{appId}__markdown_output code {
+     background-color: #f4f4f4;
+     padding: 2px 4px;
+     border-radius: 3px;
+     font-family: monospace;
+   }
+   .{appId}__markdown_output pre {
+     background-color: #f4f4f4;
+     padding: 1em;
+     border-radius: 5px;
+     overflow-x: auto;
+   }
+   .{appId}__markdown_output blockquote {
+     border-left: 4px solid #ddd;
+     margin: 1em 0;
+     padding-left: 1em;
+     color: #666;
+   }
+
+MARKED.JS COMPLETE EXAMPLE (Markdown Editor App):
+function initMarkdownFeatures() {
+  const textarea = document.getElementById('{appId}_markdown_input');
+  const preview = document.getElementById('{appId}_markdown_preview');
+  
+  // Safe markdown parsing function
+  function parseMarkdown(text) {
+    if (typeof marked !== 'undefined') {
+      try {
+        return marked.parse(text);
+      } catch (error) {
+        console.warn('Markdown parsing error:', error);
+        return text.replace(/\n/g, '<br>');
+      }
+    }
+    return text.replace(/\n/g, '<br>');
+  }
+  
+  // Update preview in real-time
+  function updatePreview() {
+    const markdownText = textarea.value;
+    const htmlOutput = parseMarkdown(markdownText);
+    preview.innerHTML = htmlOutput;
+  }
+  
+  // Set up event listeners
+  textarea.addEventListener('input', updatePreview);
+  textarea.addEventListener('keyup', updatePreview);
+  
+  // Initial content
+  const initialMarkdown = \`# Welcome to Markdown Editor
+  
+This is a **live preview** of your *markdown* content.
+
+## Features
+- Real-time preview
+- Full markdown support
+- Clean interface
+
+Try editing the text on the left!\`;
+  
+  textarea.value = initialMarkdown;
+  updatePreview();
+}
+
 THREE.JS WINDOW SIZING & RESPONSIVENESS (MANDATORY PATTERNS):
 
 1. CONTAINER SIZING - Use this exact CSS pattern for three.js containers:
@@ -478,13 +653,15 @@ THREE.JS WINDOW SIZING & RESPONSIVENESS (MANDATORY PATTERNS):
 LIBRARY DECISION MATRIX:
 - Use THREE.js for: 3D models, WebGL graphics, 3D games, VR/AR, 3D data visualization, immersive animations
 - Use Chart.js for: Bar charts, line graphs, pie charts, data dashboards, analytics
-- Use both for: 3D data visualization with traditional chart overlays
-- Use neither for: Simple 2D apps, text-based apps, basic calculators
+- Use Marked.js for: Markdown editors, documentation viewers, note-taking apps, content management, text formatting
+- Use combinations for: 3D data visualization with traditional chart overlays, markdown documentation with charts
+- Use none for: Simple 2D apps, basic calculators, simple forms
 
 QUICK LIBRARY DECISION MATRIX:
 User Request Contains → Use Library → Required Elements + CSS
 "3D" / "WebGL" / "mesh" / "scene" / "immersive" → THREE.js → <div id="{appId}_threejs_container"> + full-window CSS
 "chart" / "graph" / "data viz" / "plot" → Chart.js → <canvas id="{appId}_chart_canvas"> + responsive CSS
+"markdown" / "editor" / "documentation" / "notes" → Marked.js → <div id="{appId}_markdown_content"> + text styling CSS
 "simple animation" / "2D graphics" → Vanilla JS → Standard HTML elements
 
 WINDOW-FILLING ANIMATION REQUIREMENTS:
@@ -603,6 +780,9 @@ if (!window.dataRegistry.getData('myAppData')) {
 AVAILABLE DATA OBJECTS:
 {availableDataObjects}
 
+AVAILABLE APIS:
+{availableAPIs}
+
 PERSISTENT STORAGE PATTERNS:
 - For app-specific data: Create and register your own data objects using window.dataRegistry.registerData()
 - Example: window.dataRegistry.registerData('myAppData', [], 'My app data storage', 'Array of objects')
@@ -641,6 +821,69 @@ CONTENT RULES:
 - Give all interactive elements unique IDs and reference them in JavaScript
 - IMPORTANT: onclick attributes will NOT work because JavaScript runs in isolated scope
 - Make sure you do not break the Response Format - return a valid JSON object
+
+MANDATORY CLARIFICATION SYSTEM:
+
+CRITICAL: You MUST ask clarifying questions with suggestions for vague requests. DO NOT create apps for unclear requests.
+
+WHEN YOU MUST USE SUGGESTIONS (MANDATORY):
+- User says "make a game" without specifying type → ASK FOR CLARIFICATION
+- User says "create a calculator" without specifying type → ASK FOR CLARIFICATION
+- User says "build an app" without details → ASK FOR CLARIFICATION
+- User mentions broad categories like "data visualization", "social media", "productivity" → ASK FOR CLARIFICATION
+- ANY request that could have multiple interpretations → ASK FOR CLARIFICATION
+
+MANDATORY SUGGESTIONS FORMAT:
+When the request is vague, you MUST return ONLY this JSON structure (no other text):
+{
+  "type": "suggestions",
+  "question": "What type of [specific thing] would you like?",
+  "suggestions": [
+    "Option 1: Brief description",
+    "Option 2: Brief description",
+    "Option 3: Brief description",
+    "Option 4: Brief description"
+  ]
+}
+
+MANDATORY EXAMPLES:
+User: "Make a game"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What type of game would you like to create?",
+  "suggestions": [
+    "Puzzle Game: Tetris-style block matching",
+    "Arcade Game: Pac-Man style maze game",
+    "Card Game: Memory matching or solitaire",
+    "Action Game: Simple space shooter"
+  ]
+}
+
+User: "Create a calculator"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What type of calculator do you need?",
+  "suggestions": [
+    "Basic Calculator: Addition, subtraction, multiplication, division",
+    "Scientific Calculator: Advanced math functions and trigonometry",
+    "Unit Converter: Convert between different units of measurement",
+    "Tip Calculator: Calculate tips and split bills"
+  ]
+}
+
+User: "Build an app"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What type of app would you like to build?",
+  "suggestions": [
+    "Productivity App: Todo list, notes, or organizer",
+    "Game App: Puzzle, arcade, or strategy game",
+    "Utility App: Calculator, converter, or tool",
+    "Creative App: Drawing, music, or design tool"
+  ]
+}
+
+CRITICAL RULE: If the user request is vague or could have multiple interpretations, you MUST use suggestions. Do NOT guess what they want.
 
     `;
 
@@ -684,10 +927,18 @@ CRITICAL REQUIREMENTS
 
 RESPONSE FORMAT - Return ONLY a JSON object with this structure:
 {
-  "html": "complete HTML content",
-  "css": "complete CSS styles",
-  "javascript": "complete JavaScript functionality"
+  "html": "COMPLETE HTML content with modifications applied",
+  "css": "COMPLETE CSS styles with modifications applied",
+  "javascript": "COMPLETE JavaScript functionality with modifications applied INCLUDING MANDATORY INIT FUNCTION",
+  "description": "Brief, clear description of the specific modifications made (e.g., 'Fixed Pac-Man starting position to avoid walls', 'Added sound effects when collecting dots', 'Improved collision detection system')"
 }
+
+DESCRIPTION REQUIREMENTS:
+- Be specific about what was changed (e.g., "Fixed player starting position", "Added collision detection")
+- Mention the key improvements or fixes implemented
+- Keep it brief but informative (1-2 sentences)
+- Focus on user-visible changes and functional improvements
+- Examples: "Fixed Pac-Man starting position to prevent spawning inside walls", "Added sound effects for dot collection and ghost encounters", "Improved game controls responsiveness"
 
 IMPORTANT: You are MODIFYING the existing app below, NOT creating a new one.
 
@@ -741,6 +992,69 @@ CURRENT APP CODE:
 
 === CURRENT JAVASCRIPT
 {currentJavaScript}
+
+MANDATORY MODIFICATION CLARIFICATION SYSTEM:
+
+CRITICAL: You MUST ask clarifying questions with suggestions for vague modification requests. DO NOT guess what changes to make.
+
+WHEN YOU MUST USE SUGGESTIONS FOR MODIFICATIONS (MANDATORY):
+- User says "make it better" without specifics → ASK FOR CLARIFICATION
+- User says "improve it" without details → ASK FOR CLARIFICATION
+- User says "add features" without specifying which → ASK FOR CLARIFICATION
+- User says "fix it" without saying what's wrong → ASK FOR CLARIFICATION
+- User mentions vague improvements like "make it more fun", "improve design" → ASK FOR CLARIFICATION
+
+MANDATORY SUGGESTIONS FORMAT FOR MODIFICATIONS:
+When the modification request is vague, you MUST return ONLY this JSON structure (no other text):
+{
+  "type": "suggestions",
+  "question": "How would you like me to [specific modification]?",
+  "suggestions": [
+    "Option 1: Specific implementation approach",
+    "Option 2: Alternative approach",
+    "Option 3: Different style/method",
+    "Option 4: Advanced variation"
+  ]
+}
+
+MANDATORY MODIFICATION EXAMPLES:
+User: "Make it better"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "How would you like me to improve the app?",
+  "suggestions": [
+    "Add Sound Effects: Include audio feedback for actions",
+    "Add Animations: Smooth transitions and visual effects",
+    "Add Scoring System: Points, levels, and achievements",
+    "Improve UI Design: Better colors and layout"
+  ]
+}
+
+User: "Add features"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What features would you like me to add?",
+  "suggestions": [
+    "Sound Effects: Audio feedback for user actions",
+    "Animations: Smooth visual transitions and effects",
+    "Save/Load: Ability to save and restore progress",
+    "Settings: User preferences and customization options"
+  ]
+}
+
+User: "Fix the colors"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What color improvements would you like?",
+  "suggestions": [
+    "Better Contrast: Improve text readability",
+    "Modern Palette: Update to contemporary color scheme",
+    "Theme Consistency: Ensure light/dark mode compatibility",
+    "Accessibility: Make colors colorblind-friendly"
+  ]
+}
+
+CRITICAL RULE: If the modification request is vague or could be interpreted multiple ways, you MUST use suggestions. Do NOT guess what changes they want.
 `;
 
         // Suggestions System Prompt - Provides guidelines for generating clarifying questions

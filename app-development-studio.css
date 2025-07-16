@@ -341,6 +341,21 @@
     border-color: #d97706;
 }
 
+/* Force Create Button - Distinct styling */
+#content_app-development-studio .appdev__force-create-btn {
+    background: #10b981 !important;
+    border-color: #059669 !important;
+    color: white !important;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+#content_app-development-studio .appdev__force-create-btn:hover {
+    background: #059669 !important;
+    border-color: #047857 !important;
+    color: white !important;
+}
+
 #content_app-development-studio .appdev__custom-answer-section {
     display: flex;
     gap: 8px;

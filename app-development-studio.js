@@ -702,7 +702,33 @@ Just start by describing what you want to create!`
             content = String(content);
         }
         
-        return content.replace(/\n/g, '<br>');
+        // Use marked library to parse markdown (now globally available from ai-os.html)
+        let markedParser = null;
+        
+        // Check for marked library (should be available globally)
+        if (typeof window.marked !== 'undefined') {
+            if (typeof window.marked.parse === 'function') {
+                markedParser = window.marked.parse;
+            } else if (typeof window.marked === 'function') {
+                markedParser = window.marked;
+            }
+        }
+        
+        // Use marked library to parse markdown if available
+        if (markedParser) {
+            try {
+                console.log('Using marked parser to process content');
+                return markedParser(content);
+            } catch (error) {
+                console.warn('Error parsing markdown:', error);
+                // Fallback to simple line break replacement
+                return content.replace(/\n/g, '<br>');
+            }
+        } else {
+            // Fallback if marked library is not loaded
+            console.warn('Marked library not available, using fallback formatting');
+            return content.replace(/\n/g, '<br>');
+        }
     },
 
     // Format message content with images
@@ -782,7 +808,8 @@ Just start by describing what you want to create!`
             }
         } catch (error) {
             console.error('Studio AI processing error:', error);
-            this.addMessageToChat('assistant', 'Sorry, I encountered an error while processing your request. Please try again.');
+            // Use intelligent error analysis instead of generic message
+            this.handleErrorWithAnalysis(error, null);
         } finally {
             this.isProcessing = false;
             this.hideTypingIndicator();
@@ -922,9 +949,9 @@ Just start by describing what you want to create!`
         return response;
     },
 
-    // Create prompt for app development using the same system prompts as AI-OS
+    // Create prompt for app development using centralized system prompts
     createAppDevelopmentPrompt(userMessage) {
-        console.log('Creating App Development Studio prompt');
+        console.log('Creating App Development Studio prompt using centralized prompts');
         
         // Get current theme
         const currentTheme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
@@ -954,211 +981,18 @@ Just start by describing what you want to create!`
         if (window.apiRegistry && typeof window.apiRegistry.getAPIPromptInfo === 'function') {
             availableAPIs = window.apiRegistry.getAPIPromptInfo();
         }
-        
-        // Use the exact same prompt structure as AI-OS system
-        const ROLE_PROMPT = `
-You are an expert web developer specializing in creating modular, theme-aware web applications.
-Your task is to generate HTML, CSS, and JavaScript code for a new app based on user requests.
 
-        `;
-
-        const API_ENDPOINT_PROMPT = `
-
-API REGISTRY SYSTEM:
-- Access API info: window.apiRegistry.getAPI('apiName')
-- List all APIs: window.apiRegistry.getAllAPIs()
-- Apps make direct fetch() calls using the provided API keys and endpoints
-
-AVAILABLE APIS:
-${availableAPIs}
-
-        `;
-
-        const CONTEXT_PROMPT = `
-
-AI-OS SYSTEM CONTEXT:
-
-You are generating code for ai-os, a windowed operating system that runs web applications in isolated environments.
-
-FUNDAMENTAL CONCEPTS:
-1. ENVIRONMENT: ai-os is the host system that manages multiple apps in resizable windows
-2. ISOLATION: Each app runs in its own namespace to prevent conflicts with other apps
-3. LIFECYCLE: Apps are created, initialized, and managed by the ai-os system automatically
-4. INTEGRATION: Apps can access shared data and system services through well-defined APIs
-
-NAMESPACE SYSTEM (CRITICAL UNDERSTANDING):
-- The ai-os system automatically creates a unique namespace for each app
-- Variable 'appNamespace' is PROVIDED to your code (DO NOT declare it yourself)
-- All HTML element IDs MUST use {appId}_ prefix (this gets replaced by the system)
-- All CSS classes MUST use {appId}__ prefix (this gets replaced by the system)
-- Your init function MUST be: window[appNamespace].init = function() { ... }
-- NEVER write: const appNamespace = ... or let appNamespace = ... or var appNamespace = ...
-- The appNamespace variable is already available in your code scope
-
-        `;
-
-        const APPCREATION_PROMPT = `
-${CONTEXT_PROMPT}
-
-${API_ENDPOINT_PROMPT}
-
-TASK:
-You are creating a functional app for a windowed operating system interface.
-
-CRITICAL REQUIREMENTS:
-1. Create a COMPLETE, FUNCTIONAL app that works in a window
-2. The app will be placed inside a window with ID "content_{appId}"
-3. Use vanilla HTML, CSS, and JavaScript - pre-loaded libraries (Three.js, Chart.js) are available if needed
-4. Make the app responsive and fit well in a window (300-600px wide)
-5. Include ALL necessary functionality for the requested app
-6. Use modern, clean UI design
-
-RESPONSE FORMAT - Return ONLY a JSON object with this structure:
-{
-  "title": "App Name",
-  "icon": "📱",
-  "html": "complete HTML content",
-  "css": "complete CSS styles",
-  "javascript": "complete JavaScript functionality INCLUDING MANDATORY INIT FUNCTION"
-}
-
-CRITICAL: Your JavaScript MUST include this init function pattern:
-window[appNamespace].init = function() {
-  // ALL initialization code goes here
-};
-
-DATA REGISTRY SYSTEM:
-Apps can access and register shared data objects through the global data registry system:
-
-AVAILABLE DATA OBJECTS:
-${availableDataObjects}
-
-        `;
-
-        const NAMESPACEISOLATION_GUIDELINES = `
-
-NAMESPACE ISOLATION REQUIREMENTS:
-- ALL HTML element IDs MUST be prefixed with "{appId}_" (e.g., id="{appId}_button1")
-- ALL CSS classes MUST be prefixed with "{appId}__" (e.g., class="{appId}__container")
-- ALL JavaScript variables and functions MUST be scoped to avoid conflicts
-- ALL custom events MUST be prefixed with "{appId}:" (e.g., "{appId}:dataChanged")
-- Use querySelector with app-specific selectors: document.querySelector('#{appId}_elementId')
-        `;
-
-        const CSS_GUIDELINES = `
-
-ESSENTIAL CSS GUIDELINES FOR THEME SUPPORT AND ACCESSIBILITY:
-
-CRITICAL THEME REQUIREMENTS:
-- Apps automatically inherit .app-light-theme or .app-dark-theme classes
-- ALWAYS design for BOTH light and dark modes
-- Current theme: ${currentTheme}
-
-MANDATORY CONTRAST RULES:
-1. NEVER light text on light backgrounds or dark text on dark backgrounds
-2. Display text must be clearly visible against display background
-3. Use CSS theme classes: .app-light-theme and .app-dark-theme for all styling
-
-        `;
-
-        const JAVASCRIPT_GUIDELINES = `
-
-ESSENTIAL JAVASCRIPT CODE GENERATION GUIDELINES:
-- Write your JavaScript to handle all user interactions using addEventListener pattern
-- CRITICAL: NEVER create a namespace variable yourself - it is already available as variable appNamespace
-- CRITICAL: never use window.prompt() or window.alert() in the JavaScript code
-- CRITICAL: NEVER add global key event listeners
-- CRITICAL: Use the provided app.onKey() method instead for key handling
-
-CRITICAL REQUIREMENT - INIT FUNCTION:
-- YOU MUST CREATE AN INIT FUNCTION - THIS IS MANDATORY AND NON-NEGOTIABLE
-- Use this EXACT pattern: window[appNamespace].init = function() { ... };
-
-        `;
-
-        const LIBRARIES_GUIDELINES = `
-
-AVAILABLE LIBRARIES (Pre-loaded and Ready):
-- THREE.js v0.177.0 (namespace: THREE) - For 3D graphics, WebGL, animations
-- Chart.js v4.4.1 (namespace: Chart) - For data visualization, charts, graphs
-
-        `;
-
-        const SUGGESTIONS_PROMPT = `
-
-MANDATORY CLARIFICATION SYSTEM:
-
-CRITICAL: You MUST ask clarifying questions with suggestions for vague requests. DO NOT create apps for unclear requests.
-
-WHEN YOU MUST USE SUGGESTIONS (MANDATORY):
-- User says "make a game" without specifying type → ASK FOR CLARIFICATION
-- User says "create a calculator" without specifying type → ASK FOR CLARIFICATION
-- User says "build an app" without details → ASK FOR CLARIFICATION
-- User mentions broad categories like "data visualization", "social media", "productivity" → ASK FOR CLARIFICATION
-- ANY request that could have multiple interpretations → ASK FOR CLARIFICATION
-
-MANDATORY SUGGESTIONS FORMAT:
-When the request is vague, you MUST return ONLY this JSON structure (no other text):
-{
-  "type": "suggestions",
-  "question": "What type of [specific thing] would you like?",
-  "suggestions": [
-    "Option 1: Brief description",
-    "Option 2: Brief description",
-    "Option 3: Brief description",
-    "Option 4: Brief description"
-  ]
-}
-
-MANDATORY EXAMPLES:
-User: "Make a game"
-YOU MUST RESPOND: {
-  "type": "suggestions",
-  "question": "What type of game would you like to create?",
-  "suggestions": [
-    "Puzzle Game: Tetris-style block matching",
-    "Arcade Game: Pac-Man style maze game",
-    "Card Game: Memory matching or solitaire",
-    "Action Game: Simple space shooter"
-  ]
-}
-
-User: "Create a calculator"
-YOU MUST RESPOND: {
-  "type": "suggestions",
-  "question": "What type of calculator do you need?",
-  "suggestions": [
-    "Basic Calculator: Addition, subtraction, multiplication, division",
-    "Scientific Calculator: Advanced math functions and trigonometry",
-    "Unit Converter: Convert between different units of measurement",
-    "Tip Calculator: Calculate tips and split bills"
-  ]
-}
-
-User: "Build an app"
-YOU MUST RESPOND: {
-  "type": "suggestions",
-  "question": "What type of app would you like to build?",
-  "suggestions": [
-    "Productivity App: Todo list, notes, or organizer",
-    "Game App: Puzzle, arcade, or strategy game",
-    "Utility App: Calculator, converter, or tool",
-    "Creative App: Drawing, music, or design tool"
-  ]
-}
-
-CRITICAL RULE: If the user request is vague or could have multiple interpretations, you MUST use suggestions. Do NOT guess what they want.
-
-        `;
-
+        // Use centralized prompts from system-prompts.js
         let prompt = ROLE_PROMPT +
-                     CONTEXT_PROMPT +
-                     APPCREATION_PROMPT.replace(/{appId}/g, this.studioId).replace(/{availableDataObjects}/g, availableDataObjects).replace(/{availableAPIs}/g, availableAPIs) +
+                     APPCREATION_PROMPT
+                         .replace(/{appId}/g, this.studioId)
+                         .replace(/{availableDataObjects}/g, availableDataObjects)
+                         .replace(/{availableAPIs}/g, availableAPIs)
+                         .replace(/{currentTheme}/g, currentTheme) +
                      NAMESPACEISOLATION_GUIDELINES.replace(/{appId}/g, this.studioId) +
                      CSS_GUIDELINES.replace(/{currentTheme}/g, currentTheme) +
                      JAVASCRIPT_GUIDELINES.replace(/{appId}/g, this.studioId) +
                      LIBRARIES_GUIDELINES.replace(/{appId}/g, this.studioId) +
-                     SUGGESTIONS_PROMPT +
                      "Now create a functional app for: " + userMessage;
 
         return prompt;
@@ -1183,7 +1017,7 @@ CRITICAL RULE: If the user request is vague or could have multiple interpretatio
 
     // Create prompt for app editing (includes current app code)
     createAppEditPrompt(userMessage) {
-        console.log('Creating App Development Studio EDIT prompt');
+        console.log('Creating App Development Studio EDIT prompt using centralized prompts');
         
         if (!this.currentApp) {
             throw new Error('No current app to edit');
@@ -1217,207 +1051,19 @@ CRITICAL RULE: If the user request is vague or could have multiple interpretatio
         if (window.apiRegistry && typeof window.apiRegistry.getAPIPromptInfo === 'function') {
             availableAPIs = window.apiRegistry.getAPIPromptInfo();
         }
-        
-        // Create edit-specific prompt that includes current app code
-        const EDIT_ROLE_PROMPT = `
-You are an expert web developer specializing in modifying and improving existing web applications.
-Your task is to make SPECIFIC MODIFICATIONS to an existing app based on user requests.
 
-CRITICAL: You are EDITING an existing app, NOT creating a new one from scratch.
-Only modify the parts that need to be changed based on the user's request.
-        `;
-
-        const EDIT_CONTEXT_PROMPT = `
-
-EDITING CONTEXT:
-
-You are modifying an existing app in ai-os, a windowed operating system that runs web applications.
-
-CURRENT APP INFORMATION:
-- Title: ${this.currentApp.title}
-- Description: ${this.currentApp.description || 'No description'}
-
-CURRENT APP CODE:
-=== HTML ===
-${this.currentApp.html}
-
-=== CSS ===
-${this.currentApp.css}
-
-=== JAVASCRIPT ===
-${this.currentApp.javascript}
-
-EDITING REQUIREMENTS:
-1. PRESERVE existing functionality unless specifically asked to change it
-2. Make ONLY the modifications requested by the user
-3. Maintain the same app structure and namespace system
-4. Keep all existing features that aren't being modified
-5. Ensure modifications integrate seamlessly with existing code
-
-        `;
-
-        const EDIT_TASK_PROMPT = `
-
-EDITING TASK:
-The user wants to modify the current app. Make ONLY the specific changes requested.
-
-USER'S MODIFICATION REQUEST:
-${userMessage}
-
-RESPONSE FORMAT - Return ONLY a JSON object with this structure:
-{
-  "title": "App Name (keep same unless user requests title change)",
-  "icon": "📱 (keep same unless user requests icon change)",
-  "html": "COMPLETE HTML content with modifications applied",
-  "css": "COMPLETE CSS styles with modifications applied",
-  "javascript": "COMPLETE JavaScript functionality with modifications applied INCLUDING MANDATORY INIT FUNCTION",
-  "description": "Brief, clear description of the specific modifications made (e.g., 'Fixed Pac-Man starting position to avoid walls', 'Added sound effects when collecting dots', 'Improved collision detection system')"
-}
-
-CRITICAL EDITING GUIDELINES:
-1. ONLY modify what the user specifically requested
-2. PRESERVE all existing functionality not mentioned in the request
-3. Maintain the same namespace system: window[appNamespace].init = function() { ... }
-4. Keep the same app structure and layout unless specifically asked to change it
-5. If fixing bugs or issues, make minimal changes to resolve the problem
-6. Test your modifications mentally to ensure they work with the existing code
-7. PROVIDE a clear, concise description of what modifications were made in the "description" field
-
-DESCRIPTION REQUIREMENTS:
-- Be specific about what was changed (e.g., "Fixed player starting position", "Added collision detection")
-- Mention the key improvements or fixes implemented
-- Keep it brief but informative (1-2 sentences)
-- Focus on user-visible changes and functional improvements
-- Examples: "Fixed Pac-Man starting position to prevent spawning inside walls", "Added sound effects for dot collection and ghost encounters", "Improved game controls responsiveness"
-
-AVAILABLE DATA OBJECTS:
-${availableDataObjects}
-
-AVAILABLE APIS:
-${availableAPIs}
-
-        `;
-
-        const JAVASCRIPT_EDITING_GUIDELINES = `
-
-CRITICAL JAVASCRIPT EDITING REQUIREMENTS:
-
-MANDATORY INIT FUNCTION ENFORCEMENT:
-- EVERY app MUST have a valid init function - THIS IS NON-NEGOTIABLE
-- If the current app is missing an init function, YOU MUST ADD ONE
-- If the current app has a broken init function, YOU MUST FIX IT
-- If the current app has a valid init function, PRESERVE and enhance it as needed
-
-REQUIRED INIT FUNCTION PATTERN:
-window[appNamespace].init = function() {
-  // ALL initialization code goes here
-  // ALL event listeners MUST be inside this function
-  // ALL setup logic MUST be inside this function
-};
-
-CRITICAL RULES:
-- Use window[appNamespace].init, NOT window.app_{appId}.init
-- DO NOT declare appNamespace yourself - it is already available
-- NEVER write: const appNamespace = ... or let appNamespace = ... or var appNamespace = ...
-- ALL event listeners and initialization code MUST go inside the init function
-- Do NOT put any event listeners or initialization code outside the init function
-- The init function will be automatically called after the app is loaded into the DOM
-- FAILURE TO INCLUDE A VALID INIT FUNCTION WILL RESULT IN BROKEN FUNCTIONALITY
-
-INIT FUNCTION VALIDATION:
-- Check if the current JavaScript has a valid init function
-- If missing: Create one and move all initialization logic inside it
-- If present but invalid: Fix the signature and ensure proper structure
-- If present and valid: Preserve it and add modifications inside it appropriately
-
-        `;
-
-        const EDIT_GUIDELINES = `
-
-MODIFICATION GUIDELINES:
-- Current theme: ${currentTheme}
-- Maintain theme compatibility (.app-light-theme and .app-dark-theme)
-- Preserve namespace isolation with {appId}_ prefixes
-- Keep existing event listeners unless modifying them
-- Maintain responsive design
-- Preserve accessibility features
-
-        `;
-
-
-        const EDIT_SUGGESTIONS_PROMPT = `
-
-MANDATORY MODIFICATION CLARIFICATION SYSTEM:
-
-CRITICAL: You MUST ask clarifying questions with suggestions for vague modification requests. DO NOT guess what changes to make.
-
-WHEN YOU MUST USE SUGGESTIONS FOR MODIFICATIONS (MANDATORY):
-- User says "make it better" without specifics → ASK FOR CLARIFICATION
-- User says "improve it" without details → ASK FOR CLARIFICATION
-- User says "add features" without specifying which → ASK FOR CLARIFICATION
-- User says "fix it" without saying what's wrong → ASK FOR CLARIFICATION
-- User mentions vague improvements like "make it more fun", "improve design" → ASK FOR CLARIFICATION
-
-MANDATORY SUGGESTIONS FORMAT FOR MODIFICATIONS:
-When the modification request is vague, you MUST return ONLY this JSON structure (no other text):
-{
-  "type": "suggestions",
-  "question": "How would you like me to [specific modification]?",
-  "suggestions": [
-    "Option 1: Specific implementation approach",
-    "Option 2: Alternative approach",
-    "Option 3: Different style/method",
-    "Option 4: Advanced variation"
-  ]
-}
-
-MANDATORY MODIFICATION EXAMPLES:
-User: "Make it better"
-YOU MUST RESPOND: {
-  "type": "suggestions",
-  "question": "How would you like me to improve the app?",
-  "suggestions": [
-    "Add Sound Effects: Include audio feedback for actions",
-    "Add Animations: Smooth transitions and visual effects",
-    "Add Scoring System: Points, levels, and achievements",
-    "Improve UI Design: Better colors and layout"
-  ]
-}
-
-User: "Add features"
-YOU MUST RESPOND: {
-  "type": "suggestions",
-  "question": "What features would you like me to add?",
-  "suggestions": [
-    "Sound Effects: Audio feedback for user actions",
-    "Animations: Smooth visual transitions and effects",
-    "Save/Load: Ability to save and restore progress",
-    "Settings: User preferences and customization options"
-  ]
-}
-
-User: "Fix the colors"
-YOU MUST RESPOND: {
-  "type": "suggestions",
-  "question": "What color improvements would you like?",
-  "suggestions": [
-    "Better Contrast: Improve text readability",
-    "Modern Palette: Update to contemporary color scheme",
-    "Theme Consistency: Ensure light/dark mode compatibility",
-    "Accessibility: Make colors colorblind-friendly"
-  ]
-}
-
-CRITICAL RULE: If the modification request is vague or could be interpreted multiple ways, you MUST use suggestions. Do NOT guess what changes they want.
-
-        `;
-
-        let prompt = EDIT_ROLE_PROMPT +
-                     EDIT_CONTEXT_PROMPT +
-                     EDIT_TASK_PROMPT +
-                     JAVASCRIPT_EDITING_GUIDELINES +
-                     EDIT_GUIDELINES +
-                     EDIT_SUGGESTIONS_PROMPT;
+        // Use centralized prompts from system-prompts.js
+        let prompt = APPMODIFY_PROMPT
+            .replace(/{modificationRequest}/g, userMessage)
+            .replace(/{appId}/g, this.studioId)
+            .replace(/{appTitle}/g, this.currentApp.title)
+            .replace(/{promptHistory}/g, 'Previous modifications applied')
+            .replace(/{availableDataObjects}/g, availableDataObjects)
+            .replace(/{availableAPIs}/g, availableAPIs)
+            .replace(/{currentHTML}/g, this.currentApp.html)
+            .replace(/{currentCSS}/g, this.currentApp.css)
+            .replace(/{currentJavaScript}/g, this.currentApp.javascript)
+            .replace(/{currentTheme}/g, currentTheme);
 
         return prompt;
     },
@@ -1548,8 +1194,103 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
             
         } catch (error) {
             console.error('Error handling studio AI response:', error);
-            this.addMessageToChat('assistant', 'Sorry, I encountered an error processing the AI response. Please try again.');
+            // Instead of generic error, analyze the problem and provide suggestions
+            this.handleErrorWithAnalysis(error, response);
+        } finally {
+            // Ensure processing state is always reset
+            this.isProcessing = false;
+            this.hideTypingIndicator();
+            this.updateButtonStates();
         }
+    },
+
+    // Handle errors with intelligent analysis and suggestions
+    async handleErrorWithAnalysis(error, originalResponse) {
+        console.log('Analyzing error for intelligent suggestions:', error);
+        
+        try {
+            // Get the last user message from chat history
+            const lastUserMessage = this.chatHistory
+                .filter(msg => msg.type === 'user')
+                .pop();
+            
+            const userRequest = lastUserMessage ? lastUserMessage.content : 'Unknown request';
+            
+            // Prepare current app context
+            let currentAppContext = 'No current app';
+            if (this.currentApp) {
+                currentAppContext = `
+Current App: ${this.currentApp.title}
+HTML: ${this.currentApp.html.substring(0, 500)}...
+CSS: ${this.currentApp.css.substring(0, 300)}...
+JavaScript: ${this.currentApp.javascript.substring(0, 500)}...`;
+            }
+            
+            // Create error analysis prompt
+            const errorAnalysisPrompt = `
+You are an expert debugging assistant for the App Development Studio. An error occurred while processing a user request.
+
+ERROR DETAILS:
+- Error Message: ${error.message}
+- Error Type: ${error.name}
+- Stack Trace: ${error.stack ? error.stack.substring(0, 500) : 'Not available'}
+
+USER REQUEST:
+${userRequest}
+
+CURRENT APP CONTEXT:
+${currentAppContext}
+
+ORIGINAL AI RESPONSE:
+${typeof originalResponse === 'string' ? originalResponse.substring(0, 1000) : JSON.stringify(originalResponse, null, 2).substring(0, 1000)}
+
+TASK: Analyze this error and provide helpful suggestions to resolve the issue.
+
+You MUST respond with a JSON object in this exact format:
+{
+  "type": "suggestions",
+  "question": "I encountered an error while processing your request. How would you like me to help resolve this?",
+  "suggestions": [
+    "Option 1: Specific fix based on error analysis",
+    "Option 2: Alternative approach",
+    "Option 3: Simplified version",
+    "Option 4: Debug and retry"
+  ]
+}
+
+Make the suggestions specific and actionable based on the error analysis.`;
+
+            // Call LLM for error analysis
+            const analysisResponse = await this.callStudioLLM(errorAnalysisPrompt);
+            
+            if (analysisResponse) {
+                // Try to parse and show suggestions
+                let suggestions = null;
+                
+                if (typeof analysisResponse === 'object' && analysisResponse.type === 'suggestions') {
+                    suggestions = analysisResponse;
+                } else if (typeof analysisResponse === 'string') {
+                    try {
+                        const parsed = JSON.parse(analysisResponse);
+                        if (parsed.type === 'suggestions') {
+                            suggestions = parsed;
+                        }
+                    } catch (parseError) {
+                        console.warn('Failed to parse error analysis response:', parseError);
+                    }
+                }
+                
+                if (suggestions) {
+                    this.showSuggestions(suggestions.question, suggestions.suggestions);
+                    return;
+                }
+            }
+        } catch (analysisError) {
+            console.error('Error during error analysis:', analysisError);
+        }
+        
+        // Fallback to generic error message if analysis fails
+        this.addMessageToChat('assistant', 'Sorry, I encountered an error while processing your request. Please try again or rephrase your request.');
     },
 
     // Generate app safely within studio context (doesn't affect AI-OS system)
@@ -1627,6 +1368,13 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
             buttonsEl.appendChild(button);
         });
         
+        // Always add "None of the above, now create my app" button
+        const forceCreateButton = document.createElement('button');
+        forceCreateButton.className = 'appdev__suggestion-btn appdev__force-create-btn';
+        forceCreateButton.textContent = 'None of the above, now create my app';
+        forceCreateButton.addEventListener('click', () => this.forceCreateApp());
+        buttonsEl.appendChild(forceCreateButton);
+        
         panel.style.display = 'block';
     },
     
@@ -1635,6 +1383,40 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
         this.hideSuggestions();
         this.addMessageToChat('user', suggestionText);
         this.processWithAI(suggestionText);
+    },
+    
+    // Force create app bypassing suggestions
+    forceCreateApp() {
+        this.hideSuggestions();
+        
+        // Get the last user message from chat history
+        const lastUserMessage = this.chatHistory
+            .filter(msg => msg.type === 'user')
+            .pop();
+        
+        if (!lastUserMessage) {
+            this.addMessageToChat('assistant', 'I need a request to create an app. Please describe what you want me to build.');
+            return;
+        }
+        
+        const originalRequest = lastUserMessage.content;
+        
+        // Add a message indicating we're proceeding with the original request
+        this.addMessageToChat('user', 'Proceed with my original request: ' + originalRequest);
+        
+        // Create a modified prompt that forces app generation without suggestions
+        const forceCreatePrompt = `
+IMPORTANT: The user has explicitly requested to bypass suggestions and create the app directly.
+You MUST respond with a complete app JSON object, NOT suggestions.
+
+Original user request: ${originalRequest}
+
+${this.currentApp ? 'MODIFY the existing app based on the request.' : 'CREATE a new app based on the request.'}
+
+You MUST respond with a JSON object containing the complete app code. Do NOT provide suggestions.`;
+        
+        // Process with AI using the force create prompt
+        this.processWithAI(forceCreatePrompt);
     },
     
     // Submit custom answer
@@ -1769,7 +1551,7 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
                 const appNamespace = `preview_app_${Date.now()}`;
                 
                 // Create a safe execution context with better error handling
-                const executeJS = new Function('appNamespace', 'previewContainerId', `
+                const executeJS = new Function('appNamespace', 'previewContainerId', 'dataRegistry', 'marked', `
                     try {
                         // Create window namespace for the preview app
                         window[appNamespace] = window[appNamespace] || {};
@@ -1803,6 +1585,14 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
                             data: {}
                         };
                         
+                        // Make global objects available in the execution context
+                        if (dataRegistry) {
+                            window.dataRegistry = dataRegistry;
+                        }
+                        if (marked) {
+                            window.marked = marked;
+                        }
+                        
                         // Execute the app JavaScript with error wrapping
                         try {
                             ${appData.javascript}
@@ -1824,7 +1614,7 @@ CRITICAL RULE: If the modification request is vague or could be interpreted mult
                     }
                 `);
                 
-                executeJS(appNamespace, previewContainerId);
+                executeJS(appNamespace, previewContainerId, window.dataRegistry, window.marked);
                 
             } catch (error) {
                 console.error('Error executing app JavaScript:', error);
