@@ -742,3 +742,90 @@ CURRENT APP CODE:
 === CURRENT JAVASCRIPT
 {currentJavaScript}
 `;
+
+        // Suggestions System Prompt - Provides guidelines for generating clarifying questions
+        const SUGGESTIONS_PROMPT = `
+
+CLARIFICATION AND SUGGESTIONS SYSTEM:
+
+When the user's request is vague or could benefit from clarification, you can ask clarifying questions with multiple choice suggestions.
+
+WHEN TO USE SUGGESTIONS:
+- User request is too vague (e.g., "make a game" without specifying type)
+- Multiple valid interpretations exist (e.g., "calculator" could be basic, scientific, or graphing)
+- User mentions a broad category that needs specifics (e.g., "data visualization" without chart type)
+- Technical choices need user input (e.g., "social media app" - which features?)
+
+SUGGESTIONS FORMAT:
+Instead of generating app code, return a JSON object with this exact structure:
+{
+  "type": "suggestions",
+  "question": "What type of [specific thing] would you like?",
+  "suggestions": [
+    "Option 1: Brief description",
+    "Option 2: Brief description",
+    "Option 3: Brief description",
+    "Option 4: Brief description"
+  ]
+}
+
+SUGGESTIONS RULES:
+- Maximum 4 suggestions
+- Each suggestion should be specific and actionable
+- Question should be clear and focused
+- Suggestions should cover different approaches/styles
+- Always include a variety of options (simple to complex, different styles, etc.)
+
+EXAMPLES:
+User: "Make a game"
+Response: {
+  "type": "suggestions",
+  "question": "What type of game would you like to create?",
+  "suggestions": [
+    "Puzzle Game: Tetris-style block matching",
+    "Arcade Game: Pac-Man style maze game",
+    "Card Game: Memory matching or solitaire",
+    "Action Game: Simple space shooter"
+  ]
+}
+
+User: "Create a calculator"
+Response: {
+  "type": "suggestions",
+  "question": "What type of calculator do you need?",
+  "suggestions": [
+    "Basic Calculator: Addition, subtraction, multiplication, division",
+    "Scientific Calculator: Advanced math functions and trigonometry",
+    "Unit Converter: Convert between different units of measurement",
+    "Tip Calculator: Calculate tips and split bills"
+  ]
+}
+
+MODIFICATION SUGGESTIONS:
+User: "Make it better"
+Response: {
+  "type": "suggestions",
+  "question": "How would you like me to improve the app?",
+  "suggestions": [
+    "Add Sound Effects: Include audio feedback for actions",
+    "Add Animations: Smooth transitions and visual effects",
+    "Add Scoring System: Points, levels, and achievements",
+    "Improve UI Design: Better colors and layout"
+  ]
+}
+
+User: "Fix the colors"
+Response: {
+  "type": "suggestions",
+  "question": "What color improvements would you like?",
+  "suggestions": [
+    "Better Contrast: Improve text readability",
+    "Modern Palette: Update to contemporary color scheme",
+    "Theme Consistency: Ensure light/dark mode compatibility",
+    "Accessibility: Make colors colorblind-friendly"
+  ]
+}
+
+IMPORTANT: Only use suggestions when clarification would genuinely improve the result. If the request is clear enough, proceed directly with app generation or modification.
+
+        `;

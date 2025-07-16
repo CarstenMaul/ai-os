@@ -3,6 +3,208 @@
  * Integrates with AI-OS system for app development with chat interface and suggestions
  */
 
+// Key event management for App Development Studio
+class StudioKeyManager {
+    constructor() {
+        this.appPreviewHasFocus = false;
+        this.appPreviewElement = null;
+        this.boundKeyHandler = this.handleKeyEvent.bind(this);
+        this.init();
+    }
+
+    init() {
+        // Add global key event listener
+        document.addEventListener('keydown', this.boundKeyHandler, true);
+        document.addEventListener('keyup', this.boundKeyHandler, true);
+        document.addEventListener('keypress', this.boundKeyHandler, true);
+    }
+
+    setAppPreviewElement(element) {
+        this.appPreviewElement = element;
+        
+        // Add click listener to app preview to give it focus
+        if (element) {
+            element.addEventListener('click', () => {
+                this.focusAppPreview();
+            });
+            
+            // Add tabindex to make it focusable
+            element.setAttribute('tabindex', '0');
+        }
+    }
+
+    focusAppPreview() {
+        console.log('App preview gained focus');
+        this.appPreviewHasFocus = true;
+        
+        // Visual indication that app has focus
+        if (this.appPreviewElement) {
+            this.appPreviewElement.style.outline = '2px solid #007bff';
+            this.appPreviewElement.style.outlineOffset = '2px';
+        }
+    }
+
+    blurAppPreview() {
+        console.log('App preview lost focus');
+        this.appPreviewHasFocus = false;
+        
+        // Remove visual indication
+        if (this.appPreviewElement) {
+            this.appPreviewElement.style.outline = '';
+            this.appPreviewElement.style.outlineOffset = '';
+        }
+    }
+
+    handleKeyEvent(event) {
+        // If app preview has focus, let the app handle the key event
+        if (this.appPreviewHasFocus) {
+            // Don't interfere with app key handling
+            return;
+        }
+
+        // Studio has focus - handle studio-specific keys
+        // Allow normal typing in input fields
+        const activeElement = document.activeElement;
+        if (activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.contentEditable === 'true'
+        )) {
+            // Let input fields handle their own key events
+            return;
+        }
+
+        // Handle studio-specific shortcuts
+        if (event.type === 'keydown') {
+            switch(event.key) {
+                case 'Escape':
+                    // Escape always returns focus to studio
+                    this.blurAppPreview();
+                    event.preventDefault();
+                    break;
+                case 'Tab':
+                    // Tab navigation should blur app preview
+                    this.blurAppPreview();
+                    break;
+            }
+        }
+    }
+
+    destroy() {
+        document.removeEventListener('keydown', this.boundKeyHandler, true);
+        document.removeEventListener('keyup', this.boundKeyHandler, true);
+        document.removeEventListener('keypress', this.boundKeyHandler, true);
+    }
+}
+
+// Resize handler for the divider between preview and chat
+class ResizeHandler {
+    constructor() {
+        this.isDragging = false;
+        this.startX = 0;
+        this.startPreviewWidth = 0;
+        this.startChatWidth = 0;
+        this.divider = null;
+        this.previewSection = null;
+        this.chatSidebar = null;
+        this.init();
+    }
+
+    init() {
+        this.divider = document.getElementById('resize-divider');
+        this.previewSection = document.querySelector('.preview-section');
+        this.chatSidebar = document.querySelector('.chat-sidebar');
+
+        if (!this.divider || !this.previewSection || !this.chatSidebar) {
+            console.warn('Resize elements not found');
+            return;
+        }
+
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        this.divider.addEventListener('mousedown', this.startDrag.bind(this));
+        document.addEventListener('mousemove', this.drag.bind(this));
+        document.addEventListener('mouseup', this.stopDrag.bind(this));
+        
+        // Prevent text selection during drag
+        this.divider.addEventListener('selectstart', (e) => e.preventDefault());
+    }
+
+    startDrag(e) {
+        this.isDragging = true;
+        this.startX = e.clientX;
+        
+        // Get current widths
+        const previewRect = this.previewSection.getBoundingClientRect();
+        const chatRect = this.chatSidebar.getBoundingClientRect();
+        
+        this.startPreviewWidth = previewRect.width;
+        this.startChatWidth = chatRect.width;
+        
+        // Add dragging class for visual feedback
+        this.divider.classList.add('dragging');
+        
+        // Prevent text selection
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+        
+        e.preventDefault();
+    }
+
+    drag(e) {
+        if (!this.isDragging) return;
+        
+        const deltaX = e.clientX - this.startX;
+        const containerWidth = this.previewSection.parentElement.getBoundingClientRect().width;
+        
+        // Calculate new widths
+        let newPreviewWidth = this.startPreviewWidth + deltaX;
+        let newChatWidth = this.startChatWidth - deltaX;
+        
+        // Apply constraints
+        const minPreviewWidth = 300;
+        const minChatWidth = 250;
+        const maxChatWidth = containerWidth * 0.6; // 60% max
+        
+        // Ensure minimum widths
+        if (newPreviewWidth < minPreviewWidth) {
+            newPreviewWidth = minPreviewWidth;
+            newChatWidth = containerWidth - newPreviewWidth - 6; // 6px for divider
+        }
+        
+        if (newChatWidth < minChatWidth) {
+            newChatWidth = minChatWidth;
+            newPreviewWidth = containerWidth - newChatWidth - 6;
+        }
+        
+        if (newChatWidth > maxChatWidth) {
+            newChatWidth = maxChatWidth;
+            newPreviewWidth = containerWidth - newChatWidth - 6;
+        }
+        
+        // Apply new widths
+        this.previewSection.style.width = `${newPreviewWidth}px`;
+        this.chatSidebar.style.width = `${newChatWidth}px`;
+        
+        e.preventDefault();
+    }
+
+    stopDrag() {
+        if (!this.isDragging) return;
+        
+        this.isDragging = false;
+        
+        // Remove dragging class
+        this.divider.classList.remove('dragging');
+        
+        // Restore normal cursor and text selection
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+    }
+}
+
 // Global state management
 window.AppDevelopmentStudio = {
     currentApp: null,
@@ -12,6 +214,8 @@ window.AppDevelopmentStudio = {
     studioId: 'app-development-studio',
     initialized: false,
     uploadedImages: [],
+    keyManager: null, // Key event manager for focus handling
+    resizeHandler: null, // Resize handler for divider
     
     // Initialize the studio
     init() {
@@ -38,9 +242,40 @@ window.AppDevelopmentStudio = {
         this.setupEventListeners();
         this.setupImageUpload();
         this.initializeChatInterface();
+        this.initializeKeyManager();
+        this.initializeResizeHandler();
         this.showWelcomeMessage();
         this.initialized = true;
         console.log('App Development Studio initialization complete!');
+    },
+
+    // Initialize key event management
+    initializeKeyManager() {
+        console.log('Initializing key manager...');
+        this.keyManager = new StudioKeyManager();
+        
+        // Set up click handlers for studio areas to blur app preview
+        const studioAreas = [
+            document.getElementById('chat-container'),
+            document.getElementById('chat-input'),
+            document.getElementById('save-app-btn')
+        ];
+        
+        studioAreas.forEach(element => {
+            if (element) {
+                element.addEventListener('click', () => {
+                    if (this.keyManager) {
+                        this.keyManager.blurAppPreview();
+                    }
+                });
+            }
+        });
+    },
+
+    // Initialize resize handler for divider
+    initializeResizeHandler() {
+        console.log('Initializing resize handler...');
+        this.resizeHandler = new ResizeHandler();
     },
     
     // Set up all event listeners
@@ -57,11 +292,7 @@ window.AppDevelopmentStudio = {
             exportBtn.addEventListener('click', () => this.exportGeneratedApp());
         }
         
-        // Test button - opens app in new window
-        const testBtn = document.getElementById('test-app-btn');
-        if (testBtn) {
-            testBtn.addEventListener('click', () => this.testGeneratedApp());
-        }
+        // Test button removed per user request
         
         // Clear chat button
         const clearBtn = document.getElementById('clear-chat-btn');
@@ -377,6 +608,15 @@ Just start by describing what you want to create!`
             container.innerHTML = '';
         }
     },
+
+    // Clear image preview display (used after sending message)
+    clearImagePreview() {
+        this.hideImageContainer();
+        const container = document.getElementById('image-preview-container');
+        if (container) {
+            container.innerHTML = '';
+        }
+    },
     
     // Send message to AI
     sendMessage() {
@@ -386,26 +626,30 @@ Just start by describing what you want to create!`
         const message = chatInput.value.trim();
         if (!message && this.uploadedImages.length === 0) return;
         
-        // Add user message to chat
-        if (message) {
-            this.addMessageToChat('user', message);
-        }
+        // Create a copy of images before clearing
+        const imagesToDisplay = [...this.uploadedImages];
         
-        // Clear input
+        // Add user message to chat with images
+        this.addMessageToChat('user', message || 'Please create an app based on the uploaded image(s)', imagesToDisplay);
+        
+        // Clear input and uploaded images
         chatInput.value = '';
+        this.uploadedImages = []; // Clear uploaded images
+        this.clearImagePreview(); // Clear the preview display
         
         // Process with AI
         this.processWithAI(message || 'Please create an app based on the uploaded image(s)');
     },
     
     // Add message to chat history and update display
-    addMessageToChat(type, content) {
+    addMessageToChat(type, content, images = []) {
         // Add debug output
-        console.log('addMessageToChat called with type:', type, 'content:', content, 'content type:', typeof content);
+        console.log('addMessageToChat called with type:', type, 'content:', content, 'images:', images);
         
         const message = {
             type: type,
             content: content,
+            images: images || [], // Array of image data URLs
             timestamp: new Date()
         };
         
@@ -424,14 +668,17 @@ Just start by describing what you want to create!`
             const messageEl = document.createElement('div');
             messageEl.className = `chat-message ${message.type}`;
             
+            // Format message content with images
+            const messageContent = this.formatMessageWithImages(message);
+            
             if (message.type === 'assistant') {
                 messageEl.innerHTML = `
                     <div class="message-avatar">🤖</div>
-                    <div class="message-content">${this.formatMessage(message.content)}</div>
+                    <div class="message-content">${messageContent}</div>
                 `;
             } else {
                 messageEl.innerHTML = `
-                    <div class="message-content">${this.formatMessage(message.content)}</div>
+                    <div class="message-content">${messageContent}</div>
                     <div class="message-avatar">👤</div>
                 `;
             }
@@ -457,11 +704,46 @@ Just start by describing what you want to create!`
         
         return content.replace(/\n/g, '<br>');
     },
+
+    // Format message content with images
+    formatMessageWithImages(message) {
+        let formattedContent = '';
+        
+        // Add text content if present
+        if (message.content) {
+            formattedContent += this.formatMessage(message.content);
+        }
+        
+        // Add images if present
+        if (message.images && message.images.length > 0) {
+            if (formattedContent) {
+                formattedContent += '<br><br>'; // Add spacing between text and images
+            }
+            
+            message.images.forEach((imageData, index) => {
+                // Extract the base64 data URL from the image data object
+                const imageUrl = typeof imageData === 'string' ? imageData : imageData.base64;
+                
+                formattedContent += `
+                    <div class="chat-image-container" style="margin: 8px 0;">
+                        <img src="${imageUrl}"
+                             alt="Uploaded image ${index + 1}"
+                             style="max-width: 300px; max-height: 200px; border-radius: 8px; border: 1px solid #e1e5e9; cursor: pointer;"
+                             onclick="this.style.maxWidth = this.style.maxWidth === '300px' ? '100%' : '300px'; this.style.maxHeight = this.style.maxHeight === '200px' ? 'auto' : '200px';"
+                             title="Click to toggle size">
+                    </div>
+                `;
+            });
+        }
+        
+        return formattedContent || 'No content';
+    },
     
     // Process message with AI using dedicated App Development Studio functions
     async processWithAI(message) {
         this.isProcessing = true;
         this.showTypingIndicator();
+        this.updateButtonStates(); // Disable buttons when processing starts
         
         try {
             console.log('Processing with App Development Studio AI functions');
@@ -504,6 +786,27 @@ Just start by describing what you want to create!`
         } finally {
             this.isProcessing = false;
             this.hideTypingIndicator();
+            this.updateButtonStates(); // Re-enable buttons when processing ends
+        }
+    },
+
+    // Update button states based on processing status
+    updateButtonStates() {
+        const sendBtn = document.getElementById('send-chat-btn');
+        const imageBtn = document.getElementById('image-upload-btn');
+        
+        if (sendBtn) {
+            sendBtn.disabled = this.isProcessing;
+        }
+        
+        if (imageBtn) {
+            imageBtn.disabled = this.isProcessing;
+        }
+        
+        // Also disable file input
+        const fileInput = document.getElementById('image-upload');
+        if (fileInput) {
+            fileInput.disabled = this.isProcessing;
         }
     },
 
@@ -781,6 +1084,73 @@ AVAILABLE LIBRARIES (Pre-loaded and Ready):
 
         `;
 
+        const SUGGESTIONS_PROMPT = `
+
+MANDATORY CLARIFICATION SYSTEM:
+
+CRITICAL: You MUST ask clarifying questions with suggestions for vague requests. DO NOT create apps for unclear requests.
+
+WHEN YOU MUST USE SUGGESTIONS (MANDATORY):
+- User says "make a game" without specifying type → ASK FOR CLARIFICATION
+- User says "create a calculator" without specifying type → ASK FOR CLARIFICATION
+- User says "build an app" without details → ASK FOR CLARIFICATION
+- User mentions broad categories like "data visualization", "social media", "productivity" → ASK FOR CLARIFICATION
+- ANY request that could have multiple interpretations → ASK FOR CLARIFICATION
+
+MANDATORY SUGGESTIONS FORMAT:
+When the request is vague, you MUST return ONLY this JSON structure (no other text):
+{
+  "type": "suggestions",
+  "question": "What type of [specific thing] would you like?",
+  "suggestions": [
+    "Option 1: Brief description",
+    "Option 2: Brief description",
+    "Option 3: Brief description",
+    "Option 4: Brief description"
+  ]
+}
+
+MANDATORY EXAMPLES:
+User: "Make a game"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What type of game would you like to create?",
+  "suggestions": [
+    "Puzzle Game: Tetris-style block matching",
+    "Arcade Game: Pac-Man style maze game",
+    "Card Game: Memory matching or solitaire",
+    "Action Game: Simple space shooter"
+  ]
+}
+
+User: "Create a calculator"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What type of calculator do you need?",
+  "suggestions": [
+    "Basic Calculator: Addition, subtraction, multiplication, division",
+    "Scientific Calculator: Advanced math functions and trigonometry",
+    "Unit Converter: Convert between different units of measurement",
+    "Tip Calculator: Calculate tips and split bills"
+  ]
+}
+
+User: "Build an app"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What type of app would you like to build?",
+  "suggestions": [
+    "Productivity App: Todo list, notes, or organizer",
+    "Game App: Puzzle, arcade, or strategy game",
+    "Utility App: Calculator, converter, or tool",
+    "Creative App: Drawing, music, or design tool"
+  ]
+}
+
+CRITICAL RULE: If the user request is vague or could have multiple interpretations, you MUST use suggestions. Do NOT guess what they want.
+
+        `;
+
         let prompt = ROLE_PROMPT +
                      CONTEXT_PROMPT +
                      APPCREATION_PROMPT.replace(/{appId}/g, this.studioId).replace(/{availableDataObjects}/g, availableDataObjects).replace(/{availableAPIs}/g, availableAPIs) +
@@ -788,6 +1158,7 @@ AVAILABLE LIBRARIES (Pre-loaded and Ready):
                      CSS_GUIDELINES.replace(/{currentTheme}/g, currentTheme) +
                      JAVASCRIPT_GUIDELINES.replace(/{appId}/g, this.studioId) +
                      LIBRARIES_GUIDELINES.replace(/{appId}/g, this.studioId) +
+                     SUGGESTIONS_PROMPT +
                      "Now create a functional app for: " + userMessage;
 
         return prompt;
@@ -973,11 +1344,80 @@ MODIFICATION GUIDELINES:
 
         `;
 
+
+        const EDIT_SUGGESTIONS_PROMPT = `
+
+MANDATORY MODIFICATION CLARIFICATION SYSTEM:
+
+CRITICAL: You MUST ask clarifying questions with suggestions for vague modification requests. DO NOT guess what changes to make.
+
+WHEN YOU MUST USE SUGGESTIONS FOR MODIFICATIONS (MANDATORY):
+- User says "make it better" without specifics → ASK FOR CLARIFICATION
+- User says "improve it" without details → ASK FOR CLARIFICATION
+- User says "add features" without specifying which → ASK FOR CLARIFICATION
+- User says "fix it" without saying what's wrong → ASK FOR CLARIFICATION
+- User mentions vague improvements like "make it more fun", "improve design" → ASK FOR CLARIFICATION
+
+MANDATORY SUGGESTIONS FORMAT FOR MODIFICATIONS:
+When the modification request is vague, you MUST return ONLY this JSON structure (no other text):
+{
+  "type": "suggestions",
+  "question": "How would you like me to [specific modification]?",
+  "suggestions": [
+    "Option 1: Specific implementation approach",
+    "Option 2: Alternative approach",
+    "Option 3: Different style/method",
+    "Option 4: Advanced variation"
+  ]
+}
+
+MANDATORY MODIFICATION EXAMPLES:
+User: "Make it better"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "How would you like me to improve the app?",
+  "suggestions": [
+    "Add Sound Effects: Include audio feedback for actions",
+    "Add Animations: Smooth transitions and visual effects",
+    "Add Scoring System: Points, levels, and achievements",
+    "Improve UI Design: Better colors and layout"
+  ]
+}
+
+User: "Add features"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What features would you like me to add?",
+  "suggestions": [
+    "Sound Effects: Audio feedback for user actions",
+    "Animations: Smooth visual transitions and effects",
+    "Save/Load: Ability to save and restore progress",
+    "Settings: User preferences and customization options"
+  ]
+}
+
+User: "Fix the colors"
+YOU MUST RESPOND: {
+  "type": "suggestions",
+  "question": "What color improvements would you like?",
+  "suggestions": [
+    "Better Contrast: Improve text readability",
+    "Modern Palette: Update to contemporary color scheme",
+    "Theme Consistency: Ensure light/dark mode compatibility",
+    "Accessibility: Make colors colorblind-friendly"
+  ]
+}
+
+CRITICAL RULE: If the modification request is vague or could be interpreted multiple ways, you MUST use suggestions. Do NOT guess what changes they want.
+
+        `;
+
         let prompt = EDIT_ROLE_PROMPT +
                      EDIT_CONTEXT_PROMPT +
                      EDIT_TASK_PROMPT +
                      JAVASCRIPT_EDITING_GUIDELINES +
-                     EDIT_GUIDELINES;
+                     EDIT_GUIDELINES +
+                     EDIT_SUGGESTIONS_PROMPT;
 
         return prompt;
     },
@@ -996,27 +1436,52 @@ MODIFICATION GUIDELINES:
             // Handle different response formats safely within studio context
             let appData = null;
             
-            // Case 1: Direct app object from AI-OS system
-            if (response && typeof response === 'object' && response.html) {
-                console.log('Received direct app object from AI system');
-                appData = {
-                    title: response.title || 'Generated App',
-                    description: response.description, // Keep the modification description if provided
-                    html: response.html,
-                    css: response.css || '',
-                    javascript: response.javascript || '',
-                    icon: response.icon || '📱'
-                };
+            // Case 1: Direct object from AI-OS system - check for suggestions first
+            if (response && typeof response === 'object') {
+                // Check for suggestions format in direct object
+                if (response.type === 'suggestions') {
+                    console.log('Received direct suggestions object from AI system');
+                    this.showSuggestions(response.question, response.suggestions);
+                    return;
+                }
+                // Check for app object
+                else if (response.html) {
+                    console.log('Received direct app object from AI system');
+                    appData = {
+                        title: response.title || 'Generated App',
+                        description: response.description, // Keep the modification description if provided
+                        html: response.html,
+                        css: response.css || '',
+                        javascript: response.javascript || '',
+                        icon: response.icon || '📱'
+                    };
+                }
             }
             // Case 2: String response that might be JSON
             else if (typeof response === 'string') {
                 console.log('Received string response, attempting to parse');
+                
+                // Try to extract JSON from the response if it's wrapped in other text
+                let jsonString = response.trim();
+                
+                // Look for JSON object patterns
+                const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    jsonString = jsonMatch[0];
+                }
+                
                 try {
-                    const parsed = JSON.parse(response);
+                    const parsed = JSON.parse(jsonString);
                     console.log('Successfully parsed JSON response:', parsed);
                     
+                    // Check for suggestions format FIRST (most specific)
+                    if (parsed.type === 'suggestions') {
+                        console.log('Detected suggestions response, showing suggestions panel');
+                        this.showSuggestions(parsed.question, parsed.suggestions);
+                        return;
+                    }
                     // Check if it's an app object
-                    if (parsed.html || (parsed.title && (parsed.css || parsed.javascript))) {
+                    else if (parsed.html || (parsed.title && (parsed.css || parsed.javascript))) {
                         appData = {
                             title: parsed.title || 'Generated App',
                             description: parsed.description, // Keep the modification description if provided
@@ -1026,25 +1491,40 @@ MODIFICATION GUIDELINES:
                             icon: parsed.icon || '📱'
                         };
                     }
-                    // Check for suggestions format
-                    else if (parsed.type === 'suggestions') {
-                        this.showSuggestions(parsed.question, parsed.suggestions);
-                        return;
-                    }
                     // Other structured responses
                     else {
+                        console.log('Parsed JSON but no recognized format, treating as message');
                         this.addMessageToChat('assistant', response);
                         return;
                     }
                 } catch (parseError) {
-                    console.log('Failed to parse as JSON, treating as regular message');
+                    console.log('Failed to parse as JSON, error:', parseError.message);
+                    console.log('Raw response:', response);
+                    
+                    // Check if the response looks like suggestions JSON but failed to parse
+                    if (response.includes('"type": "suggestions"') || response.includes('"suggestions"')) {
+                        console.log('Response appears to be suggestions but failed to parse, showing as message');
+                        this.addMessageToChat('assistant', 'I tried to provide suggestions but there was a formatting error. Please try rephrasing your request.');
+                        return;
+                    }
+                    
                     this.addMessageToChat('assistant', response);
                     return;
                 }
             }
             // Case 3: Other object types
             else if (response && typeof response === 'object') {
-                console.log('Received object response, converting to string');
+                console.log('Received object response, checking for suggestions');
+                
+                // Check if it's a suggestions object
+                if (response.type === 'suggestions') {
+                    console.log('Found suggestions in other object type, showing suggestions panel');
+                    this.showSuggestions(response.question, response.suggestions);
+                    return;
+                }
+                
+                // Otherwise convert to string and display
+                console.log('Converting object response to string');
                 this.addMessageToChat('assistant', JSON.stringify(response, null, 2));
                 return;
             }
@@ -1116,26 +1596,38 @@ MODIFICATION GUIDELINES:
         
         if (!panel || !questionEl || !buttonsEl) return;
         
-        questionEl.textContent = question;
+        // Display in the requested format: "Suggestion of the LLM:"
+        questionEl.textContent = "Suggestion of the LLM:";
         buttonsEl.innerHTML = '';
         
-        // Create max 4 suggestion buttons
+        // Add the question as a message to chat
+        const questionStr = typeof question === 'string' ? question : String(question);
+        this.addMessageToChat('assistant', questionStr);
+        
+        // Create max 4 suggestion buttons in the format "Choice X: description"
         suggestions.slice(0, 4).forEach((suggestion, index) => {
             const button = document.createElement('button');
             button.className = 'suggestion-btn';
-            button.innerHTML = `
-                <strong>${suggestion.text}</strong>
-                ${suggestion.description ? `<br><small style="opacity: 0.8;">${suggestion.description}</small>` : ''}
-            `;
-            button.addEventListener('click', () => this.selectSuggestion(suggestion.text));
+            
+            // Handle both string suggestions and object suggestions
+            let suggestionText, suggestionLabel;
+            if (typeof suggestion === 'string') {
+                suggestionText = suggestion;
+                suggestionLabel = `Choice ${index + 1}: ${suggestion}`;
+            } else {
+                suggestionText = suggestion.text || suggestion;
+                suggestionLabel = `Choice ${index + 1}: ${suggestion.text || suggestion}`;
+                if (suggestion.description) {
+                    suggestionLabel += ` - ${suggestion.description}`;
+                }
+            }
+            
+            button.textContent = suggestionLabel;
+            button.addEventListener('click', () => this.selectSuggestion(suggestionText));
             buttonsEl.appendChild(button);
         });
         
         panel.style.display = 'block';
-        
-        // Ensure question is a string before adding to chat
-        const questionStr = typeof question === 'string' ? question : String(question);
-        this.addMessageToChat('assistant', questionStr);
     },
     
     // Select a suggestion
@@ -1288,7 +1780,26 @@ MODIFICATION GUIDELINES:
                             getElementById: (id) => document.getElementById(previewContainerId + '_' + id) || document.getElementById(id),
                             querySelector: (selector) => document.querySelector('#' + previewContainerId + ' ' + selector),
                             querySelectorAll: (selector) => document.querySelectorAll('#' + previewContainerId + ' ' + selector),
-                            onKey: () => {}, // Disabled in preview
+                            onKey: (eventType, handler) => {
+                                // Enable key handling when app preview has focus
+                                if (window.AppDevelopmentStudio && window.AppDevelopmentStudio.keyManager) {
+                                    const keyManager = window.AppDevelopmentStudio.keyManager;
+                                    
+                                    // Store the handler for when app has focus
+                                    const wrappedHandler = (event) => {
+                                        if (keyManager.appPreviewHasFocus) {
+                                            handler(event);
+                                        }
+                                    };
+                                    
+                                    // Add the event listener
+                                    document.addEventListener(eventType, wrappedHandler, true);
+                                    
+                                    // Store reference for cleanup (optional)
+                                    if (!app._keyHandlers) app._keyHandlers = [];
+                                    app._keyHandlers.push({ eventType, handler: wrappedHandler });
+                                }
+                            },
                             data: {}
                         };
                         
@@ -1322,6 +1833,15 @@ MODIFICATION GUIDELINES:
                 errorDiv.style.cssText = 'color: red; padding: 10px; background: #ffe6e6; border: 1px solid #ff9999; border-radius: 4px; margin: 10px;';
                 errorDiv.textContent = `JavaScript Error: ${error.message}`;
                 document.getElementById(previewContainerId).appendChild(errorDiv);
+            }
+        }
+        
+        // Set up key manager for the app preview
+        if (this.keyManager) {
+            const previewContentElement = document.getElementById(previewContainerId);
+            if (previewContentElement) {
+                this.keyManager.setAppPreviewElement(previewContentElement);
+                console.log('Key manager set up for app preview');
             }
         }
     },
@@ -1535,31 +2055,7 @@ MODIFICATION GUIDELINES:
         this.addMessageToChat('assistant', `Your ${this.currentApp.title} app has been exported successfully!`);
     },
     
-    // Test generated app in new window
-    testGeneratedApp() {
-        if (!this.currentApp) {
-            alert('No app to test. Please generate an app first.');
-            return;
-        }
-        
-        const testWindow = window.open('', '_blank', 'width=600,height=400');
-        testWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>${this.currentApp.title} - Test</title>
-                <style>${this.currentApp.css || ''}</style>
-            </head>
-            <body>
-                ${this.currentApp.html || ''}
-                <script>${this.currentApp.javascript || ''}</script>
-            </body>
-            </html>
-        `);
-        testWindow.document.close();
-        
-        this.addMessageToChat('assistant', `${this.currentApp.title} opened in a new window for testing!`);
-    },
+    // Test function removed per user request
     
     // Clear chat history
     clearChat() {

@@ -5,15 +5,31 @@
     box-sizing: border-box;
 }
 
+/* Hide standard AI-OS app toolbar at bottom */
+.app-toolbar,
+.window-toolbar,
+.bottom-toolbar,
+#app-toolbar,
+#window-toolbar,
+#bottom-toolbar {
+    display: none !important;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: #f5f5f5;
-    overflow: hidden;
 }
 
 .app-development-container {
     width: 100%;
-    height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
 }
@@ -28,10 +44,10 @@ body {
 .preview-section {
     flex: 1;
     background: white;
-    border-right: 1px solid #e1e5e9;
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    min-width: 300px; /* Minimum width for usability */
+    width: calc(100% - 400px); /* Initial width, will be overridden by JS */
 }
 
 .preview-header {
@@ -42,6 +58,8 @@ body {
     align-items: center;
     background: #f8f9fa;
     flex-shrink: 0;
+    min-height: 76px; /* Increased to accommodate buttons */
+    box-sizing: border-box;
 }
 
 .preview-header h3 {
@@ -84,11 +102,7 @@ body {
     color: #15803d;
 }
 
-.test-btn:hover {
-    background: #fefce8;
-    border-color: #ca8a04;
-    color: #a16207;
-}
+/* Test button styles removed per user request */
 
 .preview-content {
     flex: 1;
@@ -143,14 +157,52 @@ body {
     color: #374151;
 }
 
+/* Resize Divider */
+.resize-divider {
+    width: 6px;
+    background: #f8f9fa;
+    border-left: 1px solid #e1e5e9;
+    border-right: 1px solid #e1e5e9;
+    cursor: col-resize;
+    position: relative;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease;
+}
+
+.resize-divider:hover {
+    background: #e9ecef;
+}
+
+.resize-divider.dragging {
+    background: #007bff;
+}
+
+.resize-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 30px;
+    background: #6c757d;
+    border-radius: 1px;
+    opacity: 0.6;
+}
+
+.resize-divider:hover .resize-handle {
+    opacity: 1;
+}
+
 /* Chat Sidebar */
 .chat-sidebar {
     width: 400px;
+    min-width: 250px; /* Minimum width for usability */
+    max-width: 60%; /* Maximum width to preserve preview area */
     background: white;
     display: flex;
     flex-direction: column;
-    border-left: 1px solid #e1e5e9;
     min-height: 0;
+    flex-shrink: 0;
 }
 
 .chat-header {
@@ -161,6 +213,8 @@ body {
     align-items: center;
     background: #f8f9fa;
     flex-shrink: 0;
+    min-height: 76px; /* Match preview header height */
+    box-sizing: border-box;
 }
 
 .chat-header h3 {
@@ -189,7 +243,7 @@ body {
     overflow-y: auto;
     padding: 16px;
     min-height: 0;
-    max-height: 400px;
+    /* Removed max-height to allow full use of available space */
 }
 
 .chat-message {
@@ -388,6 +442,16 @@ body {
 .image-btn:hover {
     background: #5a6268;
     border-color: #5a6268;
+}
+
+.image-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.image-btn:disabled:hover {
+    background: #6c757d;
+    border-color: #6c757d;
 }
 
 .send-btn {
