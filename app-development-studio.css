@@ -5,16 +5,6 @@
     box-sizing: border-box;
 }
 
-/* Hide standard AI-OS app toolbar at bottom */
-.app-toolbar,
-.window-toolbar,
-.bottom-toolbar,
-#app-toolbar,
-#window-toolbar,
-#bottom-toolbar {
-    display: none !important;
-}
-
 html, body {
     height: 100%;
     overflow: hidden;
